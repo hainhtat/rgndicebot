@@ -139,7 +139,7 @@ def main():
     application.add_handler(telegram.ext.CommandHandler("adjustscore", handlers.adjust_score))
     application.add_handler(telegram.ext.CommandHandler("checkscore", handlers.check_user_score))
     application.add_handler(telegram.ext.CommandHandler("refreshadmins", handlers.refresh_admins))
-    application.add_handler(telegram.ext.CommandHandler("stopgame", handlers.stop_game))
+    application.add_handler(telegram.ext.CommandHandler("stop", handlers.stop_game))
     application.add_handler(telegram.ext.CommandHandler("adminwallets", handlers.admin_wallets))
     application.add_handler(telegram.ext.CommandHandler("share", handlers.handle_share_referral))
      # Admin wallet check
