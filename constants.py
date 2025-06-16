@@ -77,9 +77,10 @@ HARDCODED_ADMINS = [
 # You can get a group's ID by forwarding a message from the group to @userinfobot
 ALLOWED_GROUP_IDS = [
     # -1002295769196,
-    # -1002780424700,
-    -1002718732381,
-    -1002689980361,
+    #-1002780424700, #test gp
+    # -1002718732381,
+    -1002689980361, #main gp
+    
 ]
 
 

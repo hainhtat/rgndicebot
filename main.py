@@ -115,6 +115,7 @@ def main():
 
     # --- MODIFIED: Corrected how BOT_TOKEN is retrieved and referencing ApplicationBuilder ---
     BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+    # BOT_TOKEN="8187381656:AAHnNiWB0Z98uJ5qBvbaXCsNqHHOt1itlGg" #test bot
     # TELEGRAM_BOT_TOKEN = "7451897081:AAF9LAd9nisELQG2xCwcX63xOmG49GAS7vA" # Use os.getenv with the correct variable name
     if not BOT_TOKEN:
         logger.error("Telegram Bot Token not found in environment variables. Please set BOT_TOKEN in your .env file.")
@@ -132,7 +133,7 @@ def main():
     # Command Handlers
     application.add_handler(telegram.ext.CommandHandler("help", handlers.start))
     # application.add_handler(telegram.ext.CommandHandler("ping", handlers.ping))
-    application.add_handler(telegram.ext.CommandHandler("startdice", handlers.start_dice))
+    application.add_handler(telegram.ext.CommandHandler("roll", handlers.start_dice))
     application.add_handler(telegram.ext.CommandHandler("mywallet", handlers.my_wallet))
     application.add_handler(telegram.ext.CommandHandler("leaderboard", handlers.leaderboard))
     application.add_handler(telegram.ext.CommandHandler("history", handlers.history))

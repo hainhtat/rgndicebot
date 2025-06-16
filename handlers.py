@@ -392,14 +392,15 @@ async def close_bets_scheduled(context):
     logger.info(f"close_bets_scheduled: Bets closed for match {game.match_id} in chat {chat_id}. State set to GAME_CLOSED.")
     
     bet_summary_lines = [
-        f"⏳ ပွဲစဉ် {game.match_id}: လောင်းကြေးတွေ ပိတ်လိုက်ပါပြီရှင့်! ⏳\n",
-        "လက်ရှိလောင်းထားတာတွေကတော့:\n"
+        f"⏳ ပွဲစဉ် {game.match_id}: လောင်းကြေးတွေ ပိတ်လိုက်ပါပြီရှင့်! ⏳\n"
+        
     ]
     
     has_bets = False
     for bet_type_key, bets_dict in game.bets.items():
         if bets_dict:
             has_bets = True
+            bet_summary_lines.append(f"လက်ရှိလောင်းထားတာတွေကတော့:\n")
             bet_summary_lines.append(f" {bet_type_key.upper()} {RESULT_EMOJIS[bet_type_key]}:")
             sorted_bets = sorted(bets_dict.items(), key=lambda item: item[1], reverse=True)
             for uid, amount in sorted_bets:
@@ -407,9 +408,9 @@ async def close_bets_scheduled(context):
                 bet_summary_lines.append(f" → {username_display}: {amount} ကျပ်") 
     
     if not has_bets:
-        bet_summary_lines.append("ဒီပွဲမှာ ဘယ်သူမှ လောင်းကြေးထပ်မထားကြပါဘူးရှင့်။ စိတ်မကောင်းစရာပဲနော်。")
+        bet_summary_lines.append("ဒီပွဲမှာ လောင်းကြေးထပ်ထားတယ့်သူ မရှိပါဘူး")
 
-    bet_summary_lines.append("\nအန်စာတုံးလေးတွေ လှိမ့်နေပြီနော်... ရင်ခုန်နေပြီလား!🍀")
+    bet_summary_lines.append("\nအန်စာတုံးလေးတွေ စလှိမ့်ပါပြီ🍀")
 
     try:
         logger.info(f"close_bets_scheduled: Attempting to send 'Bets closed and summary' message for match {game.match_id} to chat {chat_id}.")
@@ -484,10 +485,9 @@ async def roll_and_announce_scheduled(context):
     save_data(global_data)
 
     result_message_text = (
-        f"🎉 ပွဲစဉ် {game.match_id} ရဲ့ အနိုင် အရှုံး ရလဒ်တွေ ထွက်ပေါ်လာပါပြီရှင့်! 🎉\n"
+        f"🎉 ပွဲစဉ် {game.match_id} results 🎉\n\n"
         f"🎲 ရလဒ်ကတော့: {d1} + {d2} = {d1 + d2} ဖြစ်ပါတယ်!\n"
-        f"🏆 အနိုင်ရလောင်းကြေးက: {winning_type.upper()} {RESULT_EMOJIS[winning_type]} ပေါ် လောင်းထားသူတွေ {multiplier} ဆ ပြန်ရမှာနော်!\n\n"
-        f"အနိုင်ရရှိသူတွေကတော့:\n"
+        f"🏆 {winning_type.upper()} {RESULT_EMOJIS[winning_type]} ပေါ် လောင်းထားသူတွေ {multiplier} ဆ ပြန်ရမှာနော်!\n\n"
     )
     
     chat_specific_data = get_chat_data_for_id(chat_id)
@@ -506,9 +506,9 @@ async def roll_and_announce_scheduled(context):
             player_info = stats.get(str(uid)) # Get updated player_info after payout, ensure string key
             
             payout_lines.append(f" ✨ {username_display}: +{winnings} ကျပ် ရရှိပြီး လက်ကျန်ငွေ: {player_info['score']}!") 
-        result_message_text += "\n".join(payout_lines)
+        result_message_text +=  f"အနိုင်ရရှိသူတွေကတော့:\n".join(payout_lines)
     else:
-        result_message_text += " ဒီပွဲမှာ ဘယ်သူမှ ကံမကောင်းခဲ့ဘူးရှင့်! စိတ်မကောင်းစရာပဲနော်。💔"
+        result_message_text += " ဒီပွဲမှာ နိုင်တယ့်သူမရှိပါဘူး💔"
 
     lost_players = []
     for uid in game.participants:
@@ -633,10 +633,10 @@ async def _start_interactive_game_round(chat_id: int, context):
 
     await context.bot.send_message(
         chat_id,
-        f"*🔥 ပွဲစဉ် {match_id}: လောင်းကြေးတွေ ဖွင့်လိုက်ပါပြီရှင့်! 🔥\n\n"
+        f"*🔥 ပွဲစဉ် {match_id}: လောင်းကြေးတွေ ဖွင့်ပါပြီ! 🔥\n\n"
         f"💰  7 ထက်ငယ်ရင် Small 7 ထက်ကြီးရင် Big 7 ဦးဆိုရင်တော့ Lucky ဖြစ်ပါတယ်\n"
-        f"ပွဲတစ်ပွဲတည်းမှာ မတူညီတဲ့ အကြီးအသေးတွေပေါ် အကြိမ်ပေါင်းများစွာ လောင်းကြေးထပ်လို့ရပါတယ်နော်။ \n\n"
-        f"⏳ လောင်းကြေးတွေကို စက္ကန့် ၆၀ အတွင်း ပိတ်တော့မယ်နော်! မြန်မြန်လေး... ကံကြမ္မာက သင့်ကိုစောင့်နေတယ်။ ကံကောင်းပါစေရှင့်! ✨*",
+        f"B 500, small 1000, L5000 စသဖြင့်လောင်းလို့ရပါတယ်နော် \n\n"
+        f"⏳ လောင်းကြေးတွေကို စက္ကန့် ၆၀ အတွင်း ပိတ်တော့မယ်နော်!✨*",
         parse_mode="Markdown", reply_markup=keyboard
     )
     logger.info(f"_start_interactive_game_round: Match {match_id} started successfully in chat {chat_id}. Betting open for 60 seconds.")
@@ -1123,7 +1123,7 @@ async def leaderboard(update: Update, context):
     if not top_players:
         return await update.message.reply_text("*ℹ️ ဒီ Chat ထဲမှာတော့ မှတ်တမ်းတင်ထားတဲ့ ကစားသမားတွေ မရှိသေးဘူးရှင့်။ ဂိမ်းစပြီး လောင်းကြေးထပ်လိုက်မှပဲ အမှတ်တွေတက်လာမှာနော်*", parse_mode="Markdown")
     
-    message_lines = ["🏆 ဒီ Group ထဲက ထိပ်တန်းအနိုင်ရရှိသူတွေကတော့:\n"]
+    message_lines = ["🏆 Rangoon Gent Official Dice Leaderboards\n"]
     for i, player in enumerate(top_players):
         user_display_name = await _get_user_display_name(context, player['user_id'], chat_id)
         message_lines.append(f"{i+1}. {user_display_name}: {player['score']:,}ကျပ် (Referral: {player['referral_points']:,})") 
