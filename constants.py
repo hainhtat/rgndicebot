@@ -66,8 +66,8 @@ def get_admin_data(admin_id: int, chat_id: int, username: str = "Unknown Admin")
 # These users will always have admin privileges regardless of specific group admin status.
 # Replace with actual user IDs for your global admins.
 HARDCODED_ADMINS = [
-    # 1599213796,
-    5965715103, # Replace with a real admin's User ID (e.g., your ID)
+    1599213796,
+    # 5965715103, # Replace with a real admin's User ID (e.g., your ID)
     # Add more admin IDs here if needed
 ]
 
@@ -79,7 +79,7 @@ ALLOWED_GROUP_IDS = [
     # -1002295769196,
     # -1002780424700,
     -1002718732381,
-    -1002689980361
+    -1002689980361,
 ]
 
 

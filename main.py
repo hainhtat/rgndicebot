@@ -1,107 +1,182 @@
 import logging
 import re
-import os # Import os for environment variables
-from telegram import Update, ReplyKeyboardMarkup, KeyboardButton # Import ReplyKeyboardMarkup and KeyboardButton
-from telegram.ext import (
-    ApplicationBuilder, CommandHandler, MessageHandler,
-    CallbackQueryHandler, ChatMemberHandler, filters, ContextTypes
-)
+import os
+import pytz  # For timezone handling
+from datetime import time, datetime, timedelta  # Import datetime for comparison and timedelta for periodic job
+from dotenv import load_dotenv # Import load_dotenv
 
-# Import handler functions from a separate 'handlers.py' file.
-from handlers import (
-    start, start_dice, close_bets_scheduled, roll_and_announce_scheduled,
-    button_callback, handle_bet, show_score, show_stats,
-    leaderboard, history, adjust_score, on_chat_member_update,
-    check_user_score, refresh_admins, stop_game, # Ensure stop_game is imported
-    deposit_points, withdraw_points # Import new handlers for buttons AND commands
-)
+# --- MODIFIED: Import telegram and telegram.ext as whole modules to avoid circular import issues ---
+import telegram
+import telegram.ext
+# --- END MODIFIED ---
+
+# --- MODIFIED: Import the entire handlers module ---
+import handlers
+# --- END MODIFIED ---
+
+# Import global_data from constants
+from constants import global_data, ALLOWED_GROUP_IDS
+
+# NEW: Import file management functions
+from file_manager import load_data, save_data
 
 # Configure logging for the bot.
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.DEBUG # Keep DEBUG level for detailed output
+    level=logging.INFO # Changed to INFO for production, use DEBUG for more detail
 )
 logger = logging.getLogger(__name__)
 
+# Load environment variables from .env file
+load_dotenv()
+
 # Define the custom reply keyboard
-# We use a 2D list to represent rows and columns of buttons.
+# --- UPDATED: Removed "Score" button, "My Wallet" is now the combined command ---
 custom_keyboard = [
-    [KeyboardButton("ငွေထည့်မည်"), KeyboardButton("ငွေထုတ်မည်")],
-    [KeyboardButton("Score"), KeyboardButton("Leaderboard"), KeyboardButton("ကစားနည်း")] # Added 'ကစားနည်း' button
+    [telegram.KeyboardButton("ငွေထည့်မည်"), telegram.KeyboardButton("ငွေထုတ်မည်")],
+    [telegram.KeyboardButton("My Wallet"), telegram.KeyboardButton("Leaderboard"), telegram.KeyboardButton("ကစားနည်း"), telegram.KeyboardButton("Share")]
 ]
-# reply_markup=True makes the keyboard persistent and resize_keyboard=True adjusts its size
-custom_keyboard_markup = ReplyKeyboardMarkup(custom_keyboard, resize_keyboard=True, one_time_keyboard=False)
+custom_keyboard_markup = telegram.ReplyKeyboardMarkup(custom_keyboard, resize_keyboard=True, one_time_keyboard=False)
 
-# New handler for unhandled text messages
-async def unhandled_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Logs all text messages that are not handled by other specific handlers."""
-    if update.message and update.message.text:
-        logger.debug(f"Unhandled text message received: '{update.message.text}' from user {update.effective_user.id} in chat {update.effective_chat.id}")
+# Handler for unhandled text messages...
+async def unhandled_message(update: telegram.Update, context: telegram.ext.ContextTypes.DEFAULT_TYPE):
+    """
+    Logs unhandled text messages but does not reply, to keep the chat clean.
+    """
+    if update.effective_chat.type == "private":
+        # For private chats, provide a friendly message if the command is not understood
+        # --- UPDATED: Wrap entire message in * for bolding ---
+        await update.message.reply_text(
+            f"*ဘယ်လို အကူအညီလိုလဲ မသိဘူးရှင့်။ အောက်က ခလုတ်တွေ ဒါမှမဟုတ် /start ကို နှိပ်ပြီး စတင်နိုင်ပါတယ်နော်။*",
+            reply_markup=custom_keyboard_markup,
+            parse_mode="Markdown"
+        )
+        logger.info(f"Unhandled private message from {update.effective_user.id}: {update.message.text}")
+    else:
+        # For group chats, just log and ignore to avoid spam
+        logger.info(f"Unhandled group message from {update.effective_user.id} in chat {update.effective_chat.id}: {update.message.text}")
 
+
+# --- NEW: Function to add scheduled jobs ---
+# This function will now be called via post_init, ensuring the application is fully initialized.
+async def add_scheduled_jobs(application: telegram.ext.Application): # Explicitly type hint for clarity
+    """
+    Adds all recurring scheduled jobs to the application's job queue.
+    This function is called after the Application is fully initialized.
+    """
+    # --- UPDATED: Changed time to 23:30 UTC for 6:00 AM MMT refill ---
+    # Schedule daily admin point refill at 23:30 UTC, which is 6:00 AM in Myanmar (UTC+6:30)
+    application.job_queue.run_daily(
+        handlers.refill_all_admin_points,
+        time=time(hour=23, minute=30, tzinfo=pytz.utc), 
+        name="daily_admin_refill"
+    )
+    logger.info("Scheduled daily admin point refill job for 06:00 MMT (23:30 UTC).")
+    # --- END UPDATED ---
+
+    # --- NEW: Call force_admin_refill_on_startup immediately after data load ---
+    # This ensures admins are refilled if the bot starts up and they haven't been refilled today
+    # and handles the persistence issue if 'last_refill' was 'null'
+    # MODIFIED: Pass 'application' directly as context. At this point (post_init), application.bot will be initialized.
+    await handlers.force_admin_refill_on_startup(application)
+    logger.info("Completed force_admin_refill_on_startup check.")
+    # --- END NEW ---
+
+    # NEW: Schedule periodic refresh of all group admin lists
+    application.job_queue.run_repeating(
+        handlers.refresh_all_group_admins, # New handler function in handlers.py
+        interval=timedelta(hours=6), # Refresh every 6 hours (adjust as needed)
+        first=datetime.now(pytz.utc) + timedelta(minutes=1), # Start 1 minute after bot startup
+        name="periodic_admin_refresh"
+    )
+    logger.info("Scheduled periodic group admin refresh job.")
+
+    # --- NEW: Schedule periodic data saving ---
+    application.job_queue.run_repeating(
+        lambda context: save_data(global_data), # Use a lambda to pass global_data
+        interval=timedelta(minutes=5), # Save every 5 minutes (adjust as needed)
+        first=datetime.now(pytz.utc) + timedelta(seconds=10), # Start 10 seconds after bot startup
+        name="periodic_data_save"
+    )
+    logger.info("Scheduled periodic data saving job (every 5 minutes).")
+    # --- END NEW ---
+
+
+# MODIFIED: Changed main back to a synchronous function
 def main():
     """
-    The main function that sets up and runs the Telegram bot.
-    Initializes the Application and registers all handlers.
+    Main function to set up and run the Telegram bot.
     """
-    # Initialize the Application with your bot token.
-    # It's highly recommended to load the token from an environment variable for security.
-    # bot_token = os.environ.get("TELEGRAM_BOT_TOKEN") #for production
-    bot_token = "8187381656:AAHnNiWB0Z98uJ5qBvbaXCsNqHHOt1itlGg" #for testing
-    if not bot_token:
-        logger.error("main: TELEGRAM_BOT_TOKEN environment variable not set!")
-        raise ValueError("Bot token is not set. Please set the TELEGRAM_BOT_TOKEN environment variable.")
+    logger.info("Starting bot setup...")
 
+    # Load data from the JSON file at startup
+    load_data(global_data)
+    logger.info("Global data loaded from file.")
 
-    application = ApplicationBuilder().token(bot_token).build()
+    # --- MODIFIED: Corrected how BOT_TOKEN is retrieved and referencing ApplicationBuilder ---
+    BOT_TOKEN = os.getenv("BOT_TOKEN")
+    # TELEGRAM_BOT_TOKEN = "7451897081:AAF9LAd9nisELQG2xCwcX63xOmG49GAS7vA" # Use os.getenv with the correct variable name
+    if not BOT_TOKEN:
+        logger.error("Telegram Bot Token not found in environment variables. Please set BOT_TOKEN in your .env file.")
+        return
     
-    # Register command handlers.
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("startdice", start_dice))
-    # Command handlers for Score and Leaderboard will remain so users can still type commands
-    application.add_handler(CommandHandler("score", show_score))
-    application.add_handler(CommandHandler(["stats","mystats"], show_stats))
-    application.add_handler(CommandHandler("leaderboard", leaderboard))
-    application.add_handler(CommandHandler("history", history))
-    application.add_handler(CommandHandler("adjustscore", adjust_score))
-    application.add_handler(CommandHandler("checkscore", check_user_score))
-    application.add_handler(CommandHandler("refreshadmins", refresh_admins))
-    application.add_handler(CommandHandler("stopgame", stop_game)) # Added handler for stop_game
-    
-    # --- New: Command Handlers for Deposit and Withdraw ---
-    application.add_handler(CommandHandler("deposit", deposit_points))
-    application.add_handler(CommandHandler("withdraw", withdraw_points))
-    # --- End New ---
+    # MODIFIED: Register add_scheduled_jobs as a post_init callback
+    # ApplicationBuilder().build() starts the internal loop and calls post_init
+    application = telegram.ext.ApplicationBuilder().token(BOT_TOKEN).post_init(add_scheduled_jobs).build()
+    # --- END MODIFIED ---
 
-    # Register the CallbackQueryHandler to respond to inline keyboard button presses.
-    application.add_handler(CallbackQueryHandler(button_callback))
-    
-    # Register the MessageHandler for text-based betting commands.
-    bet_regex_pattern = re.compile(r"^(big|b|small|s|lucky|l)\s*(\d+)$", re.IGNORECASE)
-    application.add_handler(MessageHandler(
-        filters.TEXT & filters.Regex(bet_regex_pattern),
-        handle_bet
-    ))
+    # No need for application.create_task(add_scheduled_jobs(application)) here anymore
+    # as it's now handled by post_init callback.
 
-    # --- Message Handlers for the Custom Reply Keyboard Buttons ---
-    # These handlers check for exact text matches from the custom keyboard.
-    application.add_handler(MessageHandler(filters.TEXT & filters.Regex("^ငွေထည့်မည်$"), deposit_points))
-    application.add_handler(MessageHandler(filters.TEXT & filters.Regex("^ငွေထုတ်မည်$"), withdraw_points))
-    application.add_handler(MessageHandler(filters.TEXT & filters.Regex("^Score$"), show_score))
-    application.add_handler(MessageHandler(filters.TEXT & filters.Regex("^Leaderboard$"), leaderboard))
-    application.add_handler(MessageHandler(filters.TEXT & filters.Regex("^ကစားနည်း$"), start)) # Handler for 'ကစားနည်း' button
-    # --- End Custom Keyboard Handlers ---
 
-    # Add a fallback handler for any text messages that are not commands or bets
-    application.add_handler(MessageHandler(
-        filters.TEXT & ~filters.COMMAND, # Filters out messages that are commands
-        unhandled_message
-    ))
+    # Command Handlers
+    application.add_handler(telegram.ext.CommandHandler("start", handlers.start))
+    # application.add_handler(telegram.ext.CommandHandler("ping", handlers.ping))
+    application.add_handler(telegram.ext.CommandHandler("startdice", handlers.start_dice))
+    application.add_handler(telegram.ext.CommandHandler("mywallet", handlers.my_wallet))
+    application.add_handler(telegram.ext.CommandHandler("leaderboard", handlers.leaderboard))
+    application.add_handler(telegram.ext.CommandHandler("history", handlers.history))
+    application.add_handler(telegram.ext.CommandHandler("adjustscore", handlers.adjust_score))
+    application.add_handler(telegram.ext.CommandHandler("checkscore", handlers.check_user_score))
+    application.add_handler(telegram.ext.CommandHandler("refreshadmins", handlers.refresh_admins))
+    application.add_handler(telegram.ext.CommandHandler("stopgame", handlers.stop_game))
+    application.add_handler(telegram.ext.CommandHandler("adminwallets", handlers.admin_wallets))
+    application.add_handler(telegram.ext.CommandHandler("share", handlers.handle_share_referral))
+     # Admin wallet check
 
-    # Register ChatMemberHandler to detect when the bot joins/leaves a chat
-    application.add_handler(ChatMemberHandler(on_chat_member_update, ChatMemberHandler.CHAT_MEMBER))
+    # CallbackQueryHandler for inline buttons
+    application.add_handler(telegram.ext.CallbackQueryHandler(handlers.button_callback))
 
-    logger.info("main: Dice Game Bot started polling...")
-    application.run_polling(allowed_updates=Update.ALL_TYPES)
+    # Message Handlers for text-based betting (e.g., 'b 500', 'big 100')
+    # This regex ensures we only catch messages that look like bet commands.
+    # MODIFIED: Changed telegram.re.IGNORECASE to re.IGNORECASE
+    bet_pattern = re.compile(r"^(big|b|small|s|lucky|l)\s*(\d+)$", re.IGNORECASE)
+    application.add_handler(telegram.ext.MessageHandler(telegram.ext.filters.TEXT & telegram.ext.filters.Regex(bet_pattern), handlers.handle_bet))
+
+    # Message Handlers for the Custom Reply Keyboard Buttons
+    application.add_handler(telegram.ext.MessageHandler(telegram.ext.filters.TEXT & telegram.ext.filters.Regex("^ငွေထည့်မည်$"), handlers.deposit_points))
+    application.add_handler(telegram.ext.MessageHandler(telegram.ext.filters.TEXT & telegram.ext.filters.Regex("^ငွေထုတ်မည်$"), handlers.withdraw_points))
+    application.add_handler(telegram.ext.MessageHandler(telegram.ext.filters.TEXT & telegram.ext.filters.Regex("^My Wallet$"), handlers.my_wallet))
+    application.add_handler(telegram.ext.MessageHandler(telegram.ext.filters.TEXT & telegram.ext.filters.Regex("^Leaderboard$"), handlers.leaderboard))
+    application.add_handler(telegram.ext.MessageHandler(telegram.ext.filters.TEXT & telegram.ext.filters.Regex("^ကစားနည်း$"), handlers.start))
+    application.add_handler(telegram.ext.MessageHandler(telegram.ext.filters.TEXT & telegram.ext.filters.Regex("^Share$"), handlers.handle_share_referral)) # Handler for 'Share' reply keyboard button
+
+    # Fallback handler for any other text messages
+    application.add_handler(telegram.ext.MessageHandler(telegram.ext.filters.TEXT & ~telegram.ext.filters.COMMAND, unhandled_message))
+
+    # ChatMemberHandler to detect when the bot joins/leaves a chat
+    application.add_handler(telegram.ext.ChatMemberHandler(handlers.on_chat_member_update, telegram.ext.ChatMemberHandler.CHAT_MEMBER))
+
+    logger.info("Dice Game Bot started polling...")
+    # MODIFIED: Call run_polling directly, as main is now synchronous
+    application.run_polling(allowed_updates=telegram.Update.ALL_TYPES)
+
+    # --- NEW: Save data on graceful shutdown (optional but good practice) ---
+    logger.info("Bot is shutting down. Attempting to save data to JSON file.")
+    save_data(global_data)
+    # --- END NEW --
 
 if __name__ == "__main__":
+    # MODIFIED: Call main directly, as it's now synchronous
     main()
+
