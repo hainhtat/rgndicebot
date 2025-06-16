@@ -114,7 +114,7 @@ def main():
     logger.info("Global data loaded from file.")
 
     # --- MODIFIED: Corrected how BOT_TOKEN is retrieved and referencing ApplicationBuilder ---
-    BOT_TOKEN = os.getenv("BOT_TOKEN")
+    BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
     # TELEGRAM_BOT_TOKEN = "7451897081:AAF9LAd9nisELQG2xCwcX63xOmG49GAS7vA" # Use os.getenv with the correct variable name
     if not BOT_TOKEN:
         logger.error("Telegram Bot Token not found in environment variables. Please set BOT_TOKEN in your .env file.")
