@@ -130,7 +130,7 @@ def main():
 
 
     # Command Handlers
-    application.add_handler(telegram.ext.CommandHandler("start", handlers.start))
+    application.add_handler(telegram.ext.CommandHandler("help", handlers.start))
     # application.add_handler(telegram.ext.CommandHandler("ping", handlers.ping))
     application.add_handler(telegram.ext.CommandHandler("startdice", handlers.start_dice))
     application.add_handler(telegram.ext.CommandHandler("mywallet", handlers.my_wallet))
