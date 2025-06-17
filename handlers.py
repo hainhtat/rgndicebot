@@ -14,7 +14,7 @@ from telegram.constants import ChatMemberStatus
 
 from game_logic import DiceGame, WAITING_FOR_BETS, GAME_CLOSED, GAME_OVER
 from constants import (
-    global_data, HARDCODED_ADMINS, RESULT_EMOJIS, INITIAL_PLAYER_SCORE,
+    global_data, HARDCODED_ADMINS, SUPER_ADMINS, RESULT_EMOJIS, INITIAL_PLAYER_SCORE,
     ALLOWED_GROUP_IDS, get_chat_data_for_id,
     ADMIN_INITIAL_POINTS, get_admin_data,
     REFERRAL_BONUS_POINTS, MAIN_GAME_GROUP_LINK
@@ -41,7 +41,7 @@ def _escape_text_for_markdown(text: str) -> str:
     # This function is specifically for content *within* a message
     # that is already being wrapped in bold.
     # It focuses on preventing accidental formatting of user-provided strings.
-    
+
     # Order matters: escape backslashes first, then other special characters
     # text = text.replace('\\', '\\\\') # Not strictly needed if we don't have literal backslashes
     special_chars = r'*_`[]()#+-.!' # Escape these if they appear literally
@@ -58,12 +58,12 @@ async def is_admin(chat_id, user_id, context) -> bool:
     is_hardcoded_admin = user_id in HARDCODED_ADMINS
     if is_hardcoded_admin:
         return True
-        
+
     chat_admins = await get_admins_from_chat(chat_id, context)
     is_chat_admin = user_id in chat_admins
-    
+
     logger.debug(f"is_admin: Checking admin status for user {user_id} in chat {chat_id}: is_chat_admin={is_chat_admin}, is_hardcoded_admin={is_hardcoded_admin}")
-    return is_chat_admin or is_chat_admin or is_hardcoded_admin # Redundant is_chat_admin removed here
+    return is_chat_admin or is_hardcoded_admin
 
 async def update_group_admins(chat_id: int, context) -> bool:
     """
@@ -74,10 +74,10 @@ async def update_group_admins(chat_id: int, context) -> bool:
     try:
         admins = await context.bot.get_chat_administrators(chat_id)
         admin_ids = [admin.user.id for admin in admins if not admin.user.is_bot] # Exclude bots
-        
+
         chat_specific_data = get_chat_data_for_id(chat_id)
         chat_specific_data["group_admins"] = admin_ids # Update chat-specific admin list
-        
+
         save_data(global_data)
 
         logger.info(f"update_group_admins: Updated admin list for chat {chat_id}: {admin_ids}")
@@ -95,8 +95,8 @@ def get_or_create_global_user_data(user_id: int, first_name: Optional[str] = Non
         # Initialize with the best available name
         full_name_init = f"{first_name or ''} {last_name or ''}".strip()
         if not full_name_init: # If no first/last name, try username
-            full_name_init = username if username else f"User {user_id}" 
-        
+            full_name_init = username if username else f"User {user_id}"
+
         global_data["global_user_data"][str(user_id)] = {
             "full_name": full_name_init,
             "username": username,
@@ -107,7 +107,7 @@ def get_or_create_global_user_data(user_id: int, first_name: Optional[str] = Non
     else:
         # Update existing user's data with more complete info if available
         user_data = global_data["global_user_data"][str(user_id)]
-        
+
         # Construct new full_name from provided parts
         new_full_name = f"{first_name or ''} {last_name or ''}".strip()
 
@@ -115,12 +115,12 @@ def get_or_create_global_user_data(user_id: int, first_name: Optional[str] = Non
         # or if the current one is a generic placeholder.
         if new_full_name and (user_data.get("full_name") == f"User {user_id}" or user_data.get("full_name") != new_full_name):
             user_data["full_name"] = new_full_name
-        
+
         # Only update username if the new one is not empty and different from current,
         # or if the current one is None.
         if username and (user_data.get("username") is None or user_data.get("username") != username):
             user_data["username"] = username
-            
+
     return global_data["global_user_data"][str(user_id)]
 
 async def _get_user_display_name(context, user_id: int, chat_id: Optional[int] = None) -> str:
@@ -151,7 +151,7 @@ async def _get_user_display_name(context, user_id: int, chat_id: Optional[int] =
         # Update global_user_data with the latest fetched info
         # Pass first_name and last_name explicitly to get_or_create_global_user_data
         get_or_create_global_user_data(user_id, fetched_user.first_name, fetched_user.last_name, username=fetched_user.username)
-        
+
         # Decide display format
         if current_full_name and current_username:
             return f"{current_full_name} (@{current_username})"
@@ -169,7 +169,7 @@ async def _get_user_display_name(context, user_id: int, chat_id: Optional[int] =
             return cached_full_name
         elif cached_username:
             return f"@{cached_username}"
-    
+
     return f"User {user_id}" # Final fallback if no data at all
 
 async def get_admins_from_chat(chat_id: int, context: telegram.ext.ContextTypes.DEFAULT_TYPE) -> list[int]:
@@ -183,7 +183,7 @@ async def get_admins_from_chat(chat_id: int, context: telegram.ext.ContextTypes.
     try:
         chat_administrators = await context.bot.get_chat_administrators(chat_id)
         admin_user_ids = [admin.user.id for admin in chat_administrators if not admin.user.is_bot]
-        
+
         # Add hardcoded admins to the list
         admin_user_ids.extend(HARDCODED_ADMINS)
         admin_user_ids = list(set(admin_user_ids)) # Remove duplicates
@@ -191,7 +191,7 @@ async def get_admins_from_chat(chat_id: int, context: telegram.ext.ContextTypes.
         # Cache the fetched admins
         chat_data["group_admins"] = admin_user_ids
         save_data(global_data) # Save global data after updating chat_data
-        
+
         logger.info(f"Fetched and cached admins for chat {chat_id}: {admin_user_ids}")
         return admin_user_ids
     except telegram.error.TelegramError as e:
@@ -215,17 +215,17 @@ async def refill_all_admin_points(context):
     who has ever used an admin command. This ensures all active admins are covered.
     """
     logger.info("refill_all_admin_points: Starting daily admin point refill job.")
-    
+
     current_active_admin_ids = set(HARDCODED_ADMINS)
 
     for chat_id_str in ALLOWED_GROUP_IDS:
         chat_id = int(chat_id_str)
-        chat_admins = global_data["all_chat_data"].get(chat_id_str, {}).get("group_admins", [])
+        chat_admins = global_data["all_chat_data"].get(str(chat_id), {}).get("group_admins", [])
         current_active_admin_ids.update(chat_admins)
 
     refilled_count = 0
     updated_username_count = 0
-    
+
     for admin_id in current_active_admin_ids:
         if admin_id == context.bot.id:
             logger.debug(f"Skipping bot's own ID {admin_id} in admin refill.")
@@ -233,65 +233,91 @@ async def refill_all_admin_points(context):
 
         admin_profile = global_data["admin_data"].get(str(admin_id))
         if not admin_profile:
-            admin_profile = get_admin_data(admin_id, -1, username="Unknown Admin") # Pass dummy chat_id, only general profile needed
+            # This case should be rare if admins interact, but good for bootstrapping
+            admin_profile = {
+                "username": f"Admin {admin_id}",
+                "chat_points": {}
+            }
+            global_data["admin_data"][str(admin_id)] = admin_profile
             logger.info(f"refill_all_admin_points: Initialized general admin profile for {admin_id}.")
 
-        fetched_display_name = await _get_user_display_name(context, admin_id) 
-        
-        global_user_info = global_data["global_user_data"].get(str(admin_id))
-        if global_user_info and global_user_info.get("username") and admin_profile.get("username") != global_user_info["username"]:
-            admin_profile["username"] = global_user_info["username"]
-            updated_username_count += 1
-            logger.debug(f"Updated username for admin {admin_id} to '{global_user_info['username']}'.")
-        elif not admin_profile.get("username") and global_user_info and global_user_info.get("full_name"):
-            admin_profile["username"] = global_user_info["full_name"] 
-            updated_username_count += 1
-            logger.debug(f"Updated username for admin {admin_id} to '{global_user_info['full_name']}' (from full_name).")
 
-        for chat_id_str_inner in ALLOWED_GROUP_IDS:
-            chat_id_inner = int(chat_id_str_inner)
-            
+        # Try to update username from global_user_data if available
+        global_user_info = global_data["global_user_data"].get(str(admin_id))
+        if global_user_info:
+            latest_username = global_user_info.get("username") or global_user_info.get("full_name")
+            if latest_username and admin_profile.get("username") != latest_username:
+                admin_profile["username"] = latest_username
+                updated_username_count += 1
+                logger.debug(f"Updated username for admin {admin_id} to '{latest_username}'.")
+
+
+        for chat_id_inner_str in ALLOWED_GROUP_IDS:
+            chat_id_inner = int(chat_id_inner_str)
+
             admin_data_for_chat = get_admin_data(admin_id, chat_id_inner, username=admin_profile.get("username"))
 
-            last_refill = admin_data_for_chat["last_refill"]
-            
+            last_refill = admin_data_for_chat.get("last_refill")
+
             needs_refill = False
             if last_refill is None:
                 needs_refill = True
                 logger.info(f"Admin {admin_id} in chat {chat_id_inner} has no last_refill timestamp. Refilling.")
             else:
-                today = datetime.now(pytz.utc).date()
-                if isinstance(last_refill, datetime):
-                    last_refill_date = last_refill.date()
-                    if today > last_refill_date:
+                # Ensure last_refill is a datetime object before comparison
+                if isinstance(last_refill, str):
+                    try:
+                        last_refill = datetime.fromisoformat(last_refill)
+                    except ValueError:
+                        logger.warning(f"Could not parse last_refill string '{last_refill}' for admin {admin_id}. Refilling.")
                         needs_refill = True
-                        logger.info(f"Admin {admin_id} in chat {chat_id_inner} last refilled on {last_refill_date}. Refilling for {today}.")
+                        last_refill = None # Reset to avoid repeated errors
+
+                if last_refill:
+                     # Make sure we compare timezone-aware with timezone-aware
+                    last_refill_utc = last_refill.astimezone(pytz.utc) if last_refill.tzinfo else pytz.utc.localize(last_refill)
+                    today_utc = datetime.now(pytz.utc).date()
+
+                    if today_utc > last_refill_utc.date():
+                        needs_refill = True
+                        logger.info(f"Admin {admin_id} in chat {chat_id_inner} last refilled on {last_refill_utc.date()}. Refilling for {today_utc}.")
                     else:
-                        logger.info(f"Admin {admin_id} in chat {chat_id_inner} already refilled today ({last_refill_date}). Skipping.")
-                else:
-                    logger.warning(f"Admin {admin_id} in chat {chat_id_inner} last_refill is not a datetime object: {admin_data_for_chat['last_refill']}. Forcing refill.") # Corrected variable name
-                    needs_refill = True 
+                        logger.info(f"Admin {admin_id} in chat {chat_id_inner} already refilled today ({last_refill_utc.date()}). Skipping.")
+
 
             if needs_refill:
                 admin_data_for_chat["points"] = ADMIN_INITIAL_POINTS
                 admin_data_for_chat["last_refill"] = datetime.now(pytz.utc)
                 refilled_count += 1
                 logger.debug(f"Refilled points for admin {admin_id} in chat {chat_id_inner}. New balance: {admin_data_for_chat['points']}.")
-                
+
                 try:
+                    # Use the most up-to-date username for notification
+                    notification_username = admin_profile.get('username', f'Admin {admin_id}')
+                    chat_title = "Unknown Chat"
+                    try:
+                        chat_obj = await context.bot.get_chat(chat_id_inner)
+                        chat_title = chat_obj.title or chat_obj.first_name
+                    except Exception as e:
+                        logger.warning(f"Could not get chat title for chat ID {chat_id_inner}: {e}")
+
                     await context.bot.send_message(
-                        chat_id=chat_id_inner,
-                        text=f"👑 Admin *{_escape_text_for_markdown(admin_profile.get('username', f'Admin {admin_id}'))}*, "
-                             f"သင့် Admin Points ကို {ADMIN_INITIAL_POINTS:,} မှတ် ပြန်လည်ဖြည့်ပေးလိုက်ပါပြီ။ "
-                             f"({chat_id_inner} အတွက်)",
+                        chat_id=admin_id, # Send DM to admin
+                        text=f"👑 Admin *{_escape_text_for_markdown(notification_username)}*, "
+                             f"your Admin Points for the group '{_escape_text_for_markdown(chat_title)}' have been refilled to {ADMIN_INITIAL_POINTS:,}.",
                         parse_mode="Markdown"
                     )
                 except telegram.error.BadRequest as e:
-                    logger.warning(f"Could not send refill notification to admin {admin_id} in chat {chat_id_inner}: {e}")
-        
-    save_data(global_data)
+                    logger.warning(f"Could not send refill notification DM to admin {admin_id} for chat {chat_id_inner}: {e}")
+                except Exception as e:
+                    logger.error(f"Unexpected error sending refill notification DM to admin {admin_id}: {e}")
+
+
+    if refilled_count > 0 or updated_username_count > 0:
+        save_data(global_data)
 
     logger.info(f"refill_all_admin_points: Successfully refilled {ADMIN_INITIAL_POINTS:,} points for {refilled_count} instances of admins across chats. Updated {updated_username_count} admin usernames.")
+
 
 async def force_admin_refill_on_startup(context):
     """
@@ -300,55 +326,11 @@ async def force_admin_refill_on_startup(context):
     where the bot might have been offline or the scheduled job missed.
     """
     logger.info("force_admin_refill_on_startup: Checking for pending admin refills on bot startup.")
-    
-    current_active_admin_ids = set(HARDCODED_ADMINS)
-    for chat_id_str in ALLOWED_GROUP_IDS:
-        chat_admins = global_data["all_chat_data"].get(chat_id_str, {}).get("group_admins", [])
-        current_active_admin_ids.update(chat_admins)
+    # This function now acts as a wrapper for the main refill logic
+    # to ensure consistency.
+    await refill_all_admin_points(context)
+    logger.info("force_admin_refill_on_startup: Check complete.")
 
-    refilled_count = 0
-    today = datetime.now(pytz.utc).date()
-
-    for admin_id in current_active_admin_ids:
-        if admin_id == context.bot.id:
-            continue
-
-        admin_profile = global_data["admin_data"].get(str(admin_id))
-        if not admin_profile:
-            admin_profile = get_admin_data(admin_id, -1, username="Unknown Admin")
-            logger.info(f"force_admin_refill_on_startup: Initialized general admin profile for {admin_id}.")
-
-        for chat_id_str_inner in ALLOWED_GROUP_IDS:
-            chat_id_inner = int(chat_id_str_inner)
-            admin_data_for_chat = get_admin_data(admin_id, chat_id_inner, username=admin_profile.get("username"))
-            
-            last_refill = admin_data_for_chat["last_refill"]
-            
-            needs_refill_now = False
-            if last_refill is None:
-                needs_refill_now = True
-                logger.info(f"Startup refill: Admin {admin_id} in chat {chat_id_inner} has no last_refill timestamp. Refilling.")
-            elif isinstance(last_refill, datetime):
-                if today > last_refill.date():
-                    needs_refill_now = True
-                    logger.info(f"Startup refill: Admin {admin_id} in chat {chat_id_inner} last refilled on {last_refill.date()}. Refilling for {today}.")
-                else:
-                    logger.debug(f"Startup refill: Admin {admin_id} in chat {chat_id_inner} already refilled today ({last_refill.date()}). Skipping.")
-            else:
-                logger.warning(f"Startup refill: Admin {admin_id} in chat {chat_id_inner} last_refill is not a datetime object: {last_refill}. Forcing refill.")
-                needs_refill_now = True
-
-            if needs_refill_now:
-                admin_data_for_chat["points"] = ADMIN_INITIAL_POINTS
-                admin_data_for_chat["last_refill"] = datetime.now(pytz.utc)
-                refilled_count += 1
-                logger.info(f"Startup refill: Refilled points for admin {admin_id} in chat {chat_id_inner}. New balance: {admin_data_for_chat['points']}.")
-            
-    if refilled_count > 0:
-        save_data(global_data)
-        logger.info(f"force_admin_refill_on_startup: Completed startup refills for {refilled_count} admins across chats.")
-    else:
-        logger.info("force_admin_refill_on_startup: No admins needed refill on startup.")
 
 
 async def refresh_all_group_admins(context: telegram.ext.ContextTypes.DEFAULT_TYPE):
@@ -374,12 +356,18 @@ async def close_bets_scheduled(context):
     game = job.data
     chat_id = game.chat_id
 
+    # Check if chat_id is an integer; if not, it might be from an old job.
+    if not isinstance(chat_id, int):
+        logger.warning(f"close_bets_scheduled: Received non-integer chat_id '{chat_id}'. Skipping job.")
+        return
+
+
     if chat_id not in ALLOWED_GROUP_IDS:
         logger.info(f"close_bets_scheduled: Ignoring action from disallowed chat ID: {chat_id}")
         return
 
     logger.info(f"close_bets_scheduled: Job called for match {game.match_id} in chat {chat_id}.")
-    
+
     current_game_in_context = context.chat_data.get(chat_id, {}).get("current_game")
     if chat_id in context.chat_data and "close_bets_job" in context.chat_data[chat_id]:
         del context.chat_data[chat_id]["close_bets_job"]
@@ -390,27 +378,26 @@ async def close_bets_scheduled(context):
 
     game.state = GAME_CLOSED
     logger.info(f"close_bets_scheduled: Bets closed for match {game.match_id} in chat {chat_id}. State set to GAME_CLOSED.")
-    
+
     bet_summary_lines = [
-        f"⏳ ပွဲစဉ် {game.match_id}: လောင်းကြေးတွေ ပိတ်လိုက်ပါပြီရှင့်! ⏳\n"
-        
+        f"⏳ ပွဲစဉ် {game.match_id}: လောင်းကြေးတွေ ပိတ်လိုက်ပါပြီရှင့်! ⏳\n",
+        "လက်ရှိလောင်းထားတာတွေကတော့:\n"
     ]
-    
+
     has_bets = False
     for bet_type_key, bets_dict in game.bets.items():
         if bets_dict:
             has_bets = True
-            bet_summary_lines.append(f"လက်ရှိလောင်းထားတာတွေကတော့:\n")
             bet_summary_lines.append(f" {bet_type_key.upper()} {RESULT_EMOJIS[bet_type_key]}:")
             sorted_bets = sorted(bets_dict.items(), key=lambda item: item[1], reverse=True)
             for uid, amount in sorted_bets:
                 username_display = await _get_user_display_name(context, uid, chat_id)
-                bet_summary_lines.append(f" → {username_display}: {amount} ကျပ်") 
-    
-    if not has_bets:
-        bet_summary_lines.append("ဒီပွဲမှာ လောင်းကြေးထပ်ထားတယ့်သူ မရှိပါဘူး")
+                bet_summary_lines.append(f" → {username_display}: {amount} ကျပ်")
 
-    bet_summary_lines.append("\nအန်စာတုံးလေးတွေ စလှိမ့်ပါပြီ🍀")
+    if not has_bets:
+        bet_summary_lines.append("ဒီပွဲမှာ ဘယ်သူမှ လောင်းကြေးထပ်မထားကြပါဘူးရှင့်။ စိတ်မကောင်းစရာပဲနော်。")
+
+    bet_summary_lines.append("\nအန်စာတုံးလေးတွေ လှိမ့်နေပြီနော်... ရင်ခုန်နေပြီလား!�")
 
     try:
         logger.info(f"close_bets_scheduled: Attempting to send 'Bets closed and summary' message for match {game.match_id} to chat {chat_id}.")
@@ -440,12 +427,17 @@ async def roll_and_announce_scheduled(context):
     game = job.data
     chat_id = game.chat_id
 
+    if not isinstance(chat_id, int):
+        logger.warning(f"roll_and_announce_scheduled: Received non-integer chat_id '{chat_id}'. Skipping job.")
+        return
+
+
     if chat_id not in ALLOWED_GROUP_IDS:
         logger.info(f"roll_and_announce_scheduled: Ignoring action from disallowed chat ID: {chat_id}")
         return
 
     logger.info(f"roll_and_announce_scheduled: Job called for match {game.match_id} in chat {chat_id}.")
-    
+
     current_game_in_context = context.chat_data.get(chat_id, {}).get("current_game")
     if chat_id in context.chat_data and "roll_and_announce_job" in context.chat_data[chat_id]:
         del context.chat_data[chat_id]["roll_and_announce_job"]
@@ -456,7 +448,7 @@ async def roll_and_announce_scheduled(context):
     if game.state == GAME_OVER:
         logger.warning(f"roll_and_announce_scheduled: Skipping action for match {game.match_id} as it's already GAME_OVER.")
         return
-    
+
     game.state = GAME_OVER
 
     d1, d2 = 0, 0
@@ -485,18 +477,19 @@ async def roll_and_announce_scheduled(context):
     save_data(global_data)
 
     result_message_text = (
-        f"🎉 ပွဲစဉ် {game.match_id} results 🎉\n\n"
+        f"🎉 ပွဲစဉ် {game.match_id} ရဲ့ အနိုင် အရှုံး ရလဒ်တွေ ထွက်ပေါ်လာပါပြီရှင့်! 🎉\n"
         f"🎲 ရလဒ်ကတော့: {d1} + {d2} = {d1 + d2} ဖြစ်ပါတယ်!\n"
-        f"🏆 {winning_type.upper()} {RESULT_EMOJIS[winning_type]} ပေါ် လောင်းထားသူတွေ {multiplier} ဆ ပြန်ရမှာနော်!\n\n"
+        f"🏆 အနိုင်ရလောင်းကြေးက: {winning_type.upper()} {RESULT_EMOJIS[winning_type]} ပေါ် လောင်းထားသူတွေ {multiplier} ဆ ပြန်ရမှာနော်!\n\n"
+        f"အနိုင်ရရှိသူတွေကတော့:\n"
     )
-    
+
     chat_specific_data = get_chat_data_for_id(chat_id)
     stats = chat_specific_data["player_stats"]
-    
+
     if individual_payouts:
         payout_lines = []
         sorted_payouts = sorted(
-            individual_payouts.items(), 
+            individual_payouts.items(),
             key=lambda item: (item[1], stats.get(str(item[0]), {}).get('username', f"User {item[0]}")), # Ensure string key
             reverse=True
         )
@@ -504,11 +497,11 @@ async def roll_and_announce_scheduled(context):
         for uid, winnings in sorted_payouts:
             username_display = await _get_user_display_name(context, uid, chat_id)
             player_info = stats.get(str(uid)) # Get updated player_info after payout, ensure string key
-            
-            payout_lines.append(f" ✨ {username_display}: +{winnings} ကျပ် ရရှိပြီး လက်ကျန်ငွေ: {player_info['score']}!") 
-        result_message_text +=  f"အနိုင်ရရှိသူတွေကတော့:\n".join(payout_lines)
+
+            payout_lines.append(f" ✨ {username_display}: +{winnings} ကျပ် ရရှိပြီး လက်ကျန်ငွေ: {player_info['score']}!")
+        result_message_text += "\n".join(payout_lines)
     else:
-        result_message_text += " ဒီပွဲမှာ နိုင်တယ့်သူမရှိပါဘူး💔"
+        result_message_text += " ဒီပွဲမှာ ဘယ်သူမှ ကံမကောင်းခဲ့ဘူးရှင့်! စိတ်မကောင်းစရာပဲနော်。💔"
 
     lost_players = []
     for uid in game.participants:
@@ -516,9 +509,9 @@ async def roll_and_announce_scheduled(context):
             username_display = await _get_user_display_name(context, uid, chat_id)
             player_info = stats.get(str(uid)) # Ensure string key
             if player_info:
-                lost_players.append(f" 💀 {username_display} (လက်ကျန်ငွေ: {player_info['score']}) - ကံမကောင်းခဲ့ဘူးရှင့်!") 
+                lost_players.append(f" 💀 {username_display} (လက်ကျန်ငွေ: {player_info['score']}) - ကံမကောင်းခဲ့ဘူးရှင့်!")
             else:
-                lost_players.append(f" 💀 {username_display} (ရမှတ်မတွေ့ပါ) - ဘယ်သူဘယ်ဝါမှန်းမသိဘဲ ရှုံးသွားတာလားရှင့်!") 
+                lost_players.append(f" 💀 {username_display} (ရမှတ်မတွေ့ပါ) - ဘယ်သူဘယ်ဝါမှန်းမသိဘဲ ရှုံးသွားတာလားရှင့်!")
 
     if lost_players:
         result_message_text += "\n\nဒီပွဲမှာ ကံဆိုးခဲ့ကြသူတွေကတော့:\n"
@@ -532,7 +525,7 @@ async def roll_and_announce_scheduled(context):
         logger.error(f"roll_and_announce_scheduled: Error sending 'Results' message for chat {chat_id}: {e}", exc_info=True)
 
     chat_specific_data = get_chat_data_for_id(chat_id)
-    
+
     if not game.participants:
         chat_specific_data["consecutive_idle_matches"] += 1
         logger.info(f"No participants in match {game.match_id}. Consecutive idle matches for chat {chat_id}: {chat_specific_data['consecutive_idle_matches']}")
@@ -554,7 +547,7 @@ async def roll_and_announce_scheduled(context):
         context.chat_data[chat_id].pop("current_game", None)
         context.chat_data[chat_id].pop("num_matches_total", None)
         context.chat_data[chat_id].pop("current_match_index", None)
-        
+
         job_names_to_remove = [
             f"next_game_{chat_id}",
             f"close_bets_{chat_id}_{game.match_id}",
@@ -569,7 +562,7 @@ async def roll_and_announce_scheduled(context):
                     logger.info(f"Removed scheduled job {job_name} for chat {chat_id}.")
                 except JobLookupError:
                     logger.warning(f"JobLookupError for '{job_name}' during auto-stop for chat {chat_id}. It might have already run or been cancelled.")
-        
+
         save_data(global_data)
         return
 
@@ -615,7 +608,7 @@ async def _start_interactive_game_round(chat_id: int, context):
     chat_specific_data = get_chat_data_for_id(chat_id)
     match_id = chat_specific_data["match_counter"]
     chat_specific_data["match_counter"] += 1
-    
+
     save_data(global_data)
 
     game = DiceGame(match_id, chat_id)
@@ -633,10 +626,10 @@ async def _start_interactive_game_round(chat_id: int, context):
 
     await context.bot.send_message(
         chat_id,
-        f"*🔥 ပွဲစဉ် {match_id}: လောင်းကြေးတွေ ဖွင့်ပါပြီ! 🔥\n\n"
+        f"*🔥 ပွဲစဉ် {match_id}: လောင်းကြေးတွေ ဖွင့်လိုက်ပါပြီရှင့်! 🔥\n\n"
         f"💰  7 ထက်ငယ်ရင် Small 7 ထက်ကြီးရင် Big 7 ဦးဆိုရင်တော့ Lucky ဖြစ်ပါတယ်\n"
-        f"B 500, small 1000, L5000 စသဖြင့်လောင်းလို့ရပါတယ်နော် \n\n"
-        f"⏳ လောင်းကြေးတွေကို စက္ကန့် ၆၀ အတွင်း ပိတ်တော့မယ်နော်!✨*",
+        f"ပွဲတစ်ပွဲတည်းမှာ မတူညီတဲ့ အကြီးအသေးတွေပေါ် အကြိမ်ပေါင်းများစွာ လောင်းကြေးထပ်လို့ရပါတယ်နော်။ \n\n"
+        f"⏳ လောင်းကြေးတွေကို စက္ကန့် ၆၀ အတွင်း ပိတ်တော့မယ်နော်! မြန်မြန်လေး... ကံကြမ္မာက သင့်ကိုစောင့်နေတယ်။ ကံကောင်းပါစေရှင့်! ✨*",
         parse_mode="Markdown", reply_markup=keyboard
     )
     logger.info(f"_start_interactive_game_round: Match {match_id} started successfully in chat {chat_id}. Betting open for 60 seconds.")
@@ -661,7 +654,7 @@ async def _manage_game_sequence(context):
     if chat_id not in ALLOWED_GROUP_IDS:
         logger.info(f"_manage_game_sequence: Ignoring action from disallowed chat ID: {chat_id}")
         return
-    
+
     chat_data_for_sequence = context.chat_data.get(chat_id, {})
     num_matches_total = chat_data_for_sequence.get("num_matches_total")
     current_match_index = chat_data_for_sequence.get("current_match_index")
@@ -692,7 +685,7 @@ async def _manage_game_sequence(context):
                     logger.warning(f"_manage_game_sequence: JobLookupError for 'next_game_job' during sequence cleanup for chat {chat_id}.")
                 finally:
                     del context.chat_data[chat_id]["next_game_job"]
-        
+
         save_data(global_data)
 
         await context.bot.send_message(
@@ -722,6 +715,10 @@ async def my_wallet(update: Update, context):
     --- UPDATED: Display referral points from global_user_data and use _get_user_display_name ---
     """
     chat_id = update.effective_chat.id
+    if not isinstance(chat_id, int):
+        logger.warning(f"my_wallet: Received non-integer chat_id '{chat_id}'.")
+        return
+
     if chat_id not in ALLOWED_GROUP_IDS:
         logger.info(f"my_wallet: Ignoring command from disallowed chat ID: {chat_id}")
         await update.message.reply_text(f"*Sorry, this bot is not authorized to run in this group ({_escape_text_for_markdown(str(chat_id))}). Please add it to an allowed group.*", parse_mode="Markdown")
@@ -735,7 +732,7 @@ async def my_wallet(update: Update, context):
     logger.info(f"my_wallet: User {user_id} requested wallet and stats information in chat {chat_id}")
 
     global_user_info = get_or_create_global_user_data(user_id, first_name_from_update, last_name_from_update, username=username_from_update)
-    
+
     user_display_name = await _get_user_display_name(context, user_id, chat_id)
 
     if await is_admin(chat_id, user_id, context):
@@ -752,7 +749,7 @@ async def my_wallet(update: Update, context):
 
     chat_specific_data = get_chat_data_for_id(chat_id)
     player_stats = chat_specific_data["player_stats"].get(str(user_id))
-    
+
     if player_stats:
         if player_stats.get("username") != username_from_update:
             player_stats["username"] = username_from_update or first_name_from_update
@@ -765,15 +762,15 @@ async def my_wallet(update: Update, context):
             "last_active": datetime.now(),
         }
         chat_specific_data["player_stats"][str(user_id)] = player_stats
-    
+
     referral_points = global_user_info.get("referral_points", 0)
 
     save_data(global_data)
 
-    message_lines = [f"👤 {user_display_name} ၏ stats:\n"] 
+    message_lines = [f"👤 {user_display_name} ၏ stats:\n"]
 
     total_games = player_stats['wins'] + player_stats['losses']
-    win_rate = 0.0 
+    win_rate = 0.0
     if total_games > 0:
         win_rate = (player_stats['wins'] / total_games) * 100
 
@@ -795,6 +792,9 @@ async def admin_wallets(update: Update, context):
     Displays usernames instead of IDs, and ensures no duplicate entries.
     """
     chat_id = update.effective_chat.id
+    if not isinstance(chat_id, int): return
+
+
     requester_user_id = update.effective_user.id
     requester_username = update.effective_user.username
     requester_first_name = update.effective_user.first_name
@@ -815,7 +815,7 @@ async def admin_wallets(update: Update, context):
     save_data(global_data)
 
     message_lines = [f"👑 Admin Wallet Balances👑\n"] # Updated title
-    
+
     current_chat_admin_info = []
 
     # Only get admins for the current chat where the command was issued
@@ -827,16 +827,16 @@ async def admin_wallets(update: Update, context):
 
         # Get admin data specifically for this admin in *this* chat
         admin_data_for_chat = get_admin_data(admin_id, chat_id)
-        
+
         admin_display_name = await _get_user_display_name(context, admin_id)
-        
+
         current_chat_admin_info.append({
             "admin_id": admin_id,
             "chat_id": chat_id, # Always the current chat_id
             "display_name": admin_display_name,
             "points": admin_data_for_chat.get("points", 0)
         })
-    
+
     if not current_chat_admin_info:
         message_lines.append("လက်ရှိမှာ Admin အချက်အလက် မရှိသေးပါဘူးရှင့်။ Admin တွေ Admin commands ကို အသုံးပြုလိုက်မှ အချက်အလက်တွေ စတင်စုဆောင်းပါလိမ့်မယ်။")
     else:
@@ -845,7 +845,7 @@ async def admin_wallets(update: Update, context):
 
         for i, entry in enumerate(sorted_admins):
             message_lines.append(f"\n{i+1}. {entry['display_name']} (ID: {_escape_text_for_markdown(str(entry['admin_id']))}): {entry['points']:,} ကျပ်")
-    
+
     await update.message.reply_text(f"*{'\n'.join(message_lines)}*", parse_mode="Markdown")
 
 async def start_dice(update: Update, context):
@@ -857,6 +857,8 @@ async def start_dice(update: Update, context):
     - If no number is provided, starts a single interactive betting round.
     """
     chat_id = update.effective_chat.id
+    if not isinstance(chat_id, int): return
+
     if chat_id not in ALLOWED_GROUP_IDS:
         logger.info(f"start_dice: Ignoring command from disallowed chat ID: {chat_id}")
         await update.message.reply_text(f"*Sorry, this bot is not authorized to run in this group ({_escape_text_for_markdown(str(chat_id))}). Please add it to an allowed group.*", parse_mode="Markdown")
@@ -872,9 +874,9 @@ async def start_dice(update: Update, context):
     get_admin_data(user_id, chat_id, username_from_update or first_name_from_update)
     get_or_create_global_user_data(user_id, first_name_from_update, last_name_from_update, username=username_from_update)
     save_data(global_data)
-    
+
     chat_specific_data = get_chat_data_for_id(chat_id)
-    if not chat_specific_data["group_admins"]:
+    if not chat_specific_data.get("group_admins"):
         logger.info(f"start_dice: Admin list for chat {chat_id} is empty or not loaded. Attempting to update it now.")
         if not await update_group_admins(chat_id, context):
             await update.message.reply_text(
@@ -886,12 +888,12 @@ async def start_dice(update: Update, context):
     if not await is_admin(chat_id, user_id, context):
         logger.warning(f"start_dice: User {user_id} is not an admin and tried to start a game in chat {chat_id}.")
         return await update.message.reply_text("*❌ Admin တွေပဲ အန်စာတုံးဂိမ်းအသစ်ကို စလို့ရနိုင်တာပါနော်。*", parse_mode="Markdown")
-    
+
     current_game = context.chat_data.get(chat_id, {}).get("current_game")
     if current_game and current_game.state != GAME_OVER:
         logger.warning(f"start_dice: Game already active in chat {chat_id}. State: {current_game.state}")
         return await update.message.reply_text("*⚠️ ဟိတ်! ဂိမ်းလေး စနေပြီရှင့်။ အရင်ပွဲလေး ပြီးသွားမှပဲ အသစ်စလို့ရမယ်နော်။ နည်းနည်းလေး စောင့်ပေးပါဦး။*", parse_mode="Markdown")
-    
+
     if chat_id in context.chat_data and context.chat_data[chat_id].get("num_matches_total") is not None:
          return await update.message.reply_text("*⚠️ ပွဲစဉ်တွေ ဆက်တိုက် စထားပြီးပြီနော်။ လက်ရှိပွဲစဉ်တွေ ပြီးဆုံးသွားတဲ့အထိ စောင့်ပေးပါဦးနော်。*", parse_mode="Markdown")
 
@@ -903,7 +905,7 @@ async def start_dice(update: Update, context):
             num_matches_requested = int(context.args[0])
             if num_matches_requested <= 0:
                 return await update.message.reply_text("*❌ ပွဲအရေအတွက်က ဂဏန်းအပြုသဘော (positive integer) ဖြစ်ရမယ်နော်。*", parse_mode="Markdown")
-            elif num_matches_requested > 100: 
+            elif num_matches_requested > 100:
                 return await update.message.reply_text("*❌ တစ်ခါတည်း အန်စာတုံးပွဲ ၁၀၀ ပွဲအထိပဲ စီစဉ်လို့ရပါသေးတယ်နော်。*", parse_mode="Markdown")
         except ValueError:
             await update.message.reply_text(
@@ -942,21 +944,27 @@ async def button_callback(update: Update, context):
     """
     Handles inline keyboard button presses for placing bets.
     """
-    chat_id = update.effective_chat.id
-    if chat_id not in ALLOWED_GROUP_IDS:
-        logger.info(f"button_callback: Ignoring callback from disallowed chat ID: {chat_id}")
-        await update.callback_query.answer(f"*Sorry, this bot is not authorized to run in this group ({_escape_text_for_markdown(str(chat_id))}).*", show_alert=True)
+    query = update.callback_query
+    if not query or not query.message:
         return
 
-    query = update.callback_query
-    await query.answer() 
-    
+    chat_id = query.message.chat_id
+    if not isinstance(chat_id, int): return
+
+
+    if chat_id not in ALLOWED_GROUP_IDS:
+        logger.info(f"button_callback: Ignoring callback from disallowed chat ID: {chat_id}")
+        await query.answer(f"Sorry, this bot is not authorized to run in this group ({_escape_text_for_markdown(str(chat_id))}).", show_alert=True)
+        return
+
+    await query.answer()
+
     data = query.data
     user_id = query.from_user.id
     username_from_query = query.from_user.username
     first_name_from_query = query.from_user.first_name
     last_name_from_query = query.from_user.last_name
-    
+
     get_or_create_global_user_data(user_id, first_name_from_query, last_name_from_query, username=username_from_query)
     save_data(global_data)
 
@@ -968,31 +976,31 @@ async def button_callback(update: Update, context):
             parse_mode="Markdown"
         )
     game = context.chat_data.get(chat_id, {}).get("current_game")
-    
+
     if not game:
         user_display_name = await _get_user_display_name(context, user_id, chat_id)
         logger.info(f"button_callback: User {user_id} ({user_display_name}) tried to bet via button but no game active in chat {chat_id}.")
         return await query.message.reply_text(
-            f"*⚠️ {user_display_name} ရေ၊ အန်စာတုံးဂိမ်းက မစသေးဘူးရှင့်။ Admin တစ်ယောက်က စပေးမှ ရမှာနော်。*", 
+            f"*⚠️ {user_display_name} ရေ၊ အန်စာတုံးဂိမ်းက မစသေးဘူးရှင့်။ Admin တစ်ယောက်က စပေးမှ ရမှာနော်。*",
             parse_mode="Markdown"
         )
-    
+
     if game.state != WAITING_FOR_BETS:
         user_display_name = await _get_user_display_name(context, user_id, chat_id)
         logger.info(f"button_callback: User {user_id} ({user_display_name}) tried to bet via button but betting is closed for match {game.match_id} in chat {chat_id}. State: {game.state}")
         return await query.message.reply_text(
-            f"*⚠️ {user_display_name} ရေ၊ ဒီဂိမ်းအတွက် လောင်းကြေးတွေ ပိတ်လိုက်ပြီရှင့်။ နောက်ပွဲကမှ ထပ်လောင်းလို့ရမယ်နော်!*", 
+            f"*⚠️ {user_display_name} ရေ၊ ဒီဂိမ်းအတွက် လောင်းကြေးတွေ ပိတ်လိုက်ပြီရှင့်။ နောက်ပွဲကမှ ထပ်လောင်းလို့ရမယ်နော်!*",
             parse_mode="Markdown"
         )
 
     bet_type = data.split("_")[1]
-    
+
     username_for_game_logic = username_from_query or first_name_from_query
     success, response_message = game.place_bet(user_id, username_for_game_logic, bet_type, 100)
-    
+
     if success:
         chat_specific_data = get_chat_data_for_id(chat_id)
-        chat_specific_data["consecutive_idle_matches"] = 0 
+        chat_specific_data["consecutive_idle_matches"] = 0
         logger.info(f"button_callback: Bet placed by {user_id}, resetting idle counter for chat {chat_id}.")
 
     await query.message.reply_text(f"*{response_message}*", parse_mode="Markdown")
@@ -1005,6 +1013,9 @@ async def handle_bet(update: Update, context):
     It now expects a single bet per message and will not be chatty on non-bet text.
     """
     chat_id = update.effective_chat.id
+    if not isinstance(chat_id, int): return
+
+
     if chat_id not in ALLOWED_GROUP_IDS:
         logger.info(f"handle_bet: Ignoring message from disallowed chat ID: {chat_id}")
         return
@@ -1014,7 +1025,7 @@ async def handle_bet(update: Update, context):
     first_name_from_update = update.effective_user.first_name
     last_name_from_update = update.effective_user.last_name
     message_text = update.message.text.strip()
-    
+
     logger.info(f"handle_bet: User {user_id} attempting to place text bet: '{message_text}' in chat {chat_id}")
 
     get_or_create_global_user_data(user_id, first_name_from_update, last_name_from_update, username=username_from_update)
@@ -1032,15 +1043,15 @@ async def handle_bet(update: Update, context):
         user_display_name = await _get_user_display_name(context, user_id, chat_id)
         logger.info(f"handle_bet: User {user_id} tried to place text bet but no game active in chat {chat_id}.")
         return await update.message.reply_text(
-            f"*⚠️ {user_display_name} ရေ၊ အန်စာတုံးဂိမ်းက မစသေးဘူးရှင့်။ Admin တစ်ယောက်က စပေးမှ ရမှာနော်。*", 
+            f"*⚠️ {user_display_name} ရေ၊ အန်စာတုံးဂိမ်းက မစသေးဘူးရှင့်။ Admin တစ်ယောက်က စပေးမှ ရမှာနော်。*",
             parse_mode="Markdown"
         )
-    
+
     if game.state != WAITING_FOR_BETS:
         user_display_name = await _get_user_display_name(context, user_id, chat_id)
         logger.info(f"handle_bet: User {user_id} tried to place text bet but betting is closed for match {game.match_id} in chat {chat_id}. State: {game.state}")
         return await update.message.reply_text(
-            f"*⚠️ {user_display_name} ရေ၊ ဒီဂိမ်းအတွက် လောင်းကြေးတွေ ပိတ်လိုက်ပြီရှင့်။ နောက်ပွဲကမှ ထပ်လောင်းလို့ရမယ်နော်!*", 
+            f"*⚠️ {user_display_name} ရေ၊ ဒီဂိမ်းအတွက် လောင်းကြေးတွေ ပိတ်လိုက်ပြီရှင့်။ နောက်ပွဲကမှ ထပ်လောင်းလို့ရမယ်နော်!*",
             parse_mode="Markdown"
         )
 
@@ -1054,26 +1065,26 @@ async def handle_bet(update: Update, context):
             f"ခလုတ်တွေ နှိပ်ပြီးတော့လည်း (မူရင်း ၁၀၀ မှတ်) လောင်းလို့ရတယ်နော်!*",
             parse_mode="Markdown"
         )
-    
+
     bet_type_str, amount_str = bet_match.groups()
-    
+
     bet_types_map = {
         "b": "big", "big": "big",
         "s": "small", "small": "small",
         "l": "lucky", "lucky": "lucky"
     }
     bet_type = bet_types_map.get(bet_type_str.lower())
-    
+
     try:
         amount = int(amount_str)
     except ValueError:
         user_display_name = await _get_user_display_name(context, user_id, chat_id)
         logger.error(f"handle_bet: Failed to convert bet amount to integer from user {user_id}: '{amount_str}' in chat {chat_id}.")
-        return await update.message.reply_text(f"*❌ {user_display_name} ရေ၊ လောင်းကြေးပမာဏက English ဂဏန်းဖြစ်ရမှာနော်。", parse_mode="Markdown") 
+        return await update.message.reply_text(f"*❌ {user_display_name} ရေ၊ လောင်းကြေးပမာဏက English ဂဏန်းဖြစ်ရမှာနော်。", parse_mode="Markdown")
 
     username_for_game_logic = username_from_update or first_name_from_update
     success, msg = game.place_bet(user_id, username_for_game_logic, bet_type, amount)
-    
+
     if success:
         chat_specific_data = get_chat_data_for_id(chat_id)
         chat_specific_data["consecutive_idle_matches"] = 0
@@ -1090,6 +1101,9 @@ async def leaderboard(update: Update, context):
     --- UPDATED: Include global referral points in sorting and use _get_user_display_name ---
     """
     chat_id = update.effective_chat.id
+    if not isinstance(chat_id, int): return
+
+
     if chat_id not in ALLOWED_GROUP_IDS:
         logger.info(f"leaderboard: Ignoring command from disallowed chat ID: {chat_id}")
         await update.message.reply_text(f"*Sorry, this bot is not authorized to run in this group ({_escape_text_for_markdown(str(chat_id))}). Please add it to an allowed group.*", parse_mode="Markdown")
@@ -1099,21 +1113,21 @@ async def leaderboard(update: Update, context):
 
     chat_specific_data = get_chat_data_for_id(chat_id)
     stats_for_chat = chat_specific_data["player_stats"]
-    
+
     all_players = []
     for user_id_str, player_chat_stats in stats_for_chat.items():
         user_id = int(user_id_str)
         global_user_info = get_or_create_global_user_data(user_id, first_name=player_chat_stats.get("username"), username=player_chat_stats.get("username"))
-        
+
         total_score = player_chat_stats["score"] + global_user_info.get("referral_points", 0)
-        
+
         all_players.append({
             "user_id": user_id,
             "score": player_chat_stats["score"],
             "referral_points": global_user_info.get("referral_points", 0),
             "total_value": total_score
         })
-    
+
     active_players = [
         p for p in all_players
         if p["score"] != INITIAL_PLAYER_SCORE or p["referral_points"] > 0
@@ -1122,12 +1136,12 @@ async def leaderboard(update: Update, context):
 
     if not top_players:
         return await update.message.reply_text("*ℹ️ ဒီ Chat ထဲမှာတော့ မှတ်တမ်းတင်ထားတဲ့ ကစားသမားတွေ မရှိသေးဘူးရှင့်။ ဂိမ်းစပြီး လောင်းကြေးထပ်လိုက်မှပဲ အမှတ်တွေတက်လာမှာနော်*", parse_mode="Markdown")
-    
-    message_lines = ["🏆 Rangoon Gent Official Dice Leaderboards\n"]
+
+    message_lines = ["🏆 ဒီ Group ထဲက ထိပ်တန်းအနိုင်ရရှိသူတွေကတော့:\n"]
     for i, player in enumerate(top_players):
         user_display_name = await _get_user_display_name(context, player['user_id'], chat_id)
-        message_lines.append(f"{i+1}. {user_display_name}: {player['score']:,}ကျပ် (Referral: {player['referral_points']:,})") 
-    
+        message_lines.append(f"{i+1}. {user_display_name}: {player['score']:,}ကျပ် (Referral: {player['referral_points']:,})")
+
     await update.message.reply_text(f"*{'\n'.join(message_lines)}*", parse_mode="Markdown")
 
 
@@ -1136,6 +1150,9 @@ async def history(update: Update, context):
     Displays the recent match history for the current chat (last 5 matches).
     """
     chat_id = update.effective_chat.id
+    if not isinstance(chat_id, int): return
+
+
     if chat_id not in ALLOWED_GROUP_IDS:
         logger.info(f"history: Ignoring command from disallowed chat ID: {chat_id}")
         await update.message.reply_text(f"*Sorry, this bot is not authorized to run in this group ({_escape_text_for_markdown(str(chat_id))}). Please add it to an allowed group.*", parse_mode="Markdown")
@@ -1145,20 +1162,20 @@ async def history(update: Update, context):
 
     chat_specific_data = get_chat_data_for_id(chat_id)
     match_history_for_chat = chat_specific_data["match_history"]
-    
+
     if not match_history_for_chat:
         return await update.message.reply_text("*ℹ️ ဒီ Chat ထဲမှာတော့ ပွဲမှတ်တမ်းတွေ မရှိသေးဘူးရှင့်။ မှတ်တမ်းတွေ ဖန်တီးချင်ရင် ဂိမ်းတွေ များများ ကစားပါဦးနော်*", parse_mode="Markdown")
-    
+
     message_lines = ["📜 မကြာသေးခင်က ပြီးသွားတဲ့ နောက်ဆုံး ၅ ပွဲ ကတော့:\n"]
-    for match in match_history_for_chat[-5:][::-1]: 
+    for match in match_history_for_chat[-5:][::-1]:
         timestamp_str = match['timestamp'].strftime('%Y-%m-%d %H:%M')
-        winner_display = match['winner'].upper() 
+        winner_display = match['winner'].upper()
         winner_emoji = RESULT_EMOJIS.get(match['winner'], '')
-        
+
         message_lines.append(
             f" • ပွဲစဉ် {_escape_text_for_markdown(str(match['match_id']))} | ရလဒ်: {str(match['result'])} ({_escape_text_for_markdown(winner_display)} {winner_emoji}) | ပါဝင်ကစားသူ: {_escape_text_for_markdown(str(match['participants']))} ယောက် | အချိန်: {timestamp_str}"
         )
-    
+
     await update.message.reply_text(f"*{'\n'.join(message_lines)}*", parse_mode="Markdown")
 
 
@@ -1170,6 +1187,8 @@ async def adjust_score(update: Update, context):
     --- UPDATED: Use _get_user_display_name for display ---
     """
     chat_id = update.effective_chat.id
+    if not isinstance(chat_id, int): return
+
     if chat_id not in ALLOWED_GROUP_IDS:
         await update.message.reply_text(f"*Sorry, this bot is not authorized to run in this group ({_escape_text_for_markdown(str(chat_id))}). Please add it to an allowed group.*", parse_mode="Markdown")
         return
@@ -1201,14 +1220,14 @@ async def adjust_score(update: Update, context):
                 "ဥပမာ- အသုံးပြုသူရဲ့ မက်ဆေ့ချ်ကို ပြန်ဖြေပြီး `/adjustscore 500` (၅၀၀ မှတ် ထည့်ဖို့ပေါ့) လို့ ရိုက်လိုက်ပါ။*",
                 parse_mode="Markdown"
             )
-        
+
         target_user_id = update.message.reply_to_message.from_user.id
         target_first_name = update.message.reply_to_message.from_user.first_name
         target_last_name = update.message.reply_to_message.from_user.last_name
         target_username = update.message.reply_to_message.from_user.username
 
         get_or_create_global_user_data(target_user_id, target_first_name, target_last_name, username=target_username)
-        
+
         try:
             amount_to_adjust = int(context.args[0])
         except ValueError:
@@ -1231,15 +1250,15 @@ async def adjust_score(update: Update, context):
 
         if first_arg.startswith('@'):
             mentioned_username = first_arg[1:]
-            
+
             for uid_str, user_info in global_data["global_user_data"].items():
                 if user_info.get("username", "").lower() == mentioned_username.lower():
                     target_user_id = int(uid_str)
                     break
-            
+
             if target_user_id is None:
                 return await update.message.reply_text(
-                    f"*❌ အသုံးပြုသူ '@{_escape_text_for_markdown(mentioned_username)}' ကို ရှာမတွေ့ဘူးရှင့်။ သူတို့က Bot နဲ့ အရင်က အပြန်အလှန်ပြောဖူးမှ ရမှာနော်။ ဒါမှမဟုတ် သူတို့ပို့ထားတဲ့ မက်ဆေ့ချ်ကို ပြန်ဖြေပြီး သုံးတာ ဒါမှမဟုတ် သူတို့ရဲ့ User ID ကို ဂဏန်းနဲ့ ရိုက်ပြီး သုံးကြည့်ပါလား。", 
+                    f"*❌ အသုံးပြုသူ '@{_escape_text_for_markdown(mentioned_username)}' ကို ရှာမတွေ့ဘူးရှင့်။ သူတို့က Bot နဲ့ အရင်က အပြန်အလှန်ပြောဖူးမှ ရမှာနော်။ ဒါမှမဟုတ် သူတို့ပို့ထားတဲ့ မက်ဆေ့ချ်ကို ပြန်ဖြေပြီး သုံးတာ ဒါမှမဟုတ် သူတို့ရဲ့ User ID ကို ဂဏန်းနဲ့ ရိုက်ပြီး သုံးကြည့်ပါလား。",
                     parse_mode="Markdown"
                 )
         else:
@@ -1253,7 +1272,7 @@ async def adjust_score(update: Update, context):
                     f"ဥပမာ- `/adjustscore 123456789 500` ဒါမှမဟုတ် `/adjustscore @someuser 100`。",
                     parse_mode="Markdown"
                 )
-            
+
     else:
         return await update.message.reply_text(
             f"*❌ သုံးတဲ့ပုံစံလေး မှားနေတယ်နော်။ ကျေးဇူးပြုပြီး အောက်က ပုံစံတွေထဲက တစ်ခုခုကို သုံးပေးပါ:\n"
@@ -1288,25 +1307,25 @@ async def adjust_score(update: Update, context):
     if not target_player_stats:
         try:
             chat_member = await context.bot.get_chat_member(chat_id, target_user_id)
-            fetched_username_raw = chat_member.user.username 
+            fetched_username_raw = chat_member.user.username
             fetched_first_name = chat_member.user.first_name
             fetched_last_name = chat_member.user.last_name
-            
+
             player_stats_for_chat[str(target_user_id)] = {
                 "username": fetched_username_raw or fetched_first_name,
-                "score": INITIAL_PLAYER_SCORE, 
+                "score": INITIAL_PLAYER_SCORE,
                 "wins": 0, "losses": 0, "last_active": datetime.now(),
             }
             target_player_stats = player_stats_for_chat[str(target_user_id)]
-            
+
             get_or_create_global_user_data(target_user_id, fetched_first_name, fetched_last_name, username=fetched_username_raw)
 
         except Exception as e:
             logger.error(f"adjust_score: Failed to fetch user details for {target_user_id}: {e}")
             return await update.message.reply_text(f"*❌ User ID `{_escape_text_for_markdown(str(target_user_id))}` ကို ရှာမတွေ့ပါဘူး။*", parse_mode="Markdown")
-    
+
     target_display_name = await _get_user_display_name(context, target_user_id, chat_id)
-            
+
     global_user_data_for_target = global_data["global_user_data"].get(str(target_user_id))
     if global_user_data_for_target and global_user_data_for_target.get("username"):
         if target_player_stats.get("username") != global_user_data_for_target["username"]:
@@ -1318,18 +1337,18 @@ async def adjust_score(update: Update, context):
 
     old_score = target_player_stats['score']
     target_player_stats['score'] += amount_to_adjust
-    target_player_stats['last_active'] = datetime.now() 
+    target_player_stats['last_active'] = datetime.now()
     new_score = target_player_stats['score']
     target_username = target_player_stats.get("username", f"User {target_user_id}")
 
     admin_data_for_requester_chat["points"] -= amount_to_adjust
     new_admin_points = admin_data_for_requester_chat["points"]
-    
+
     save_data(global_data)
 
     await update.message.reply_text(
         f"*✅ Score Adjusted Successfully ✅\n\n"
-        f"👤 User: {target_display_name} ({target_username})\n" 
+        f"👤 User: {target_display_name} ({target_username})\n"
         f"💰 Adjustment: {amount_to_adjust:+,}\n"
         f"💳 User's New Wallet: {new_score:,}\n\n"
         f"👑 Your Admin Wallet: {new_admin_points:,}*",
@@ -1348,6 +1367,9 @@ async def check_user_score(update: Update, context):
     --- UPDATED: Display global referral points and use _get_user_display_name, remove ID from display ---
     """
     chat_id = update.effective_chat.id
+    if not isinstance(chat_id, int): return
+
+
     if chat_id not in ALLOWED_GROUP_IDS:
         logger.info(f"check_user_score: Ignoring command from disallowed chat ID: {chat_id}")
         await update.message.reply_text(f"*Sorry, this bot is not authorized to run in this group ({_escape_text_for_markdown(str(chat_id))}). Please add it to an allowed group.*", parse_mode="Markdown")
@@ -1369,33 +1391,33 @@ async def check_user_score(update: Update, context):
     save_data(global_data)
 
     target_user_id = None
-    
+
     if update.message.reply_to_message:
         target_user_id = update.message.reply_to_message.from_user.id
         target_first_name = update.message.reply_to_message.from_user.first_name
         target_last_name = update.message.reply_to_message.from_user.last_name
         target_username = update.message.reply_to_message.from_user.username
-        
+
         get_or_create_global_user_data(target_user_id, target_first_name, target_last_name, username=target_username)
         save_data(global_data)
 
     elif context.args and len(context.args) == 1:
         first_arg = context.args[0]
-        
+
         if first_arg.startswith('@'):
             mentioned_username = first_arg[1:]
-            
+
             for uid_str, user_info in global_data["global_user_data"].items():
                 if user_info.get("username", "").lower() == mentioned_username.lower():
                     target_user_id = int(uid_str)
                     break
-            
-            if target_user_id is None: 
+
+            if target_user_id == None:
                 return await update.message.reply_text(
-                    f"*❌ အသုံးပြုသူ '@{_escape_text_for_markdown(mentioned_username)}' ကို ရှာမတွေ့ဘူးရှင့်။ သူတို့က Bot နဲ့ အရင်က အပြန်အလှန်ပြောဖူးမှ ရတာနော်။ ဒါမှမဟုတ် သူတို့ပို့ထားတဲ့ မက်ဆေ့ချ်ကို ပြန်ဖြေပြီး သုံးတာ ဒါမှမဟုတ် သူတို့ရဲ့ User ID ကို ဂဏန်းနဲ့ ရိုက်ပြီး သုံးကြည့်ပါ။*", 
+                    f"*❌ အသုံးပြုသူ '@{_escape_text_for_markdown(mentioned_username)}' ကို ရှာမတွေ့ဘူးရှင့်။ သူတို့က Bot နဲ့ အရင်က အပြန်အလှန်ပြောဖူးမှ ရတာနော်။ ဒါမှမဟုတ် သူတို့ပို့ထားတဲ့ မက်ဆေ့ချ်ကို ပြန်ဖြေပြီး သုံးတာ ဒါမှမဟုတ် သူတို့ရဲ့ User ID ကို ဂဏန်းနဲ့ ရိုက်ပြီး သုံးကြည့်ပါ။*",
                     parse_mode="Markdown"
                 )
-            
+
             get_or_create_global_user_data(target_user_id, username=mentioned_username)
             save_data(global_data)
 
@@ -1421,7 +1443,7 @@ async def check_user_score(update: Update, context):
             parse_mode="Markdown"
         )
 
-    if target_user_id is None: 
+    if target_user_id is None:
         logger.error(f"check_user_score: Logic error: target_user_id ({target_user_id}) is None after initial parsing. update_message: {update.message.text}")
         return await update.message.reply_text("*❌ မထင်မှတ်ထားတဲ့ ပြဿနာလေး ဖြစ်သွားတယ်ရှင့်။ ကျေးဇူးပြုပြီး ထပ်ကြိုးစားကြည့်ပါဦးနော် ဒါမှမဟုတ် Admin ကို အကူအညီတောင်းပါ။*", parse_mode="Markdown")
 
@@ -1449,7 +1471,7 @@ async def check_user_score(update: Update, context):
                 f"*❌ User ID `{_escape_text_for_markdown(str(target_user_id))}` နဲ့ ကစားသမားကို ဒီ Chat ထဲမှာ ရှာမတွေ့ဘူးရှင့်။ Telegram က သူတို့ရဲ့ အချက်အလက်တွေကို ရယူလို့မရလို့ပါ။ သူတို့က ဒီ Chat ရဲ့ အဖွဲ့ဝင် ဟုတ်မဟုတ် သေချာအောင် စစ်ပေးပါဦးနော် ဒါမှမဟုတ် သူတို့ရဲ့ မက်ဆေ့ချ်တစ်ခုကို ပြန်ဖြေကြည့်ပါ။*",
                 parse_mode="Markdown"
             )
-            
+
     global_user_data_for_target = global_data["global_user_data"].get(str(target_user_id))
     if global_user_data_for_target and global_user_data_for_target.get("username"):
         if player_stats.get("username") != global_user_data_for_target["username"]:
@@ -1457,11 +1479,11 @@ async def check_user_score(update: Update, context):
     elif global_user_data_for_target and global_user_data_for_target.get("full_name"):
         if player_stats.get("username") != global_user_data_for_target["full_name"]:
             player_stats["username"] = global_user_data_for_target["full_name"]
-    
+
     save_data(global_data)
 
     total_games = player_stats['wins'] + player_stats['losses']
-    win_rate = 0.0 
+    win_rate = 0.0
     if total_games > 0:
         win_rate = (player_stats['wins'] / total_games) * 100
     await update.message.reply_text(
@@ -1484,6 +1506,9 @@ async def refresh_admins(update: Update, context):
     --- UPDATED: Ensure global user data for requester is updated ---
     """
     chat_id = update.effective_chat.id
+    if not isinstance(chat_id, int): return
+
+
     if chat_id not in ALLOWED_GROUP_IDS:
         logger.info(f"refresh_admins: Ignoring command from disallowed chat ID: {chat_id}")
         await update.message.reply_text(f"*Sorry, this bot is not authorized to run in this group ({_escape_text_for_markdown(str(chat_id))}). Please add it to an allowed group.*", parse_mode="Markdown")
@@ -1503,7 +1528,7 @@ async def refresh_admins(update: Update, context):
         return await update.message.reply_text("*❌ Admin တွေပဲ Admin စာရင်းကို ပြန် Refresh လုပ်လို့ရတာနော်。*", parse_mode="Markdown")
 
     logger.info(f"refresh_admins: User {user_id} attempting to refresh admin list for chat {chat_id}.")
-    
+
     if await update_group_admins(chat_id, context):
         await update.message.reply_text("*✅ Admin စာရင်းကို အောင်မြင်စွာ ပြန် Refresh လုပ်ပြီးပါပြီရှင့်! အခုဆို အချက်အလက်တွေ အသစ်ဖြစ်သွားပြီနော်。*", parse_mode="Markdown")
     else:
@@ -1520,6 +1545,8 @@ async def stop_game(update: Update, context):
     --- UPDATED: Ensure global user data for requester and refunded users is updated and use _get_user_display_name ---
     """
     chat_id = update.effective_chat.id
+    if not isinstance(chat_id, int): return
+
 
     if chat_id not in ALLOWED_GROUP_IDS:
         logger.info(f"stop_game: Ignoring command from disallowed chat ID: {chat_id}")
@@ -1530,7 +1557,7 @@ async def stop_game(update: Update, context):
     username_from_update = update.effective_user.username
     first_name_from_update = update.effective_user.first_name
     last_name_from_update = update.effective_user.last_name
-    
+
     logger.info(f"stop_game: User {user_id} attempting to stop a game in chat {chat_id}")
 
     get_admin_data(user_id, chat_id, username_from_update or first_name_from_update)
@@ -1546,10 +1573,10 @@ async def stop_game(update: Update, context):
     if not current_game:
         logger.info(f"stop_game: No game object found in chat_data for chat {chat_id}.")
         return await update.message.reply_text(
-            "*ℹ️ လက်ရှိစထားတဲ့ အန်စာတုံးဂိမ်း မရှိသေးဘူးရှင့်။ စတင်ဖို့ Admin က စရမယ်နော်。*",
+            f"*ℹ️ လက်ရှိစထားတဲ့ အန်စာတုံးဂိမ်း မရှိသေးဘူးရှင့်။ စတင်ဖို့ Admin က စရမယ်နော်。*",
             parse_mode="Markdown"
         )
-    
+
     if current_game.state == GAME_OVER:
         logger.info(f"stop_game: Game is already GAME_OVER for match {current_game.match_id} in chat {chat_id}.")
         return await update.message.reply_text(
@@ -1562,7 +1589,7 @@ async def stop_game(update: Update, context):
         f"roll_announce_{chat_id}_{current_game.match_id}",
         f"next_game_sequence_{chat_id}"
     ]
-    
+
     for job_name in job_names_to_remove:
         jobs = context.job_queue.get_jobs_by_name(job_name)
         for job_obj in jobs:
@@ -1588,18 +1615,18 @@ async def stop_game(update: Update, context):
     for bet_type_dict in current_game.bets.values():
         for uid, amount_bet in bet_type_dict.items():
             total_bets_by_user[uid] = total_bets_by_user.get(uid, 0) + amount_bet
-    
+
     total_refunded_amount = 0
     for uid, refunded_amount in total_bets_by_user.items():
         if str(uid) in player_stats_for_chat:
             player_stats = player_stats_for_chat[str(uid)]
-            
-            player_stats["score"] += refunded_amount 
+
+            player_stats["score"] += refunded_amount
             player_stats["last_active"] = datetime.now()
             total_refunded_amount += refunded_amount
-            
+
             user_display_name = await _get_user_display_name(context, uid)
-            
+
             global_user_data_for_uid = global_data["global_user_data"].get(str(uid))
             if global_user_data_for_uid and global_user_data_for_uid.get("username") and player_stats.get("username") != global_user_data_for_uid["username"]:
                 player_stats["username"] = global_user_data_for_uid["username"]
@@ -1608,14 +1635,14 @@ async def stop_game(update: Update, context):
 
 
             refunded_players_info.append(
-                f" {user_display_name}: +{refunded_amount} ကျပ် (လက်ကျန်ငွေ: {player_stats['score']:,}, Referral: {global_user_data_for_uid.get('referral_points', 0):,})" 
+                f" {user_display_name}: +{refunded_amount} ကျပ် (လက်ကျန်ငွေ: {player_stats['score']:,}, Referral: {global_user_data_for_uid.get('referral_points', 0):,})"
             )
             logger.info(f"stop_game: Refunded {refunded_amount} to user {uid} in chat {chat_id}. New score: {player_stats['score']}")
         else:
             user_display_name = await _get_user_display_name(context, uid)
             logger.warning(f"stop_game: Could not find player {uid} in stats for refund in chat {chat_id}. Displaying as '{user_display_name}'.")
             refunded_players_info.append(
-                f" {user_display_name}: +{refunded_amount} ကျပ် (မှတ်တမ်းမရှိ) - လောင်းကြေးပြန်အမ်းပါသည်" 
+                f" {user_display_name}: +{refunded_amount} ကျပ် (မှတ်တမ်းမရှိ) - လောင်းကြေးပြန်အမ်းပါသည်"
             )
 
 
@@ -1630,12 +1657,15 @@ async def stop_game(update: Update, context):
         refund_message += f"\n\nစုစုပေါင်း ပြန်အမ်းပေးလိုက်တဲ့ ပမာဏ: {total_refunded_amount} ကျပ်"
     else:
         refund_message += "လက်ရှိပွဲစဉ်မှာ လောင်းကြေးထပ်ထားတဲ့သူ မရှိလို့ ပြန်အမ်းစရာ မလိုပါဘူးရှင့်。"
-    
+
     await update.message.reply_text(f"*{refund_message}*", parse_mode="Markdown")
 
 
 async def deposit_points(update: Update, context):
     chat_id = update.effective_chat.id
+    if not isinstance(chat_id, int): return
+
+
     if chat_id not in ALLOWED_GROUP_IDS:
         logger.info(f"deposit_points: Ignoring action from disallowed chat ID: {chat_id}")
         if update.message:
@@ -1647,7 +1677,7 @@ async def deposit_points(update: Update, context):
     first_name_from_update = update.effective_user.first_name
     last_name_from_update = update.effective_user.last_name
     logger.info(f"deposit_points: User {user_id} requested deposit information in chat {chat_id}")
-    
+
     chat_specific_data = get_chat_data_for_id(chat_id)
     player_stats = chat_specific_data["player_stats"].get(str(user_id))
     global_user_info = get_or_create_global_user_data(user_id, first_name_from_update, last_name_from_update, username=username_from_update)
@@ -1664,12 +1694,12 @@ async def deposit_points(update: Update, context):
             "last_active": datetime.now(),
         }
         chat_specific_data["player_stats"][str(user_id)] = player_stats
-    
+
     save_data(global_data)
 
     await (update.message or update.callback_query.message).reply_text(
-        f"*🪙 ငွေထည့်ရန်: 1 point = 1 kyat\n" 
-        f"ငွေဖြည့်သွင်းရန်အတွက် Admin ကို ဒီကနေ DM ပို့ပေးပါ 👉 @pussycat_1204\n"
+        f"*🪙 ငွေထည့်ရန်: 1 point = 1 kyat\n"
+        f"ငွေဖြည့်သွင်းရန်အတွက် Admin ကို ဒီကနေ DM ပို့ပေးပါ 👉 @BOASTER_OFFICIAL422\n"
         f"ကျေးဇူးတင်ပါတယ်!*",
         parse_mode="Markdown"
     )
@@ -1680,6 +1710,8 @@ async def withdraw_points(update: Update, context):
     Provides instructions for withdrawing points.
     """
     chat_id = update.effective_chat.id
+    if not isinstance(chat_id, int): return
+
     if chat_id not in ALLOWED_GROUP_IDS:
         logger.info(f"withdraw_points: Ignoring action from disallowed chat ID: {chat_id}")
         if update.message:
@@ -1708,12 +1740,12 @@ async def withdraw_points(update: Update, context):
             "last_active": datetime.now(),
         }
         chat_specific_data["player_stats"][str(user_id)] = player_stats
-    
+
     save_data(global_data)
 
     await (update.message or update.callback_query.message).reply_text(
-        f"*💸 ငွေထုတ်ရန်: 1 point = 1 kyat\n" 
-        f"ငွေထုတ်ယူရန်အတွက် Admin ကို ဒီကနေ DM ပို့ပေးပါ 👉 @pussycat_1204\n"
+        f"*💸 ငွေထုတ်ရန်: 1 point = 1 kyat\n"
+        f"ငွေထုတ်ယူရန်အတွက် Admin ကို ဒီကနေ DM ပို့ပေးပါ 👉 @BOASTER_OFFICIAL422\n"
         f"ကျေးဇူးတင်ပါတယ်!*",
         parse_mode="Markdown"
     )
@@ -1743,20 +1775,20 @@ async def handle_share_referral(update: Update, context):
         return
 
     bot_deep_link = f"https://t.me/{bot_username}?start={user_id}"
-    
+
     user_display_name = await _get_user_display_name(context, user_id)
 
-    share_intro = f"{user_display_name} ရေ၊ သင့် Referral Link ကို မျှဝေဖို့အတွက် အောက်က ခလုတ်ကို နှိပ်ပြီး လုပ်လို့ရပါတယ်။ (သူငယ်ချင်းတွေ Bot ကို စပြီး Message ပို့တာနဲ့ Point ရမယ်နော်!)" 
-    
+    share_intro = f"{user_display_name} ရေ၊ သင့် Referral Link ကို မျှဝေဖို့အတွက် အောက်က ခလုတ်ကို နှိပ်ပြီး လုပ်လို့ရပါတယ်။ (သူငယ်ချင်းတွေ Bot ကို စပြီး Message ပို့တာနဲ့ Point ရမယ်နော်!)"
+
     share_message_for_friend = (
         f"🌟 ကျွန်တော်တို့ရဲ့ အန်စာတုံးဂိမ်းဘော့တ်ကို လာဆော့ကြည့်ပါ! 🎲\n"
         f"ဒီ Link ကနေ Bot ကို စပြီး Message ပို့လိုက်ရုံနဲ့ ဂိမ်း Group ထဲကို အလိုအလျောက် ဝင်နိုင်မှာပါ။\n\n"
         f"👉 Bot Link (Referral): {bot_deep_link}\n\n"
         f"သူငယ်ချင်းတွေ များများဖိတ်ခေါ်လေ Referral Points များများရလေပါပဲနော်! 🎁"
     )
-    
+
     encoded_share_text = urllib.parse.quote(share_message_for_friend, safe='')
-    encoded_bot_deep_link = urllib.parse.quote(bot_deep_link, safe='') 
+    encoded_bot_deep_link = urllib.parse.quote(bot_deep_link, safe='')
 
     share_url = f"https://t.me/share/url?url={encoded_bot_deep_link}&text={encoded_share_text}"
 
@@ -1784,7 +1816,9 @@ async def on_chat_member_update(update: Update, context):
         return
 
     chat_id = update.effective_chat.id
-    
+    if not isinstance(chat_id, int): return
+
+
     if chat_id not in ALLOWED_GROUP_IDS:
         logger.info(f"on_chat_member_update: Ignoring new member join tracking from disallowed chat ID: {chat_id}")
         if chat_member_update.new_chat_member.user.id == context.bot.id and chat_member_update.new_chat_member.status in (ChatMemberStatus.MEMBER, ChatMemberStatus.ADMINISTRATOR):
@@ -1801,7 +1835,7 @@ async def on_chat_member_update(update: Update, context):
 
     if new_chat_member.status == ChatMemberStatus.MEMBER and old_chat_member.status == ChatMemberStatus.LEFT:
         logger.info(f"User {joined_user.id} ({joined_user.username}) joined chat {chat_id}.")
-        
+
         joined_user_global_info = get_or_create_global_user_data(joined_user.id, joined_user.first_name, joined_user.last_name, username=joined_user.username)
 
         chat_specific_data = get_chat_data_for_id(chat_id)
@@ -1818,9 +1852,9 @@ async def on_chat_member_update(update: Update, context):
         else:
             if player_stats.get("username") != (joined_user.username or joined_user.first_name):
                 player_stats["username"] = joined_user.username or joined_user.first_name
-        
+
         pending_referrer_id = joined_user_global_info.get("pending_referrer_id")
-        
+
         if pending_referrer_id is not None:
             logger.info(f"User {joined_user.id} joined group with pending_referrer_id: {pending_referrer_id}.")
 
@@ -1840,15 +1874,15 @@ async def on_chat_member_update(update: Update, context):
                 )
             else:
                 referrer_global_info = get_or_create_global_user_data(pending_referrer_id)
-                
+
                 if referrer_global_info:
                     referrer_global_info["referral_points"] = referrer_global_info.get("referral_points", 0) + REFERRAL_BONUS_POINTS
-                    
+
                     referrer_display_name = await _get_user_display_name(context, pending_referrer_id)
                     joined_display_name = await _get_user_display_name(context, joined_user.id)
 
                     joined_user_global_info["referred_by"] = pending_referrer_id
-                    
+
                     await context.bot.send_message(
                         chat_id=chat_id,
                         text=f"*🎉 {joined_display_name} အဖွဲ့ထဲသို့ ပါဝင်လာပါပြီ! "
@@ -1885,11 +1919,11 @@ async def on_chat_member_update(update: Update, context):
             if await update_group_admins(chat_id, context):
                 custom_keyboard = [
                     [KeyboardButton("ငွေထည့်မည်"), KeyboardButton("ငွေထုတ်မည်")],
-                    [KeyboardButton("My Wallet"), KeyboardButton("Leaderboard"), KeyboardButton("ကစားနည်း")], 
+                    [KeyboardButton("My Wallet"), KeyboardButton("Leaderboard"), KeyboardButton("ကစားနည်း")],
                     [KeyboardButton("Share")],
                 ]
                 custom_keyboard_markup = ReplyKeyboardMarkup(custom_keyboard, resize_keyboard=True, one_time_keyboard=False)
-                
+
                 await context.bot.send_message(
                     chat_id,
                     f"*အန်စာဂိမ်းဆော့ကစားတဲ့ Group လေးထဲမှ ကြိုဆိုပါတယ်ရှင့်🥳🥰\n"
@@ -1923,11 +1957,13 @@ async def start(update: Update, context):
     --- UPDATED: Uses global_user_data for referral logic and _get_user_display_name for formatting ---
     """
     chat_id = update.effective_chat.id
+    if not isinstance(chat_id, int): return
+
     user_id = update.effective_user.id
     username_from_update = update.effective_user.username
     first_name_from_update = update.effective_user.first_name
     last_name_from_update = update.effective_user.last_name
-    
+
     logger.info(f"start: Received /start command from user {user_id} in chat {chat_id}")
 
     global_user_info = get_or_create_global_user_data(user_id, first_name_from_update, last_name_from_update, username=username_from_update)
@@ -1954,7 +1990,7 @@ async def start(update: Update, context):
         try:
             referrer_id_from_link = int(context.args[0])
             logger.info(f"start: User {user_id} started bot with referrer ID: {referrer_id_from_link}")
-            
+
             if referrer_id_from_link != user_id and global_user_info["referred_by"] is None:
                  global_user_info["pending_referrer_id"] = referrer_id_from_link
                  logger.info(f"start: Stored pending_referrer_id {referrer_id_from_link} for user {user_id} in global_user_data.")
@@ -2000,7 +2036,7 @@ async def start(update: Update, context):
         f" - အကြီးကိုလောင်းဖို့ B 100 အသေးကိုလောင်းမယ်ဆိုရင် S 250 Lucky ကိုလောင်းဖို့အတွက်ကတော့ L 100\n"
         f" (B/S/L အနောက်က နံပတ်တွေကမိမိရဲ့လောင်းကြေးဖြစ်တာကြောင့်လိုသလိုပြုပြင်နိုင်ပါတယ်ရှင်❤️) \n\n"
         f"📊 သုံးလို့ရတဲ့ အမိန့်တွေ:\n"
-        f" - /mywallet ကိုနှိပ်ပြီး မိမိရဲ့လက်ကျန်ငွေနဲ့ အချက်အလက်တွေအားလုံးစစ်ဆေးလို့ရတယ်နော်...🌷\n" 
+        f" - /mywallet ကိုနှိပ်ပြီး မိမိရဲ့လက်ကျန်ငွေနဲ့ အချက်အလက်တွေအားလုံးစစ်ဆေးလို့ရတယ်နော်...🌷\n"
         f" - /leaderboard ကိုနှိပ်ပြီး ဒီGroupထဲက အနိုင်ရရှိမှုအများဆုံးကစားသမားတွေကို ကြည့်လိုက်ရအောင်.....🌷\n"
         f" - /history: မကြာသေးခင်က ပွဲစဉ်ရလဒ်လေးတွေ ပြန်ကြည့်ဖို့ပါ။\n"
         f" - /share: သင့်သူငယ်ချင်းတွေကို ဖိတ်ခေါ်ပြီး Referral Points တွေရယူလိုက်ပါ။\n\n"
@@ -2022,3 +2058,91 @@ async def start(update: Update, context):
         await update.message.reply_text(f"*{group_link_message}*", parse_mode="Markdown")
         logger.info(f"start: Sent group link to user {user_id} in private chat.")
 
+# --- UPDATED: manual_refill command handler ---
+async def manual_refill(update: Update, context):
+    """
+    Admin command to manually refill points for admins in the current chat.
+    If replying to an admin, refills only that admin's points.
+    Otherwise, refills points for all admins in the chat.
+    Restricted to SUPER_ADMINS.
+    """
+    chat_id = update.effective_chat.id
+    if not isinstance(chat_id, int): return
+
+    if chat_id not in ALLOWED_GROUP_IDS:
+        await update.message.reply_text(f"*Sorry, this bot is not authorized to run in this group ({_escape_text_for_markdown(str(chat_id))}).*", parse_mode="Markdown")
+        return
+
+    requester_user_id = update.effective_user.id
+    requester_username = update.effective_user.username
+    requester_first_name = update.effective_user.first_name
+
+    # Check if the user is a super admin
+    if requester_user_id not in SUPER_ADMINS:
+        logger.warning(f"manual_refill: User {requester_user_id} is not a super admin and tried to use /refill in chat {chat_id}.")
+        return await update.message.reply_text("*❌ Only a Super Admin can use this command.*", parse_mode="Markdown")
+
+    target_admin_id = None
+    target_admin_display_name = None
+
+    if update.message.reply_to_message:
+        # If replying to a message, refill only that admin's points
+        target_admin_id = update.message.reply_to_message.from_user.id
+        target_admin_display_name = await _get_user_display_name(context, target_admin_id)
+
+        # Check if the replied-to user is actually an admin in this chat
+        if not await is_admin(chat_id, target_admin_id, context):
+            logger.warning(f"manual_refill: Super admin {requester_user_id} tried to refill non-admin {target_admin_id} in chat {chat_id}.")
+            return await update.message.reply_text(f"*❌ {_escape_text_for_markdown(target_admin_display_name)} က Admin မဟုတ်ပါဘူးရှင့်။ Admin တွေပဲ Refill လုပ်လို့ရတာပါ။*", parse_mode="Markdown")
+
+        logger.info(f"manual_refill: Super admin {requester_user_id} initiating refill for replied admin {target_admin_id} in chat {chat_id}.")
+
+        admin_data_for_chat = get_admin_data(target_admin_id, chat_id, username=update.message.reply_to_message.from_user.username or update.message.reply_to_message.from_user.first_name)
+
+        admin_data_for_chat["points"] = ADMIN_INITIAL_POINTS
+        admin_data_for_chat["last_refill"] = datetime.now(pytz.utc)
+
+        save_data(global_data)
+
+        await update.message.reply_text(
+            f"*✅ Refill Successful ✅\n\n"
+            f"👑 {target_admin_display_name} ၏ Admin Wallet ကို {ADMIN_INITIAL_POINTS:,} points ဖြည့်ပေးလိုက်ပါပြီ။*",
+            parse_mode="Markdown"
+        )
+        logger.info(f"manual_refill: Successfully refilled points for replied admin {target_admin_id} in chat {chat_id}.")
+
+    else:
+        # If not replying to a message, refill all admins in the current chat
+        logger.info(f"manual_refill: Super admin {requester_user_id} initiating refill for all admins in chat {chat_id}.")
+
+        chat_admins_to_refill = await get_admins_from_chat(chat_id, context)
+        refilled_admins_count = 0
+        refilled_admin_names = []
+
+        for admin_id in chat_admins_to_refill:
+            if admin_id == context.bot.id: # Don't try to refill the bot's own points
+                continue
+
+            admin_data_for_chat = get_admin_data(admin_id, chat_id)
+            admin_data_for_chat["points"] = ADMIN_INITIAL_POINTS
+            admin_data_for_chat["last_refill"] = datetime.now(pytz.utc)
+            refilled_admins_count += 1
+            refilled_admin_names.append(await _get_user_display_name(context, admin_id))
+            logger.debug(f"Refilled points for admin {admin_id} in chat {chat_id}.")
+
+        save_data(global_data)
+
+        if refilled_admins_count > 0:
+            await update.message.reply_text(
+                f"*✅ Refill Successful ✅\n\n"
+                f"👑 ဒီ Chat ထဲက Admin {refilled_admins_count} ယောက်ရဲ့ Admin Wallet ကို {ADMIN_INITIAL_POINTS:,} points စီ ဖြည့်ပေးလိုက်ပါပြီ။\n\n"
+                f"ဖြည့်ပေးလိုက်သော Admin များ: {', '.join(refilled_admin_names)}*",
+                parse_mode="Markdown"
+            )
+            logger.info(f"manual_refill: Successfully refilled points for {refilled_admins_count} admins in chat {chat_id}.")
+        else:
+            await update.message.reply_text(
+                f"*ℹ️ ဒီ Chat ထဲမှာ ဖြည့်ပေးလို့ရမယ့် Admin တွေ ရှာမတွေ့ပါဘူးရှင့်။ Bot က ဒီ Chat ရဲ့ Admin List ကို မှန်ကန်စွာ ယူနိုင်တာ သေချာလား စစ်ပေးပါဦးနော်။*",
+                parse_mode="Markdown"
+            )
+            logger.warning(f"manual_refill: No admins found to refill in chat {chat_id}.")

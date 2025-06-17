@@ -13,7 +13,7 @@ global_data = {
 }
 
 # --- REMOVED: Database imports as we are no longer using a database ---
-# from database import save_admin_data, save_chat_data 
+# from database import save_admin_data, save_chat_data
 
 def get_chat_data_for_id(chat_id: int):
     """
@@ -25,41 +25,40 @@ def get_chat_data_for_id(chat_id: int):
     if chat_id not in global_data["all_chat_data"]:
         global_data["all_chat_data"][chat_id] = {
             # Removed referral-related fields from here, as they are now in global_user_data
-            "player_stats": {}, # Stores user_id: {username: str, score: int, wins: int, losses: int, last_active: datetime}
-            "match_counter": 1, # Unique ID for each match within a chat
-            "match_history": [], # Stores past match results
-            "group_admins": [], # Cached list of admin user_ids for this specific chat
-            "consecutive_idle_matches": 0 # New: Tracks idle matches for auto-stopping
+            "player_stats": {},
+            "match_counter": 1,
+            "match_history": [],
+            "group_admins": [], # NEW: Will store a list of admin user IDs for the chat
+            "consecutive_idle_matches": 0, # NEW: Counter for idle matches
         }
     return global_data["all_chat_data"][chat_id]
 
-# UPDATED: get_admin_data now takes chat_id
+# --- UPDATED: New structure for get_admin_data ---
 def get_admin_data(admin_id: int, chat_id: int, username: str = "Unknown Admin"):
     """
-    Retrieves or initializes admin-specific data from global_data for a specific chat.
-    Ensures that admin data is present and updates the username if a valid one is provided.
-    Initializes points for the specific chat if they don't exist.
+    Retrieves or initializes an admin's data, now structured to handle points per chat.
     """
-    # Initialize global admin profile if it doesn't exist
-    if admin_id not in global_data["admin_data"]:
-        global_data["admin_data"][admin_id] = {
-            "username": username, # Store initial username
-            "chat_points": {} # Initialize chat_points dictionary
+    admin_id_str = str(admin_id)
+    chat_id_str = str(chat_id)
+
+    # Initialize general admin profile if it doesn't exist
+    if admin_id_str not in global_data["admin_data"]:
+        global_data["admin_data"][admin_id_str] = {
+            "username": username,
+            "chat_points": {}
         }
-    else:
-        # Update general admin username if a valid one is provided and different
-        existing_username = global_data["admin_data"][admin_id].get("username")
-        if username and username != "Unknown Admin" and existing_username != username:
-            global_data["admin_data"][admin_id]["username"] = username
     
-    # Initialize points for the specific chat if they don't exist
-    if chat_id not in global_data["admin_data"][admin_id]["chat_points"]:
-        global_data["admin_data"][admin_id]["chat_points"][chat_id] = {
+    # Update username if a new one is provided
+    global_data["admin_data"][admin_id_str]["username"] = username
+
+    # Initialize per-chat data for the admin if it doesn't exist
+    if chat_id_str not in global_data["admin_data"][admin_id_str]["chat_points"]:
+        global_data["admin_data"][admin_id_str]["chat_points"][chat_id_str] = {
             "points": ADMIN_INITIAL_POINTS,
             "last_refill": None
         }
-            
-    return global_data["admin_data"][admin_id]["chat_points"][chat_id]
+
+    return global_data["admin_data"][admin_id_str]["chat_points"][chat_id_str]
 
 
 # Hardcoded global administrators (Telegram User IDs)
@@ -71,16 +70,22 @@ HARDCODED_ADMINS = [
     # Add more admin IDs here if needed
 ]
 
+# --- NEW: Super Admin definition ---
+# Only users in this list can use highly sensitive commands like /refill.
+SUPER_ADMINS = [
+    1599213796,
+    # 5965715103, # This user is now the Super Admin
+]
+
 # Allowed Group IDs
 # The bot will only function in these specific groups.
 # Replace with the actual Telegram Group IDs where you want the bot to run.
 # You can get a group's ID by forwarding a message from the group to @userinfobot
 ALLOWED_GROUP_IDS = [
     # -1002295769196,
-    #-1002780424700, #test gp
+    # -1002780424700,#testgp
     # -1002718732381,
     -1002689980361, #main gp
-    
 ]
 
 
@@ -98,10 +103,5 @@ RESULT_EMOJIS = {
 ADMIN_INITIAL_POINTS = 10000000 # Admins start with 10,000,000 points, refilled daily
 
 # Referral system constants
-REFERRAL_BONUS_POINTS = 500 # Points awarded to referrer when new user joins via their link
-
-# --- UPDATED: Hardcoded main game group link ---
-# IMPORTANT: Replace this with an actual permanent invite link you generate manually from your Telegram group.
-# This link will be given to users to join the group.
-MAIN_GAME_GROUP_LINK = "https://t.me/rgndiceofficial" 
-# --- END UPDATED ---
+REFERRAL_BONUS_POINTS = 500
+MAIN_GAME_GROUP_LINK = "https://t.me/rgndiceofficial" # Replace with your main game group's invite link

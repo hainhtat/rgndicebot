@@ -68,7 +68,7 @@ async def add_scheduled_jobs(application: telegram.ext.Application): # Explicitl
     # Schedule daily admin point refill at 23:30 UTC, which is 6:00 AM in Myanmar (UTC+6:30)
     application.job_queue.run_daily(
         handlers.refill_all_admin_points,
-        time=time(hour=23, minute=30, tzinfo=pytz.utc), 
+        time=time(hour=23, minute=30, tzinfo=pytz.utc),
         name="daily_admin_refill"
     )
     logger.info("Scheduled daily admin point refill job for 06:00 MMT (23:30 UTC).")
@@ -115,12 +115,12 @@ def main():
 
     # --- MODIFIED: Corrected how BOT_TOKEN is retrieved and referencing ApplicationBuilder ---
     BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
-    # BOT_TOKEN="8187381656:AAHnNiWB0Z98uJ5qBvbaXCsNqHHOt1itlGg" #test bot
-    # TELEGRAM_BOT_TOKEN = "7451897081:AAF9LAd9nisELQG2xCwcX63xOmG49GAS7vA" # Use os.getenv with the correct variable name
+    # BOT_TOKEN = "8187381656:AAHnNiWB0Z98uJ5qBvbaXCsNqHHOt1itlGg" # Use os.getenv with the correct variable name
+   
     if not BOT_TOKEN:
         logger.error("Telegram Bot Token not found in environment variables. Please set BOT_TOKEN in your .env file.")
         return
-    
+
     # MODIFIED: Register add_scheduled_jobs as a post_init callback
     # ApplicationBuilder().build() starts the internal loop and calls post_init
     application = telegram.ext.ApplicationBuilder().token(BOT_TOKEN).post_init(add_scheduled_jobs).build()
@@ -131,7 +131,7 @@ def main():
 
 
     # Command Handlers
-    application.add_handler(telegram.ext.CommandHandler("help", handlers.start))
+    application.add_handler(telegram.ext.CommandHandler("start", handlers.start))
     # application.add_handler(telegram.ext.CommandHandler("ping", handlers.ping))
     application.add_handler(telegram.ext.CommandHandler("roll", handlers.start_dice))
     application.add_handler(telegram.ext.CommandHandler("mywallet", handlers.my_wallet))
@@ -140,8 +140,9 @@ def main():
     application.add_handler(telegram.ext.CommandHandler("adjustscore", handlers.adjust_score))
     application.add_handler(telegram.ext.CommandHandler("checkscore", handlers.check_user_score))
     application.add_handler(telegram.ext.CommandHandler("refreshadmins", handlers.refresh_admins))
-    application.add_handler(telegram.ext.CommandHandler("stop", handlers.stop_game))
+    application.add_handler(telegram.ext.CommandHandler("stopgame", handlers.stop_game))
     application.add_handler(telegram.ext.CommandHandler("adminwallets", handlers.admin_wallets))
+    application.add_handler(telegram.ext.CommandHandler("refill", handlers.manual_refill))
     application.add_handler(telegram.ext.CommandHandler("share", handlers.handle_share_referral))
      # Admin wallet check
 
@@ -180,4 +181,3 @@ def main():
 if __name__ == "__main__":
     # MODIFIED: Call main directly, as it's now synchronous
     main()
-
