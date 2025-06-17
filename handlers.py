@@ -1699,7 +1699,7 @@ async def deposit_points(update: Update, context):
 
     await (update.message or update.callback_query.message).reply_text(
         f"*🪙 ငွေထည့်ရန်: 1 point = 1 kyat\n"
-        f"ငွေဖြည့်သွင်းရန်အတွက် Admin ကို ဒီကနေ DM ပို့ပေးပါ 👉 @BOASTER_OFFICIAL422\n"
+        f"ငွေဖြည့်သွင်းရန်အတွက် Admin ကို ဒီကနေ DM ပို့ပေးပါ 👉 @pussycat_1204\n"
         f"ကျေးဇူးတင်ပါတယ်!*",
         parse_mode="Markdown"
     )
@@ -1745,7 +1745,7 @@ async def withdraw_points(update: Update, context):
 
     await (update.message or update.callback_query.message).reply_text(
         f"*💸 ငွေထုတ်ရန်: 1 point = 1 kyat\n"
-        f"ငွေထုတ်ယူရန်အတွက် Admin ကို ဒီကနေ DM ပို့ပေးပါ 👉 @BOASTER_OFFICIAL422\n"
+        f"ငွေထုတ်ယူရန်အတွက် Admin ကို ဒီကနေ DM ပို့ပေးပါ 👉 @pusycat_1204\n"
         f"ကျေးဇူးတင်ပါတယ်!*",
         parse_mode="Markdown"
     )
