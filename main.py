@@ -53,7 +53,7 @@ logger = get_logger(__name__)
 # auto_roll_dice_wrapper is imported from handlers package
 
 # Import the dynamic keyboard function
-from utils.telegram_utils import create_custom_keyboard, is_admin, initialize_group_keyboards, send_user_keyboard_on_interaction
+from utils.telegram_utils import create_custom_keyboard, is_admin, initialize_group_keyboards, send_user_keyboard_on_interaction, send_keyboard_to_new_member
 
 
 

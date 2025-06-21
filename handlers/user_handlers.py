@@ -509,7 +509,14 @@ async def handle_new_chat_member(update: Update, context: ContextTypes.DEFAULT_T
         except Exception as e:
             logger.error(f"Failed to send welcome message: {e}")
             # Try without markdown parsing
-            await update.message.reply_text(
-                welcome_message.replace('*', ''),
-                parse_mode=None
-            )
+            try:
+                await update.message.reply_text(
+                    welcome_message.replace('*', ''),
+                    parse_mode=None
+                )
+            except Exception as e2:
+                logger.error(f"Failed to send welcome message without markdown: {e2}")
+        
+        # Send keyboard to the new member
+        from utils.telegram_utils import send_keyboard_to_new_member
+        await send_keyboard_to_new_member(context, chat_id, user_id)

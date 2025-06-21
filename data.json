@@ -1,0 +1,29 @@
+{
+  "all_chat_data": {
+    "-1002780424700": {
+      "player_stats": {},
+      "match_counter": 1,
+      "match_history": [],
+      "group_admins": [
+        1599213796
+      ],
+      "consecutive_idle_matches": 0
+    },
+    "-1002689980361": {
+      "player_stats": {},
+      "match_counter": 1,
+      "match_history": [],
+      "group_admins": [],
+      "consecutive_idle_matches": 0
+    },
+    "-4859500151": {
+      "player_stats": {},
+      "match_counter": 1,
+      "match_history": [],
+      "group_admins": [],
+      "consecutive_idle_matches": 0
+    }
+  },
+  "admin_data": {},
+  "global_user_data": {}
+}

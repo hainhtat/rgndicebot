@@ -8,6 +8,7 @@ from telegram.error import TelegramError, BadRequest, TimedOut, NetworkError
 
 from config.constants import SUPER_ADMIN_IDS, ADMIN_WALLET_AMOUNT, HARDCODED_ADMINS, global_data, get_chat_data_for_id
 from config.settings import SUPER_ADMINS
+from utils.user_utils import get_user_display_name
 from data.file_manager import save_data
 
 logger = logging.getLogger(__name__)
@@ -115,27 +116,38 @@ ADMIN_IDS_BY_CHAT = {}
 
 async def initialize_group_keyboards(context, chat_id: int):
     """
-    Initialize keyboards for a group chat.
+    Initialize keyboards for a specific group.
     Now sends the same keyboard to all users.
-    Still caches admin IDs for permission checks in command handlers.
     """
     try:
-        # Get all chat members who are admins (still needed for permission checks)
-        admin_ids = await get_admins_from_chat(chat_id, context)
+        logger.info(f"Initializing keyboards for group {chat_id}")
         
-        # Store the admin IDs in a global variable for later reference
-        global ADMIN_IDS_BY_CHAT
-        ADMIN_IDS_BY_CHAT[chat_id] = admin_ids
+        # Get all chat administrators to cache their IDs
+        try:
+            chat_admins = await context.bot.get_chat_administrators(chat_id)
+            admin_ids = [admin.user.id for admin in chat_admins if not admin.user.is_bot]
+            ADMIN_IDS_BY_CHAT[chat_id] = admin_ids
+            logger.info(f"Cached {len(admin_ids)} admin IDs for chat {chat_id}: {admin_ids}")
+        except Exception as e:
+            logger.error(f"Failed to get chat administrators for {chat_id}: {e}")
+            ADMIN_IDS_BY_CHAT[chat_id] = []
         
-        # Create standard keyboard for all users
+        # Send a welcome message with keyboard to the group
         keyboard = create_custom_keyboard()
+        try:
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text="🎲 ဂိမ်းစတင်ရန် အသင့်ဖြစ်ပါပြီ! အောက်ပါခလုတ်များကို အသုံးပြုပါ။",
+                reply_markup=keyboard
+            )
+            logger.info(f"Welcome keyboard sent to group {chat_id}")
+        except Exception as e:
+            logger.error(f"Failed to send welcome keyboard to group {chat_id}: {e}")
         
-        # Don't send any message to the group chat when initializing keyboards
-        
-        logger.info(f"Initialized keyboard for group {chat_id} with admins: {admin_ids}")
+        logger.info(f"Keyboard initialization completed for group {chat_id}")
         
     except Exception as e:
-        logger.error(f"Failed to initialize keyboard for group {chat_id}: {e}")
+        logger.error(f"Failed to initialize keyboards for group {chat_id}: {e}")
 
 
 async def send_user_keyboard_on_interaction(context, chat_id: int, user_id: int):
@@ -151,7 +163,7 @@ async def send_user_keyboard_on_interaction(context, chat_id: int, user_id: int)
         # Create standard keyboard for all users
         keyboard = create_custom_keyboard()
         
-        # Send the keyboard to the user who interacted (without any message)
+        # Send the keyboard to the user who interacted
         try:
             # Try to get the update object from context if available
             update = getattr(context, 'update', None)
@@ -161,24 +173,53 @@ async def send_user_keyboard_on_interaction(context, chat_id: int, user_id: int)
                 if message_text and message_text.startswith('/'):
                     logger.debug(f"Not sending keyboard for command message from user {user_id}")
                     return
-                    
-                # Don't send any message - just log the interaction
-                logger.debug(f"User {user_id} interacted in group {chat_id}")
-                return
+            
+            # Send keyboard to the user in the group chat
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text="🎲 ဂိမ်းကစားရန် အောက်ပါခလုတ်များကို အသုံးပြုပါ။",
+                reply_markup=keyboard,
+                reply_to_message_id=getattr(update.message, 'message_id', None) if update and hasattr(update, 'message') else None
+            )
+            
+            logger.debug(f"Keyboard sent to user {user_id} in group {chat_id}")
+                
         except Exception as e:
-            logger.debug(f"Could not get update object from context: {e}")
-        
-        # No fallback message needed
-        logger.debug(f"User {user_id} interacted in group {chat_id}")
+            logger.debug(f"Could not send keyboard: {e}")
         
     except Exception as e:
         logger.error(f"Failed to send keyboard to user {user_id} in group {chat_id}: {e}")
 
 
+async def send_keyboard_to_new_member(context, chat_id: int, user_id: int):
+    """
+    Send keyboard to a new member who just joined the group.
+    """
+    try:
+        keyboard = create_custom_keyboard()
+        
+        # Send welcome message with keyboard
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=f"🎉 ကြိုဆိုပါတယ်! ဂိမ်းကစားရန် အောက်ပါခလုတ်များကို အသုံးပြုပါ။",
+            reply_markup=keyboard
+        )
+        
+        logger.info(f"Welcome keyboard sent to new member {user_id} in group {chat_id}")
+        
+    except Exception as e:
+        logger.error(f"Failed to send keyboard to new member {user_id} in group {chat_id}: {e}")
+
+
 def create_inline_keyboard(buttons: List[List[Tuple[str, str]]]) -> InlineKeyboardMarkup:
     """
     Creates an inline keyboard from a list of button data.
-    Each button is a tuple of (text, callback_data).
+    
+    Args:
+        buttons: List of rows, where each row is a list of (text, callback_data) tuples
+    
+    Returns:
+        InlineKeyboardMarkup object
     """
     keyboard = []
     for row in buttons:
@@ -186,6 +227,7 @@ def create_inline_keyboard(buttons: List[List[Tuple[str, str]]]) -> InlineKeyboa
         for text, callback_data in row:
             keyboard_row.append(InlineKeyboardButton(text, callback_data=callback_data))
         keyboard.append(keyboard_row)
+    
     return InlineKeyboardMarkup(keyboard)
 
 
