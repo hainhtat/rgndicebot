@@ -263,6 +263,13 @@ def main() -> None:
     application.add_handler(CommandHandler("status", game_status))
     application.add_handler(CommandHandler("leaderboard", show_leaderboard))
     
+    # Add handlers for emoji versions of keyboard buttons
+    application.add_handler(MessageHandler(filters.TEXT & filters.Regex("^💵 ငွေထည့်မည်$"), deposit_handler))
+    application.add_handler(MessageHandler(filters.TEXT & filters.Regex("^💸 ငွေထုတ်မည်$"), withdrawal_handler))
+    application.add_handler(MessageHandler(filters.TEXT & filters.Regex("^💰 My Wallet$"), check_wallet))
+    application.add_handler(MessageHandler(filters.TEXT & filters.Regex("^🏆 Leaderboard$"), show_leaderboard))
+    application.add_handler(MessageHandler(filters.TEXT & filters.Regex("^🔗 Share$"), get_referral_link))
+    
     # Also add handlers without emojis for backward compatibility
     application.add_handler(MessageHandler(filters.TEXT & filters.Regex("^ငွေထည့်မည်$"), deposit_handler))
     application.add_handler(MessageHandler(filters.TEXT & filters.Regex("^ငွေထုတ်မည်$"), withdrawal_handler))

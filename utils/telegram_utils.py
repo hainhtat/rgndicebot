@@ -154,11 +154,10 @@ async def send_user_keyboard_on_interaction(context, chat_id: int, user_id: int)
     """
     Send keyboard when a user interacts in the group.
     This is called when users send messages in allowed groups.
-    Now disabled to prevent spam - keyboards are persistent and don't need to be resent.
     """
     try:
         # Debug logging
-        logger.debug(f"Keyboard interaction logged for user {user_id} in group {chat_id}")
+        logger.debug(f"Keyboard interaction for user {user_id} in group {chat_id}")
         
         # Try to get the update object from context if available
         update = getattr(context, 'update', None)
@@ -169,32 +168,38 @@ async def send_user_keyboard_on_interaction(context, chat_id: int, user_id: int)
                 logger.debug(f"Command message from user {user_id}, no action needed")
                 return
         
-        # Keyboards are persistent in Telegram, so we don't need to resend them
-        # Users will see the keyboard from when they first joined or when bot started
-        logger.debug(f"User {user_id} interaction logged, keyboard already available")
+        # Send keyboard to ensure user has access to bot functions
+        keyboard = create_custom_keyboard()
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text="🎮 Use the keyboard below to interact with the bot.",
+            reply_markup=keyboard
+        )
+        
+        logger.debug(f"Keyboard sent to user {user_id} in group {chat_id}")
         
     except Exception as e:
-        logger.error(f"Failed to log interaction for user {user_id} in group {chat_id}: {e}")
+        logger.error(f"Failed to send keyboard to user {user_id} in group {chat_id}: {e}")
 
 
-async def send_keyboard_to_new_member(context: ContextTypes.DEFAULT_TYPE, user_id: int, chat_id: int) -> None:
+async def send_keyboard_to_new_member(context: ContextTypes.DEFAULT_TYPE, chat_id: int, user_id: int) -> None:
     """
     Send keyboard to a new member who just joined the group.
     """
     try:
         keyboard = create_custom_keyboard()
         
-        # Send keyboard to the user privately (no message text)
-        # await context.bot.send_message(
-        #     chat_id=user_id,  # Send to user privately instead of group
-        #     text="🎮 Welcome! Use the buttons below to interact with the bot.",
-        #     reply_markup=keyboard
-        # )
+        # Send keyboard to the group chat where the user joined
+        await context.bot.send_message(
+            chat_id=chat_id,  # Send to the group chat
+            text=f"🎮 Welcome! Use the keyboard below to interact with the bot.",
+            reply_markup=keyboard
+        )
         
-        logger.info(f"Welcome keyboard sent to new member {user_id} privately")
+        logger.info(f"Welcome keyboard sent to group {chat_id} for new member {user_id}")
         
     except Exception as e:
-        logger.error(f"Failed to send keyboard to new member {user_id}: {e}")
+        logger.error(f"Failed to send keyboard to new member {user_id} in group {chat_id}: {e}")
 
 
 def create_inline_keyboard(buttons: List[List[Tuple[str, str]]]) -> InlineKeyboardMarkup:

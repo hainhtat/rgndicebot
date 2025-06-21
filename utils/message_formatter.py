@@ -3,7 +3,7 @@ import re
 from typing import Dict, List, Optional, Tuple, Any, Union
 
 from config.constants import RESULT_EMOJIS, GAME_STATE_WAITING, GAME_STATE_CLOSED, GAME_STATE_OVER
-from utils.formatting import escape_markdown
+from utils.formatting import escape_markdown, escape_markdown_username
 
 logger = logging.getLogger(__name__)
 
@@ -180,6 +180,13 @@ def format_game_status(game_status: Dict[str, Any], time_remaining: Optional[int
         return MessageTemplates.GENERAL_ERROR.format(message=str(e))
 
 
+def get_parse_mode_for_message(message: str) -> str:
+    """Determine the appropriate parse mode for a message based on its content."""
+    if '<b>' in message or '<i>' in message or '<code>' in message or '<pre>' in message:
+        return "HTML"
+    else:
+        return "Markdown"
+
 def format_bet_confirmation(bet_type: str, amount: int, result_message: str, username: str = "User", referral_points: int = 0, user_id: str = None, game = None, global_data = None) -> str:
     """
     Formats a bet confirmation message.
@@ -202,7 +209,7 @@ def format_bet_confirmation(bet_type: str, amount: int, result_message: str, use
         except (IndexError, ValueError):
             pass
     
-    # Get proper display name
+    # Get proper display name - always use HTML formatting to avoid markdown conflicts
     display_name = username
     if global_data and user_id:
         user_global_data = global_data.get('global_user_data', {}).get(user_id, {})
@@ -210,9 +217,15 @@ def format_bet_confirmation(bet_type: str, amount: int, result_message: str, use
         telegram_username = user_global_data.get('username')
         
         if telegram_username and telegram_username.strip():
-            display_name = f"{escape_markdown(full_name)}(@{escape_markdown(telegram_username)})"
+            # Use HTML entities for special characters
+            safe_full_name = full_name.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+            safe_username = telegram_username.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+            display_name = f"{safe_full_name}(@{safe_username})"
         else:
-            display_name = escape_markdown(full_name)
+            display_name = full_name.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+    else:
+        # Fallback: escape the username properly for HTML
+        display_name = username.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
     
     # Get user's total bets display
     total_bets_display = ""
@@ -235,14 +248,12 @@ def format_bet_confirmation(bet_type: str, amount: int, result_message: str, use
     else:
         total_bets_display = f"🔴 {bet_type} {amount} ကျပ်"
     
-    return MessageTemplates.BET_CONFIRMATION.format(
-        display_name=display_name,
-        amount=amount,
-        bet_type=bet_type,
-        score=score,
-        referral_points=referral_points,
-        total_bets_display=total_bets_display
-    )
+    # Always use HTML formatting to avoid markdown conflicts
+    message = f"✅ {display_name} <b>{bet_type}</b> ပေါ် <b>{amount}</b> လောင်းကြေးထပ်လိုက်ပါပြီ\n\n"
+    message += f"📊 <b>Total Bets:</b>\n{total_bets_display}\n\n"
+    message += f"💰 <b>Wallet</b> - <b>{score}</b> ကျပ်\n"
+    message += f"🎁 <b>Referral</b> - <b>{referral_points}</b> ကျပ်"
+    return message
 
 
 def format_insufficient_funds(score: int, referral_points: int, amount: int) -> str:
@@ -282,13 +293,13 @@ def format_participants_list(game, chat_data, global_data=None) -> str:
                     telegram_username = user_global_data.get('username')
                     
                     if telegram_username and telegram_username.strip():
-                        display_name = f"{escape_markdown(full_name)}(@{escape_markdown(telegram_username)})"
+                        display_name = f"{escape_markdown_username(full_name)}(@{escape_markdown_username(telegram_username)})"
                     else:
-                        display_name = escape_markdown(full_name)
+                        display_name = escape_markdown_username(full_name)
                 else:
                     # Fallback to chat data username
                     username = chat_data["player_stats"][user_id_str].get("username", "Unknown")
-                    display_name = escape_markdown(username)
+                    display_name = escape_markdown_username(username)
                 
                 # Get user's bets
                 user_bets = []
@@ -362,9 +373,9 @@ def format_wallet(player_stats: Dict[str, Any], global_user_data: Dict[str, Any]
     
     # Format display name as "Name(@username)" if username exists, otherwise just "Name"
     if full_name and username and username.strip():
-        display_name = f"{escape_markdown(full_name)}(@{escape_markdown(username)})"
+        display_name = f"{escape_markdown_username(full_name)}(@{escape_markdown_username(username)})"
     else:
-        display_name = escape_markdown(full_name or "Unknown User")
+        display_name = escape_markdown_username(full_name or "Unknown User")
     
     score = player_stats.get('score', 0)
     referral_points = global_user_data.get('referral_points', 0)
@@ -416,12 +427,12 @@ def format_game_result(result: Dict[str, Any], global_data: Dict[str, Any] = Non
             telegram_username = user_global_data.get('username')
             
             if telegram_username and telegram_username.strip():
-                display_name = f"{escape_markdown(full_name)}(@{escape_markdown(telegram_username)})"
+                display_name = f"{escape_markdown_username(full_name)}(@{escape_markdown_username(telegram_username)})"
             else:
-                display_name = escape_markdown(full_name)
+                display_name = escape_markdown_username(full_name)
         else:
             # Fallback to winner username
-            display_name = escape_markdown(winner.get('username', 'Unknown'))
+            display_name = escape_markdown_username(winner.get('username', 'Unknown'))
         
         bet_amount = winner.get('bet_amount', 0)
         winnings = winner.get('winnings', 0)
@@ -444,12 +455,12 @@ def format_game_result(result: Dict[str, Any], global_data: Dict[str, Any] = Non
             telegram_username = user_global_data.get('username')
             
             if telegram_username and telegram_username.strip():
-                display_name = f"{escape_markdown(full_name)}(@{escape_markdown(telegram_username)})"
+                display_name = f"{escape_markdown_username(full_name)}(@{escape_markdown_username(telegram_username)})"
             else:
-                display_name = escape_markdown(full_name)
+                display_name = escape_markdown_username(full_name)
         else:
             # Fallback to loser username
-            display_name = escape_markdown(loser.get('username', 'Unknown'))
+            display_name = escape_markdown_username(loser.get('username', 'Unknown'))
         
         bet_amount = loser.get('bet_amount', 0)
         # Get wallet balance from loser data if available
@@ -523,14 +534,14 @@ def format_leaderboard(chat_data: Dict[str, Any], context: Any, title: str = "�
             telegram_username = user_global_data.get('username')
             
             if telegram_username and telegram_username.strip():
-                display_name = f"{escape_markdown(full_name)}(@{escape_markdown(telegram_username)})"
+                display_name = f"{escape_markdown_username(full_name)}(@{escape_markdown_username(telegram_username)})"
             else:
-                display_name = escape_markdown(full_name)
+                display_name = escape_markdown_username(full_name)
         else:
             # Fallback to stored username
             username = player.get('username', 'Unknown')
             if isinstance(username, str) and username != 'Unknown':
-                display_name = escape_markdown(username)
+                display_name = escape_markdown_username(username)
             else:
                 display_name = 'Unknown'
         

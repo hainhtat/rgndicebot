@@ -24,10 +24,10 @@ from config.constants import (
 from utils.user_utils import get_user_display_name
 from utils.telegram_utils import send_message_with_retry
 from utils.message_formatter import (
-    format_bet_confirmation, format_bet_error, format_game_status,
+    format_bet_confirmation, format_insufficient_funds, format_bet_error,
     format_game_result, format_game_summary, format_dice_result,
     format_participants_list, format_betting_closed_message, format_dice_animation_failed,
-    MessageTemplates
+    format_game_status, MessageTemplates, get_parse_mode_for_message
 )
 
 # Import from game logic
@@ -129,21 +129,37 @@ async def place_bet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             # Invalid format
             return
     
+    # Get referral points from global data for both scenarios
+    global_user_data = global_data.get("global_user_data", {}).get(str(user_id), {})
+    referral_points = global_user_data.get("referral_points", 0)
+    
     # Process the bet
     try:
         result_message = process_bet(game, user_id, username, bet_type, amount, chat_data, global_data)
         
         # Send confirmation message
+        confirmation_message = format_bet_confirmation(
+            bet_type=bet_type,
+            amount=amount,
+            result_message=result_message,
+            username=username,
+            referral_points=referral_points,
+            user_id=str(user_id),
+            game=game,
+            global_data=global_data
+        )
+        
+        # Always use HTML parse mode since format_bet_confirmation now returns HTML
         if is_callback:
-            await update.callback_query.answer("Bet placed successfully!")
+            await update.callback_query.answer("လောင်းကြေးထပ်လိုက်ပါပြီ!")
             await update.callback_query.edit_message_text(
-                text=format_bet_confirmation(bet_type, amount, result_message, username, 0, str(user_id), game, global_data),
-                parse_mode="Markdown"
+                text=confirmation_message,
+                parse_mode="HTML"
             )
         else:
             await update.message.reply_text(
-                text=format_bet_confirmation(bet_type, amount, result_message, username, 0, str(user_id), game, global_data),
-                parse_mode="Markdown"
+                text=confirmation_message,
+                parse_mode="HTML"
             )
         
         logger.info(f"Bet placed: user={user_id}, type={bet_type}, amount={amount}, chat={chat_id}")
