@@ -95,14 +95,9 @@ async def unhandled_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         # Check if this is an allowed group
         if chat_id in ALLOWED_GROUP_IDS:
-            # Store the update object in the context for use in send_user_keyboard_on_interaction
-            context.update = update
-            
-            # Only send keyboard if this is not a command (commands are handled by their own handlers)
-            message_text = update.message.text
-            if message_text and not message_text.startswith('/'):
-                # Send appropriate keyboard based on user role
-                await send_user_keyboard_on_interaction(context, chat_id, user_id)
+            # Just log the interaction without sending any keyboard
+            # The keyboard functionality is already available through other handlers
+            pass
         
         logger.info(f"Unhandled group message from {update.effective_user.id} in chat {update.effective_chat.id}: {update.message.text}")
 
