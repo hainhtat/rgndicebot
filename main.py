@@ -255,6 +255,14 @@ def main() -> None:
     application.add_handler(CommandHandler("stopgame", stop_game))
     application.add_handler(CommandHandler("history", show_history))
     
+    # Add missing command handlers
+    application.add_handler(CommandHandler("wallet", check_wallet))
+    application.add_handler(CommandHandler("refer", get_referral_link))
+    application.add_handler(CommandHandler("help", show_help))
+    application.add_handler(CommandHandler("about", bot_info))
+    application.add_handler(CommandHandler("status", game_status))
+    application.add_handler(CommandHandler("leaderboard", show_leaderboard))
+    
     # Also add handlers without emojis for backward compatibility
     application.add_handler(MessageHandler(filters.TEXT & filters.Regex("^ငွေထည့်မည်$"), deposit_handler))
     application.add_handler(MessageHandler(filters.TEXT & filters.Regex("^ငွေထုတ်မည်$"), withdrawal_handler))

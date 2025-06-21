@@ -23,7 +23,7 @@ DATA_FILE_PATH = os.environ.get("DATA_FILE_PATH", "data.json")
 
 # Main game group link
 # This should be updated to the appropriate group link
-MAIN_GAME_GROUP_LINK = os.environ.get("MAIN_GAME_GROUP_LINK", "https://t.me/rgndiceofficial")
+MAIN_GAME_GROUP_LINK = os.environ.get("MAIN_GAME_GROUP_LINK", "https://t.me/dicetestmm")
 
 # Hardcoded admin IDs
 HARDCODED_ADMINS = [
@@ -52,8 +52,8 @@ if env_super_admins:
 
 # Allowed group IDs
 ALLOWED_GROUP_IDS = [
-    # -1002780424700, #test group
-    -1002689980361, #main gp
+    -1002780424700, #test group
+    # -1002689980361, #main gp
 ]  # Add allowed group IDs here
 
 # Try to load allowed group IDs from environment variable

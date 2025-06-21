@@ -154,41 +154,27 @@ async def send_user_keyboard_on_interaction(context, chat_id: int, user_id: int)
     """
     Send keyboard when a user interacts in the group.
     This is called when users send messages in allowed groups.
-    Now uses the same keyboard for all users.
+    Now disabled to prevent spam - keyboards are persistent and don't need to be resent.
     """
     try:
         # Debug logging
-        logger.debug(f"Context type: {type(context)}, Bot type: {type(context.bot)}")
+        logger.debug(f"Keyboard interaction logged for user {user_id} in group {chat_id}")
         
-        # Create standard keyboard for all users
-        keyboard = create_custom_keyboard()
+        # Try to get the update object from context if available
+        update = getattr(context, 'update', None)
+        if update and hasattr(update, 'message'):
+            # Check if this is a command - if so, don't send the keyboard
+            message_text = update.message.text
+            if message_text and message_text.startswith('/'):
+                logger.debug(f"Command message from user {user_id}, no action needed")
+                return
         
-        # Send the keyboard to the user who interacted
-        try:
-            # Try to get the update object from context if available
-            update = getattr(context, 'update', None)
-            if update and hasattr(update, 'message'):
-                # Check if this is a command - if so, don't send the keyboard
-                message_text = update.message.text
-                if message_text and message_text.startswith('/'):
-                    logger.debug(f"Not sending keyboard for command message from user {user_id}")
-                    return
-            
-            # Send keyboard to the user in the group chat
-            await context.bot.send_message(
-                chat_id=chat_id,
-                text="🎲 ဂိမ်းကစားရန် အောက်ပါခလုတ်များကို အသုံးပြုပါ။",
-                reply_markup=keyboard,
-                reply_to_message_id=getattr(update.message, 'message_id', None) if update and hasattr(update, 'message') else None
-            )
-            
-            logger.debug(f"Keyboard sent to user {user_id} in group {chat_id}")
-                
-        except Exception as e:
-            logger.debug(f"Could not send keyboard: {e}")
+        # Keyboards are persistent in Telegram, so we don't need to resend them
+        # Users will see the keyboard from when they first joined or when bot started
+        logger.debug(f"User {user_id} interaction logged, keyboard already available")
         
     except Exception as e:
-        logger.error(f"Failed to send keyboard to user {user_id} in group {chat_id}: {e}")
+        logger.error(f"Failed to log interaction for user {user_id} in group {chat_id}: {e}")
 
 
 async def send_keyboard_to_new_member(context, chat_id: int, user_id: int):
