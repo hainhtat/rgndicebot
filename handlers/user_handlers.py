@@ -10,7 +10,7 @@ from config.constants import global_data, get_chat_data_for_id
 from config.settings import REFERRAL_BONUS_POINTS as REFERRAL_BONUS, MAIN_GAME_GROUP_LINK as MAIN_GROUP_LINK, ALLOWED_GROUP_IDS, TIMEZONE, SUPER_ADMINS
 from data.file_manager import save_data
 from handlers.utils import check_allowed_chat
-from utils.formatting import escape_markdown
+from utils.formatting import escape_markdown, escape_markdown_username
 from utils.message_formatter import format_wallet, MessageTemplates
 from utils.user_utils import get_or_create_global_user_data, get_user_display_name, process_referral, process_pending_referral
 from utils.telegram_utils import is_admin, get_admins_from_chat, create_custom_keyboard
@@ -32,7 +32,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         # Check if this is an allowed group
         if chat_id in ALLOWED_GROUP_IDS:
             # Send welcome message only - keyboards are persistent and managed separately
-            welcome_text = f"Welcome to the game, {escape_markdown(user.first_name)}! Your keyboard controls are already available."
+            welcome_text = f"Welcome to the game, {escape_markdown_username(user.first_name)}! Your keyboard controls are already available."
             await update.message.reply_text(
                 welcome_text,
                 parse_mode="Markdown"
@@ -68,7 +68,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             
             # Simplified welcome message with referral result
             welcome_message = MessageTemplates.WELCOME_WITH_REFERRAL.format(
-                name=escape_markdown(user.first_name),
+                name=escape_markdown_username(user.first_name),
                 message=message
             )
             
@@ -100,7 +100,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             return
         except ValueError:
             welcome_message = MessageTemplates.WELCOME_STANDARD.format(
-                name=escape_markdown(user.first_name)
+                name=escape_markdown_username(user.first_name)
             )
             
             # Send the welcome message
@@ -129,7 +129,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     
     # Standard welcome message with referral link
     welcome_message = MessageTemplates.WELCOME_WITH_REFERRAL_LINK.format(
-        name=escape_markdown(user.first_name),
+        name=escape_markdown_username(user.first_name),
         bonus=REFERRAL_BONUS,
         referral_link=referral_link
     )
@@ -188,7 +188,7 @@ async def check_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         safe_username = username
         if username and any(char in username for char in '*_[]()~>#+-=|{}.!'):
             # If username contains special markdown characters, escape them
-            safe_username = escape_markdown(username)
+            safe_username = escape_markdown_username(username)
         
         wallet_message += MessageTemplates.ADMIN_WALLET_SELF.format(
             username=safe_username,
@@ -494,11 +494,11 @@ async def handle_new_chat_member(update: Update, context: ContextTypes.DEFAULT_T
         # Welcome the new member to the group
         if welcome_success:
             welcome_message = MessageTemplates.NEW_MEMBER_WELCOME.format(
-                name=escape_markdown(member.first_name)
+                name=escape_markdown_username(member.first_name)
             ) + f"\n\n{welcome_msg}"
         else:
             welcome_message = MessageTemplates.NEW_MEMBER_WELCOME.format(
-                name=escape_markdown(member.first_name)
+                name=escape_markdown_username(member.first_name)
             )
         
         try:

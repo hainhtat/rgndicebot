@@ -10,7 +10,7 @@ from config.constants import global_data, get_admin_data, SUPER_ADMINS, ADMIN_WA
 from data.file_manager import save_data
 from utils.telegram_utils import is_admin
 from utils.message_formatter import MessageTemplates
-from utils.formatting import escape_markdown
+from utils.formatting import escape_markdown, escape_markdown_username
 
 logger = logging.getLogger(__name__)
 
@@ -441,7 +441,7 @@ async def handle_refill_amount_command(update: Update, context: ContextTypes.DEF
             save_data(global_data)
             
             await update.message.reply_text(
-                f"✅ *Custom Refill Complete*\n\n*Group:* {escape_markdown(refill_context['group_title'])}\n*Admin:* {escape_markdown(refill_context['admin_username'])}\n*Amount:* {amount:,} points",
+                f"✅ *Custom Refill Complete*\n\n*Group:* {escape_markdown(refill_context['group_title'])}\n*Admin:* {escape_markdown_username(refill_context['admin_username'])}\n*Amount:* {amount:,} points",
                 parse_mode="Markdown"
             )
         

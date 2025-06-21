@@ -91,27 +91,27 @@ async def get_user_display_name(context: ContextTypes.DEFAULT_TYPE, user_id: int
 
         # Decide display format
         if current_full_name and current_username and current_username.strip():
-            from utils.formatting import escape_markdown
-            return f"{escape_markdown(current_full_name)} (@{escape_markdown(current_username)})"
+            from utils.formatting import escape_markdown_username
+            return f"{escape_markdown_username(current_full_name)} (@{escape_markdown_username(current_username)})"
         elif current_full_name:
-            from utils.formatting import escape_markdown
-            return escape_markdown(current_full_name)
+            from utils.formatting import escape_markdown_username
+            return escape_markdown_username(current_full_name)
         elif current_username and current_username.strip():
-            from utils.formatting import escape_markdown
-            return f"@{escape_markdown(current_username)}"
+            from utils.formatting import escape_markdown_username
+            return f"@{escape_markdown_username(current_username)}"
         else:
             return FALLBACK_USER_NAME.format(user_id=user_id)  # Fallback if fetched user has no name/username
     elif cached_full_name or cached_username:
         # Fallback to cached data if API fetch failed but we have data
         if cached_full_name and cached_username and cached_username.strip():
-            from utils.formatting import escape_markdown
-            return f"{escape_markdown(cached_full_name)} (@{escape_markdown(cached_username)})"
+            from utils.formatting import escape_markdown_username
+            return f"{escape_markdown_username(cached_full_name)} (@{escape_markdown_username(cached_username)})"
         elif cached_full_name:
-            from utils.formatting import escape_markdown
-            return escape_markdown(cached_full_name)
+            from utils.formatting import escape_markdown_username
+            return escape_markdown_username(cached_full_name)
         elif cached_username and cached_username.strip():
-            from utils.formatting import escape_markdown
-            return f"@{escape_markdown(cached_username)}"
+            from utils.formatting import escape_markdown_username
+            return f"@{escape_markdown_username(cached_username)}"
     else:
         return FALLBACK_USER_NAME.format(user_id=user_id)  # Final fallback if no data at all
 

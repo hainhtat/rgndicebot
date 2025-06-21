@@ -84,7 +84,7 @@ async def send_refill_notification_to_super_admins(refill_details, total_refills
         from config.constants import SUPER_ADMINS
         from telegram import Bot
         from config.settings import BOT_TOKEN
-        from utils.formatting import escape_markdown
+        from utils.formatting import escape_markdown, escape_markdown_username
         
         bot = Bot(token=BOT_TOKEN)
         
@@ -95,7 +95,7 @@ async def send_refill_notification_to_super_admins(refill_details, total_refills
         message += f"*Refilled Admins:*\n"
         
         for detail in refill_details:
-            username = escape_markdown(detail["username"])
+            username = escape_markdown_username(detail["username"])
             admin_id = detail["admin_id"]
             message += f"\n👤 *{username}* ({admin_id})\n"
             

@@ -13,8 +13,8 @@ from config.constants import GAME_STATE_WAITING, GAME_STATE_CLOSED, GAME_STATE_O
 from config.settings import ADMIN_INITIAL_POINTS, TIMEZONE
 from data.file_manager import save_data
 from handlers.utils import check_admin_permission, get_current_game
-from utils.formatting import escape_markdown
-from utils.message_formatter import MessageTemplates
+from utils.formatting import escape_markdown, escape_markdown_username
+from utils.message_formatter import MessageTemplates, get_parse_mode_for_message
 from utils.telegram_utils import is_admin, update_group_admins, get_admins_from_chat
 from utils.user_utils import get_user_display_name, adjust_user_score
 from utils.error_handler import error_handler, BotError
@@ -335,33 +335,58 @@ async def check_user_score(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     total_games = wins + losses
     win_rate = (wins / total_games * 100) if total_games > 0 else 0
     
-    # Format the message with emojis and win rate
-    message = "👤 *User Information*\n\n"
-    message += f"🎮 *Player:* {display_name}\n\n"
-    message += f"💰 *Wallet:* {player_stats['score']} points\n"
-    message += f"🏆 *Wins:* {wins}\n"
-    message += f"💔 *Losses:* {losses}\n"
-    message += f"📊 *Win Rate:* {win_rate:.1f}%\n"
+    # Check if display name has escaped characters that conflict with markdown
+    escaped_display_name = escape_markdown_username(display_name)
+    has_conflicts = ('\\*' in escaped_display_name or '\\[' in escaped_display_name or '\\(' in escaped_display_name)
+    
+    if has_conflicts:
+        # Use HTML formatting to avoid conflicts
+        message = "👤 <b>User Information</b>\n\n"
+        message += f"🎮 <b>Player:</b> {escaped_display_name}\n\n"
+        message += f"💰 <b>Wallet:</b> {player_stats['score']} points\n"
+        message += f"🏆 <b>Wins:</b> {wins}\n"
+        message += f"💔 <b>Losses:</b> {losses}\n"
+        message += f"📊 <b>Win Rate:</b> {win_rate:.1f}%\n"
+    else:
+        # Use standard markdown formatting
+        message = MessageTemplates.USER_INFO_HEADER
+        message += f"🎮 *Player:* {display_name}\n\n"
+        message += f"💰 {MessageTemplates.USER_INFO_CHAT_SCORE.format(score=player_stats['score'])}"
+        message += f"🏆 {MessageTemplates.USER_INFO_WINS.format(wins=wins)}"
+        message += f"💔 {MessageTemplates.USER_INFO_LOSSES.format(losses=losses)}"
+        message += f"📊 *Win Rate:* {win_rate:.1f}%\n"
     
     if global_user_data:
-        message += MessageTemplates.USER_INFO_REFERRAL_POINTS.format(
-            referral_points=global_user_data.get('referral_points', 0)
-        )
-        
-        if global_user_data.get('referred_by'):
-            referrer_id = global_user_data['referred_by']
-            referrer_name = await get_user_display_name(context, referrer_id, chat_id)
-            message += MessageTemplates.USER_INFO_REFERRED_BY.format(
-                referrer_name=escape_markdown(referrer_name),
-                referrer_id=referrer_id
+        if has_conflicts:
+            # Use HTML formatting
+            message += f"🎁 <b>Referral Points:</b> {global_user_data.get('referral_points', 0)} points\n"
+            
+            if global_user_data.get('referred_by'):
+                referrer_id = global_user_data['referred_by']
+                referrer_name = await get_user_display_name(context, referrer_id, chat_id)
+                escaped_referrer_name = escape_markdown_username(referrer_name)
+                message += f"👤 <b>Referred By:</b> {escaped_referrer_name} ({referrer_id})\n"
+        else:
+            # Use markdown formatting
+            message += MessageTemplates.USER_INFO_REFERRAL_POINTS.format(
+                referral_points=global_user_data.get('referral_points', 0)
             )
+            
+            if global_user_data.get('referred_by'):
+                referrer_id = global_user_data['referred_by']
+                referrer_name = await get_user_display_name(context, referrer_id, chat_id)
+                message += MessageTemplates.USER_INFO_REFERRED_BY.format(
+                    referrer_name=escape_markdown_username(referrer_name),
+                    referrer_id=referrer_id
+                )
     
-    # Send the message
+    # Send the message with dynamic parse mode
+    parse_mode = get_parse_mode_for_message(message)
     try:
-        await update.message.reply_text(message, parse_mode="Markdown")
+        await update.message.reply_text(message, parse_mode=parse_mode)
     except telegram.error.BadRequest as e:
         if "can't parse entities" in str(e).lower():
-            # Fallback to plain text if Markdown parsing fails
+            # Fallback to plain text if parsing fails
             await update.message.reply_text(message)
         else:
             # Re-raise if it's a different error
@@ -503,7 +528,7 @@ async def admin_wallets(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                     last_refill_str = "Never"
                 
                 message += MessageTemplates.ADMIN_WALLET_ENTRY.format(
-                    username=escape_markdown(username),
+                    username=escape_markdown_username(username),
                     admin_id=admin_id,
                     points=chat_points,
                     last_refill=last_refill_str
@@ -533,7 +558,7 @@ async def admin_wallets(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                 last_refill_str = "Never"
             
             message += MessageTemplates.ADMIN_WALLET_SELF.format(
-                username=escape_markdown(username),
+                username=escape_markdown_username(username),
                 admin_id=user_id,
                 points=chat_points,
                 last_refill=last_refill_str
