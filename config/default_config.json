@@ -1,0 +1,39 @@
+{
+  "logging": {
+    "level": "INFO",
+    "file": "logs/dice_bot.log",
+    "json_format": false,
+    "console_level": "INFO"
+  },
+  "game": {
+    "bet_time_seconds": 60,
+    "roll_delay_seconds": 5,
+    "min_bet": 100,
+    "max_bet": 1000000,
+    "big_multiplier": 2.0,
+    "small_multiplier": 2.0,
+    "lucky_multiplier": 5.0,
+    "idle_game_limit": 3,
+    "manual_stop_cooldown_seconds": 10
+  },
+  "data": {
+    "save_interval_minutes": 5,
+    "data_file": "data.json",
+    "backup_enabled": true,
+    "backup_interval_hours": 24,
+    "backup_dir": "backups"
+  },
+  "user": {
+    "new_user_bonus": 500,
+    "referral_bonus": 500,
+    "daily_cashback_percent": 5,
+    "daily_cashback_min_loss": 1000,
+    "daily_cashback_max": 10000
+  },
+  "telegram": {
+    "admin_refresh_interval_hours": 24,
+    "message_retry_attempts": 3,
+    "message_retry_delay_seconds": 1,
+    "max_retry_delay_seconds": 30
+  }
+}
