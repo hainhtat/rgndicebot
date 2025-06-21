@@ -265,7 +265,7 @@ async def deposit_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             username = chat_member.user.username
             if username:
                 # Escape special Markdown characters in username
-                escaped_username = username.replace('_', '\_').replace('*', '\*').replace('[', '\[').replace(']', '\]').replace('(', '\(').replace(')', '\)').replace('~', '\~').replace('`', '\`').replace('>', '\>').replace('#', '\#').replace('+', '\+').replace('-', '\-').replace('=', '\=').replace('|', '\|').replace('{', '\{').replace('}', '\}').replace('.', '\.').replace('!', '\!')
+                escaped_username = username.replace('_', '\_').replace('*', '\*').replace('[', '\[').replace(']', '\]').replace('(', '\(').replace(')', '\)').replace('~', '\~').replace('`', '\`').replace('>', '\>').replace('#', '\#').replace('+', '\+').replace('-', '\-').replace('=', '\=').replace('|', '\|').replace('{', '\{').replace('}', '\}').replace('.', '\.').replace('!', '\\!')
                 admin_usernames.append(f"@{escaped_username}")
         except Exception as e:
             logger.error(f"Error getting admin info: {e}")
@@ -327,7 +327,7 @@ async def withdrawal_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
             username = chat_member.user.username
             if username:
                 # Escape special Markdown characters in username
-                escaped_username = username.replace('_', '\_').replace('*', '\*').replace('[', '\[').replace(']', '\]').replace('(', '\(').replace(')', '\)').replace('~', '\~').replace('`', '\`').replace('>', '\>').replace('#', '\#').replace('+', '\+').replace('-', '\-').replace('=', '\=').replace('|', '\|').replace('{', '\{').replace('}', '\}').replace('.', '\.').replace('!', '\!')
+                escaped_username = username.replace('_', '\_').replace('*', '\*').replace('[', '\[').replace(']', '\]').replace('(', '\(').replace(')', '\)').replace('~', '\~').replace('`', '\`').replace('>', '\>').replace('#', '\#').replace('+', '\+').replace('-', '\-').replace('=', '\=').replace('|', '\|').replace('{', '\{').replace('}', '\}').replace('.', '\.').replace('!', '\\!')
                 admin_usernames.append(f"@{escaped_username}")
         except Exception as e:
             logger.error(f"Error getting admin info: {e}")

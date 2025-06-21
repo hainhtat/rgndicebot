@@ -185,11 +185,11 @@ async def send_keyboard_to_new_member(context: ContextTypes.DEFAULT_TYPE, user_i
         keyboard = create_custom_keyboard()
         
         # Send keyboard to the user privately (no message text)
-        await context.bot.send_message(
-            chat_id=user_id,  # Send to user privately instead of group
-            text="🎮 Welcome! Use the buttons below to interact with the bot.",
-            reply_markup=keyboard
-        )
+        # await context.bot.send_message(
+        #     chat_id=user_id,  # Send to user privately instead of group
+        #     text="🎮 Welcome! Use the buttons below to interact with the bot.",
+        #     reply_markup=keyboard
+        # )
         
         logger.info(f"Welcome keyboard sent to new member {user_id} privately")
         
