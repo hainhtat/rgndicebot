@@ -70,6 +70,13 @@ async def adjust_score(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             # Check if it's a user ID
             if user_identifier.isdigit():
                 target_user_id = int(user_identifier)
+                target_user_id_str = str(target_user_id)
+                
+                # First check if user exists in our records
+                if target_user_id_str not in chat_data["player_stats"]:
+                    await update.message.reply_text(MessageTemplates.USER_NOT_IN_RECORDS)
+                    return
+                    
                 try:
                     target_user = await context.bot.get_chat_member(chat_id, target_user_id)
                     target_user = target_user.user
@@ -81,16 +88,22 @@ async def adjust_score(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 username = user_identifier[1:]  # Remove @ symbol
                 # Try to find user by username in chat data
                 found = False
+                target_user_id = None
+                
                 for user_id_str, stats in chat_data["player_stats"].items():
                     if stats.get("username", "").lower() == username.lower():
-                        try:
-                            target_user = await context.bot.get_chat_member(chat_id, int(user_id_str))
-                            target_user = target_user.user
-                            found = True
-                            break
-                        except telegram.error.TelegramError:
-                            continue
+                        target_user_id = int(user_id_str)
+                        found = True
+                        break
+                        
                 if not found:
+                    await update.message.reply_text(MessageTemplates.USER_NOT_FOUND_BY_USERNAME.format(username=user_identifier))
+                    return
+                    
+                try:
+                    target_user = await context.bot.get_chat_member(chat_id, target_user_id)
+                    target_user = target_user.user
+                except telegram.error.TelegramError:
                     await update.message.reply_text(MessageTemplates.USER_NOT_FOUND_BY_USERNAME.format(username=user_identifier))
                     return
             else:
