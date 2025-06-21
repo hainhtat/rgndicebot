@@ -112,7 +112,7 @@ class MessageTemplates:
     STARTING_NEW_GAME = "🎲 Starting a new dice game..."
     
     # Referral messages
-    REFERRAL_LINK_MESSAGE = "🎮 *Join Rangoon Dice Official group!* 🎮\n\n🚀 Ready to turn your friends into gaming partners? Share the excitement of RGN Dice Bot and watch the rewards roll in!\n\n💎 *Your Rewards:* User တစ်ယောက် join ရင်{bonus}ကျပ်ရပါမယ်!\n🎁 *Their Welcome Gift:*ကျပ်ရပါမယ်!\n🔥 *Double the Fun:* More friends = More games = More wins for everyone!\n\n✨ *Your Magic Invite Link:*\n{referral_link}\n\n🏆 *Your Referral Empire:* {points} points earned so far\n\n🎯 Ready to build your gaming network? Share now and let the dice decide your fortune!"
+    REFERRAL_LINK_MESSAGE = "🎮 *Join Rangoon Dice Official group!* 🎮\n\n🚀  *Your Rewards:* User တစ်ယောက် join ရင်{bonus}ကျပ်ရပါမယ်!\n🎁 *Their Welcome Gift:* Join တာနဲ့ 500ကျပ်ရပါမယ်!\n\n{referral_link}\n\n🏆 *Your Referral Empire:* {points} points earned so far"
     NEW_MEMBER_WELCOME = "👋 Welcome to the group, {name}!\n\nUse /help to learn how to play the dice game."
     
     # Help message
