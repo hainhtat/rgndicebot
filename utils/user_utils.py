@@ -193,8 +193,12 @@ async def process_pending_referral(user_id: int, context: ContextTypes.DEFAULT_T
     # Get user data
     user_data = global_data["global_user_data"].get(user_id_str)
     
-    # Check if user data exists and has a pending referral
-    if not user_data or not user_data.get("referral_pending") or user_data.get("referred_by") is None:
+    # Check if user data exists and has a referrer (but not already processed)
+    if not user_data or user_data.get("referred_by") is None:
+        return False, 0, ""
+    
+    # Check if this referral has already been processed
+    if not user_data.get("referral_pending", False):
         return False, 0, ""
     
     # Get referrer data

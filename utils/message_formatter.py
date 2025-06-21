@@ -129,8 +129,8 @@ class MessageTemplates:
     USER_INFO_CHAT_SCORE = "*Wallet:* {score} points\n"
     USER_INFO_WINS = "*Wins:* {wins}\n"
     USER_INFO_LOSSES = "*Losses:* {losses}\n"
-    USER_INFO_REFERRAL_POINTS = "*Referral Points:* {referral_points} points\n"
-    USER_INFO_REFERRED_BY = "*Referred By:* {referrer_name} ({referrer_id})\n"
+    USER_INFO_REFERRAL_POINTS = "🎁 *Referral Points:* {referral_points} points\n"
+    USER_INFO_REFERRED_BY = "👤 *Referred By:* {referrer_name} ({referrer_id})\n"
     
     # Admin wallet messages
     ADMIN_WALLETS_HEADER = "💰 *Admin Wallets*\n\n"

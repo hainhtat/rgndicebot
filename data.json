@@ -25,5 +25,52 @@
     }
   },
   "admin_data": {},
-  "global_user_data": {}
+  "global_user_data": {
+    "1001": {
+      "full_name": "User1001 Test",
+      "username": "user1001",
+      "referral_points": 1500,
+      "referred_by": null,
+      "welcome_bonus_received": false
+    },
+    "1002": {
+      "full_name": "User1002 Test",
+      "username": "user1002",
+      "referral_points": 0,
+      "referred_by": 1001,
+      "welcome_bonus_received": false,
+      "referral_pending": false
+    },
+    "1003": {
+      "full_name": "User1003 Test",
+      "username": "user1003",
+      "referral_points": 0,
+      "referred_by": 1001,
+      "welcome_bonus_received": false,
+      "referral_pending": false
+    },
+    "1004": {
+      "full_name": "User1004 Test",
+      "username": "user1004",
+      "referral_points": 0,
+      "referred_by": 1001,
+      "welcome_bonus_received": false,
+      "referral_pending": false
+    },
+    "2001": {
+      "full_name": "User2001 Test",
+      "username": "user2001",
+      "referral_points": 500,
+      "referred_by": null,
+      "welcome_bonus_received": false
+    },
+    "2002": {
+      "full_name": "User2002 Test",
+      "username": "user2002",
+      "referral_points": 0,
+      "referred_by": 2001,
+      "welcome_bonus_received": false,
+      "referral_pending": false
+    }
+  }
 }

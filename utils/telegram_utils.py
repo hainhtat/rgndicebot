@@ -177,24 +177,24 @@ async def send_user_keyboard_on_interaction(context, chat_id: int, user_id: int)
         logger.error(f"Failed to log interaction for user {user_id} in group {chat_id}: {e}")
 
 
-async def send_keyboard_to_new_member(context, chat_id: int, user_id: int):
+async def send_keyboard_to_new_member(context: ContextTypes.DEFAULT_TYPE, user_id: int, chat_id: int) -> None:
     """
     Send keyboard to a new member who just joined the group.
     """
     try:
         keyboard = create_custom_keyboard()
         
-        # Send welcome message with keyboard
+        # Send keyboard to the user privately (no message text)
         await context.bot.send_message(
-            chat_id=chat_id,
-            text=f"🎉 ကြိုဆိုပါတယ်! ဂိမ်းကစားရန် အောက်ပါခလုတ်များကို အသုံးပြုပါ။",
+            chat_id=user_id,  # Send to user privately instead of group
+            text="🎮 Welcome! Use the buttons below to interact with the bot.",
             reply_markup=keyboard
         )
         
-        logger.info(f"Welcome keyboard sent to new member {user_id} in group {chat_id}")
+        logger.info(f"Welcome keyboard sent to new member {user_id} privately")
         
     except Exception as e:
-        logger.error(f"Failed to send keyboard to new member {user_id} in group {chat_id}: {e}")
+        logger.error(f"Failed to send keyboard to new member {user_id}: {e}")
 
 
 def create_inline_keyboard(buttons: List[List[Tuple[str, str]]]) -> InlineKeyboardMarkup:
