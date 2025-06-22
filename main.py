@@ -32,7 +32,7 @@ from handlers.admin_panel_handlers import admin_panel_handler, handle_admin_pane
 from handlers.bet_handlers import place_bet, roll_dice
 from handlers import auto_roll_dice_wrapper
 from handlers.game_handlers import start_game, new_game_callback, game_status, show_leaderboard, show_history, show_help, bot_info, roll_command
-from handlers.user_handlers import start_command, check_wallet, refer_user, get_referral_link, deposit_handler, withdrawal_handler, handle_new_chat_member
+from handlers.user_handlers import start_command, check_wallet, refer_user, get_referral_link, deposit_handler, withdrawal_handler, handle_new_chat_member, handle_share_referral_callback
 from handlers.superadmin_handlers import my_groups_command, handle_mygroups_callback
 from utils.daily_bonus import process_daily_cashback
 
@@ -230,6 +230,9 @@ def main() -> None:
     application.add_handler(CallbackQueryHandler(new_game_callback, pattern='^new_game$'))
     application.add_handler(CallbackQueryHandler(place_bet, pattern='^bet_'))
     application.add_handler(CallbackQueryHandler(roll_dice, pattern='^roll_dice$'))
+    
+    # Share referral callback handler
+    application.add_handler(CallbackQueryHandler(handle_share_referral_callback, pattern='^share_referral_'))
 
     # Message Handlers for text-based betting (e.g., 'b 500', 'big 100')
     # Improved bet pattern to handle more formats like "b1000", "small 5000", "L200"

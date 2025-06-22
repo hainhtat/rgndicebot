@@ -6,7 +6,7 @@ import telegram
 from telegram.ext import ContextTypes
 
 from config.constants import global_data
-from config.settings import REFERRAL_BONUS_POINTS
+from config.settings import REFERRAL_BONUS_POINTS, ALLOWED_GROUP_IDS
 from config.messages import (
     ERROR_SELF_REFERRAL, ERROR_USER_DATA_CREATION, ERROR_REFERRER_NOT_FOUND,
     ERROR_ALREADY_REFERRED, ERROR_CHAT_DATA_NOT_FOUND, ERROR_PLAYER_NOT_FOUND,
@@ -91,27 +91,27 @@ async def get_user_display_name(context: ContextTypes.DEFAULT_TYPE, user_id: int
 
         # Decide display format
         if current_full_name and current_username and current_username.strip():
-            from utils.formatting import escape_markdown_username
-            return f"{escape_markdown_username(current_full_name)} (@{escape_markdown_username(current_username)})"
+            from utils.formatting import escape_html
+            return f"{escape_html(current_full_name)} (@{escape_html(current_username)})"
         elif current_full_name:
-            from utils.formatting import escape_markdown_username
-            return escape_markdown_username(current_full_name)
+            from utils.formatting import escape_html
+            return escape_html(current_full_name)
         elif current_username and current_username.strip():
-            from utils.formatting import escape_markdown_username
-            return f"@{escape_markdown_username(current_username)}"
+            from utils.formatting import escape_html
+            return f"@{escape_html(current_username)}"
         else:
             return FALLBACK_USER_NAME.format(user_id=user_id)  # Fallback if fetched user has no name/username
     elif cached_full_name or cached_username:
         # Fallback to cached data if API fetch failed but we have data
         if cached_full_name and cached_username and cached_username.strip():
-            from utils.formatting import escape_markdown_username
-            return f"{escape_markdown_username(cached_full_name)} (@{escape_markdown_username(cached_username)})"
+            from utils.formatting import escape_html
+            return f"{escape_html(cached_full_name)} (@{escape_html(cached_username)})"
         elif cached_full_name:
-            from utils.formatting import escape_markdown_username
-            return escape_markdown_username(cached_full_name)
+            from utils.formatting import escape_html
+            return escape_html(cached_full_name)
         elif cached_username and cached_username.strip():
-            from utils.formatting import escape_markdown_username
-            return f"@{escape_markdown_username(cached_username)}"
+            from utils.formatting import escape_html
+            return f"@{escape_html(cached_username)}"
     else:
         return FALLBACK_USER_NAME.format(user_id=user_id)  # Final fallback if no data at all
 
@@ -279,16 +279,29 @@ def process_welcome_bonus(user_id: int, chat_id: int, first_name: Optional[str] 
     """
     Process welcome bonus for a new group member.
     Returns (success, message) tuple.
-    Prevents duplicate welcome bonuses.
+    Prevents duplicate welcome bonuses per chat.
     """
     from config.settings import WELCOME_BONUS_POINTS
     
     # Get or create global user data
     user_data = get_or_create_global_user_data(user_id, first_name, last_name, username)
     
-    # Check if user has already received welcome bonus
-    if user_data.get("welcome_bonus_received", False):
-        logger.info(f"User {user_id} has already received welcome bonus, skipping")
+    # Initialize welcome_bonuses_received as a dict if it doesn't exist
+    if "welcome_bonuses_received" not in user_data:
+        user_data["welcome_bonuses_received"] = {}
+        
+        # Handle migration from old format to new format
+        if user_data.get("welcome_bonus_received", False):
+            # If user had already received a welcome bonus in the old system,
+            # mark it as received for all chats to prevent abuse during migration
+            logger.info(f"Migrating user {user_id} from old welcome bonus system to new per-chat system")
+            for allowed_chat_id in ALLOWED_GROUP_IDS:
+                user_data["welcome_bonuses_received"][str(allowed_chat_id)] = True
+    
+    # Check if user has already received welcome bonus for this specific chat
+    chat_id_str = str(chat_id)
+    if user_data["welcome_bonuses_received"].get(chat_id_str, False):
+        logger.info(f"User {user_id} has already received welcome bonus for chat {chat_id}, skipping")
         return False, INFO_WELCOME_BONUS_ALREADY_RECEIVED
     
     # Get or create player stats for this chat
@@ -313,17 +326,19 @@ def process_welcome_bonus(user_id: int, chat_id: int, first_name: Optional[str] 
             "last_active": datetime.now().isoformat()
         }
     
-    # Add welcome bonus to player's score
+    # Add welcome bonus to referral points instead of main wallet
+    user_data["referral_points"] = user_data.get("referral_points", 0) + WELCOME_BONUS_POINTS
+    
+    # Update player stats
     player_stats = global_data["all_chat_data"][chat_id_str]["player_stats"][user_id_str]
-    player_stats["score"] += WELCOME_BONUS_POINTS
     player_stats["last_active"] = datetime.now().isoformat()
     
-    # Mark welcome bonus as received
-    user_data["welcome_bonus_received"] = True
+    # Mark welcome bonus as received for this specific chat
+    user_data["welcome_bonuses_received"][chat_id_str] = True
     
     # Save the updated data
     save_data(global_data)
     
-    logger.info(f"Welcome bonus of {WELCOME_BONUS_POINTS} points awarded to user {user_id} in chat {chat_id}")
+    logger.info(f"Welcome bonus of {WELCOME_BONUS_POINTS} ကျပ် awarded to user {user_id} in chat {chat_id}")
     
     return True, SUCCESS_WELCOME_BONUS.format(bonus_points=WELCOME_BONUS_POINTS)

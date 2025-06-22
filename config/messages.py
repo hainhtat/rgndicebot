@@ -20,13 +20,13 @@ SUCCESS_REFERRAL_WELCOME = (
 SUCCESS_REFERRAL_BONUS = (
     "🎉 *Referral Bonus Received!*\n\n"
     "👤 *{user_name}* has joined the main group!\n"
-    "💰 You've received a *{bonus_points} points* bonus for this referral.\n"
-    "💵 Your total referral points: *{total_points}*"
+    "💰 You've received a *{bonus_points} ကျပ်* bonus for this referral.\n"
+    "💵 Your total referral ကျပ်: *{total_points}*"
 )
 
-SUCCESS_POINTS_ADDED = "✅ Added {amount} points to {username}. New score: {score}"
-SUCCESS_POINTS_DEDUCTED = "✅ Deducted {amount} points from {username}. New score: {score}"
-SUCCESS_WELCOME_BONUS = "🎉 Welcome bonus of {bonus_points} points awarded!"
+SUCCESS_POINTS_ADDED = "✅ Added {amount} ကျပ် to {username}. New score: {score}"
+SUCCESS_POINTS_DEDUCTED = "✅ Deducted {amount} ကျပ် from {username}. New score: {score}"
+SUCCESS_WELCOME_BONUS = "🎉 Welcome bonus of {bonus_points} ကျပ် awarded!"
 
 # Info messages
 INFO_WELCOME_BONUS_ALREADY_RECEIVED = "Welcome bonus already received"

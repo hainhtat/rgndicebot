@@ -75,7 +75,37 @@ async def place_bet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     # Get the current game or create a new one if needed
     game = get_current_game(chat_id)
     if not game or game.state == GAME_STATE_OVER:
+        # Check if there's a manual stop cooldown in effect before creating new game
+        from datetime import datetime
+        manual_stop_time = chat_data.get("manual_stop_cooldown")
+        if manual_stop_time:
+            from config.config_manager import get_config
+            config = get_config()
+            cooldown_period = config.get("game", "manual_stop_cooldown_seconds", 10)
+            now = datetime.now()
+            cooldown_elapsed = (now - manual_stop_time).total_seconds()
+            
+            if cooldown_elapsed < cooldown_period:
+                error_message = f"❌ Game creation is temporarily disabled. Please wait {int(cooldown_period - cooldown_elapsed)} more seconds."
+                if is_callback:
+                    await update.callback_query.answer(error_message)
+                else:
+                    await update.message.reply_text(error_message)
+                return
+            else:
+                # Cooldown expired, remove it
+                chat_data.pop("manual_stop_cooldown", None)
+        
         game = create_new_game(chat_id)
+    
+    # Validate game state - only allow betting when game is waiting for bets
+    if game.state != GAME_STATE_WAITING:
+        error_message = "❌ Betting is currently closed. Please wait for the next game."
+        if is_callback:
+            await update.callback_query.answer(error_message)
+        else:
+            await update.message.reply_text(error_message)
+        return
     
     # Parse the bet information
     bet_type = None
@@ -102,6 +132,8 @@ async def place_bet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             return
     else:
         # This is a text message for betting
+        if not update.message or not update.message.text:
+            return  # Skip if no message text (e.g., edited messages)
         message_text = update.message.text.strip().lower()
         
         # Parse bet type and amount from text
@@ -129,24 +161,29 @@ async def place_bet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             # Invalid format
             return
     
-    # Get referral points from global data for both scenarios
+    # Get referral points from global data BEFORE processing the bet
     global_user_data = global_data.get("global_user_data", {}).get(str(user_id), {})
-    referral_points = global_user_data.get("referral_points", 0)
+    initial_referral_points = global_user_data.get("referral_points", 0)
     
     # Process the bet
     try:
         result_message = process_bet(game, user_id, username, bet_type, amount, chat_data, global_data)
         
+        # Get referral points AFTER processing the bet to show remaining amount
+        updated_global_user_data = global_data.get("global_user_data", {}).get(str(user_id), {})
+        remaining_referral_points = updated_global_user_data.get("referral_points", 0)
+        
         # Send confirmation message
-        confirmation_message = format_bet_confirmation(
+        confirmation_message = await format_bet_confirmation(
             bet_type=bet_type,
             amount=amount,
             result_message=result_message,
             username=username,
-            referral_points=referral_points,
+            referral_points=remaining_referral_points,
             user_id=str(user_id),
             game=game,
-            global_data=global_data
+            global_data=global_data,
+            context=context
         )
         
         # Always use HTML parse mode since format_bet_confirmation now returns HTML
@@ -232,8 +269,8 @@ async def roll_dice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await send_message_with_retry(
             context,
             chat_id,
-            format_game_summary(result, global_data),
-            parse_mode="Markdown"
+            await format_game_summary(result, global_data, context),
+            parse_mode="HTML"
         )
         
         # Create a new game
@@ -266,8 +303,8 @@ async def roll_dice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             await send_message_with_retry(
                 context,
                 chat_id,
-                format_game_summary(result, global_data),
-                parse_mode="Markdown"
+                await format_game_summary(result, global_data, context),
+                parse_mode="HTML"
             )
             
             # Create a new game
@@ -390,9 +427,8 @@ async def auto_roll_dice(update, context) -> None:
                             if not admin_usernames:
                                 admin_usernames = ["@admin"]
                             
-                            # Escape admin usernames for Markdown
-                            escaped_admin_usernames = [username.replace("_", "\\_") for username in admin_usernames]
-                            admin_list_text = "\n".join(escaped_admin_usernames)
+                            # Admin usernames for HTML
+                            admin_list_text = "\n".join(admin_usernames)
                             stop_message = MessageTemplates.GAME_STOPPED_INACTIVITY.format(
                                 admin_list=admin_list_text
                             )
@@ -402,7 +438,7 @@ async def auto_roll_dice(update, context) -> None:
                                 context,
                                 chat_id,
                                 stop_message,
-                                parse_mode="Markdown"
+                                parse_mode="HTML"
                             )
                             if result is not None:
                                 logger.info(f"Stop message sent successfully to chat {chat_id}")
@@ -412,7 +448,7 @@ async def auto_roll_dice(update, context) -> None:
                         continue
                     
                     # Create participants message using template
-                    participants_msg = format_participants_list(game, chat_data, global_data)
+                    participants_msg = await format_participants_list(game, chat_data, global_data, context)
                     
                     # Send message that betting is closed with participants list
                     if context and hasattr(context, 'bot'):
@@ -420,7 +456,7 @@ async def auto_roll_dice(update, context) -> None:
                             context,
                             chat_id,
                             format_betting_closed_message(participants_msg, roll_delay),
-                            parse_mode="Markdown"
+                            parse_mode="HTML"
                         )
             
             # Check if the game has been closed
@@ -475,8 +511,8 @@ async def auto_roll_dice(update, context) -> None:
                             await send_message_with_retry(
                                 context,
                                 chat_id,
-                                format_game_summary(result, global_data),
-                                parse_mode="Markdown"
+                                await format_game_summary(result, global_data, context),
+                                parse_mode="HTML"
                             )
                             
                             logger.info(f"Game result sent successfully for match {game.match_id} in chat {chat_id}")
@@ -491,8 +527,8 @@ async def auto_roll_dice(update, context) -> None:
                             await send_message_with_retry(
                                 context,
                                 chat_id,
-                                format_dice_animation_failed(format_game_summary(result, global_data)),
-                                parse_mode="Markdown"
+                                format_dice_animation_failed(await format_game_summary(result, global_data, context)),
+                                parse_mode="HTML"
                             )
                     
                     # Check if we should create a new game or stop due to consecutive idle games
@@ -524,9 +560,8 @@ async def auto_roll_dice(update, context) -> None:
                             if not admin_usernames:
                                 admin_usernames = ["@admin"]
                             
-                            # Escape admin usernames for Markdown
-                            escaped_admin_usernames = [username.replace("_", "\\_") for username in admin_usernames]
-                            admin_list_text = "\n".join(escaped_admin_usernames)
+                            # Admin usernames for HTML
+                            admin_list_text = "\n".join(admin_usernames)
                             stop_message = MessageTemplates.GAME_STOPPED_INACTIVITY.format(
                                 admin_list=admin_list_text
                             )
@@ -536,7 +571,7 @@ async def auto_roll_dice(update, context) -> None:
                                 context,
                                 chat_id,
                                 stop_message,
-                                parse_mode="Markdown"
+                                parse_mode="HTML"
                             )
                             if result is not None:
                                 logger.info(f"Stop message sent successfully to chat {chat_id}")

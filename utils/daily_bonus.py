@@ -137,3 +137,48 @@ async def process_daily_cashback(context):
                         total_cashback_amount += cashback
     
     logger.info(f"🎉 Daily cashback processing completed! Processed {total_cashback_users} users with total cashback of {total_cashback_amount:,} points.")
+    
+    # Send notification to super admins about daily cashback processing
+    await send_daily_cashback_notification_to_super_admins(total_cashback_users, total_cashback_amount, context)
+
+
+async def send_daily_cashback_notification_to_super_admins(total_users, total_amount, context):
+    """
+    Send notification to super admins about the daily cashback processing.
+    """
+    try:
+        from config.constants import SUPER_ADMINS
+        from utils.formatting import escape_markdown
+        
+        if total_users == 0:
+            message = (
+                f"🎁 *Daily Cashback Report*\n\n"
+                f"📊 *Status:* No cashback processed today\n"
+                f"👥 *Users:* 0 users received cashback\n"
+                f"💰 *Total Amount:* 0 points\n\n"
+                f"ℹ️ No users had losses yesterday to qualify for cashback."
+            )
+        else:
+            message = (
+                f"🎁 *Daily Cashback Report*\n\n"
+                f"📊 *Status:* Successfully processed\n"
+                f"👥 *Users:* {total_users:,} users received cashback\n"
+                f"💰 *Total Amount:* {total_amount:,} points\n"
+                f"📈 *Cashback Rate:* 10%\n\n"
+                f"✅ All eligible users have been notified via private message."
+            )
+        
+        # Send to each super admin
+        for super_admin_id in SUPER_ADMINS:
+            try:
+                await context.bot.send_message(
+                    chat_id=super_admin_id,
+                    text=message,
+                    parse_mode="Markdown"
+                )
+                logger.info(f"✅ Successfully sent daily cashback report to super admin {super_admin_id}")
+            except Exception as e:
+                logger.error(f"❌ Failed to notify super admin {super_admin_id} about daily cashback: {e}")
+                
+    except Exception as e:
+        logger.error(f"Error sending daily cashback notification to super admins: {e}")

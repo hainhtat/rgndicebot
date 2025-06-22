@@ -37,7 +37,7 @@ async def start_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     
     if current_game:
         from utils.message_formatter import MessageTemplates
-        await update.message.reply_text(MessageTemplates.GAME_ALREADY_IN_PROGRESS)
+        await update.message.reply_text(MessageTemplates.GAME_ALREADY_IN_PROGRESS, parse_mode="HTML")
         return
     
     # Check if there's a manual stop cooldown in effect
@@ -145,7 +145,7 @@ async def roll_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         return
     
     # Start a new game
-    await update.message.reply_text(MessageTemplates.STARTING_NEW_GAME)
+    await update.message.reply_text(MessageTemplates.STARTING_NEW_GAME, parse_mode="HTML")
     
     # Reset consecutive idle matches when manually starting a new game
     chat_data["consecutive_idle_matches"] = 0
@@ -369,12 +369,12 @@ async def show_leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     chat_data = get_chat_data_for_id(chat_id)
     
     # Format the leaderboard
-    leaderboard_message = format_leaderboard(chat_data, context, "🏆 Leaderboard", global_data)
+    leaderboard_message = await format_leaderboard(chat_data, context, "🏆 Leaderboard", global_data)
     
     # Send the leaderboard message
     await update.message.reply_text(
         leaderboard_message,
-        parse_mode="Markdown"
+        parse_mode="HTML"
     )
 
 

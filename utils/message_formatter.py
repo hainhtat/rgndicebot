@@ -3,7 +3,7 @@ import re
 from typing import Dict, List, Optional, Tuple, Any, Union
 
 from config.constants import RESULT_EMOJIS, GAME_STATE_WAITING, GAME_STATE_CLOSED, GAME_STATE_OVER
-from utils.formatting import escape_markdown, escape_markdown_username
+from utils.formatting import escape_markdown, escape_markdown_username, escape_html
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ class MessageTemplates:
     
     # Bet confirmation
     BET_CONFIRMATION = "✅ {display_name} *{bet_type}* ပေါ် *{amount}* လောင်းကြေးထပ်လိုက်ပါပြီ\n\n📊 *Total Bets:*\n{total_bets_display}\n\n💰 *Wallet* - *{score}* ကျပ်\n🎁 *Referral* - *{referral_points}* ကျပ်"
-    INSUFFICIENT_FUNDS = "❌ သင့်တွင် *လုံလောက်သော ငွေမရှိပါ*။ 💰*Wallet:* {score} + *{referral_points}* referral points = *{total}*"
+    INSUFFICIENT_FUNDS = "❌ သင့်တွင် *လုံလောက်သော ငွေမရှိပါ*။ 💰*Wallet:* {score} + *{referral_points}* referral ကျပ် = *{total}*"
     INVALID_BET_AMOUNT = "❌ *ငွေပမာဏ အနည်းဆုံး 1 ဖြစ်ရပါမည်*။"
     NO_ACTIVE_GAME = "❌ *No active game* is accepting bets right now."
     
@@ -63,24 +63,24 @@ class MessageTemplates:
     TOTAL_SUMMARY = "Total: Won *{total_won}* | Lost *{total_lost}*"
     
     # Game management messages
-    GAME_STOPPED_INACTIVITY = "🛑 *3 ပွဲဆက်တိုက်ဆော့မယ့်သူမရှိလို့ ရပ်လိုက်ပါပြီ.*\n\n*Contact admins* to start new game:\n{admin_list}"
-    BETTING_CLOSED_WITH_PARTICIPANTS = "⏱ *လောင်းကြေးပိတ်ပါပြီ!*\n\n{participants_msg}\n\n*Rolling dice* in *{roll_delay} seconds*..."
-    PARTICIPANTS_HEADER = "*Participants({count})*"
-    NO_PARTICIPANTS = "*Participants(0)*\n*No participants*"
+    GAME_STOPPED_INACTIVITY = "🛑 <b>3 ပွဲဆက်တိုက်ဆော့မယ့်သူမရှိလို့ ရပ်လိုက်ပါပြီ.</b>\n\n<b>Contact admins</b> to start new game:\n{admin_list}"
+    BETTING_CLOSED_WITH_PARTICIPANTS = "⏱ <b>လောင်းကြေးပိတ်ပါပြီ!</b>\n\n{participants_msg}\n\n<b>Rolling dice</b> in <b>{roll_delay} seconds</b>..."
+    PARTICIPANTS_HEADER = "<b>Participants({count})</b>"
+    NO_PARTICIPANTS = "<b>Participants(0)</b>\n<b>No participants</b>"
     DICE_ANIMATION_FAILED = "⚠️ *Dice animation failed*, using *manual roll*\n\n{result}"
     
     # Admin messages
-    GAME_STOPPED_BY_ADMIN = "🛑 *Game stopped* by admin."
-    GAME_STOPPED_WITH_REFUNDS = "🛑 *Game stopped* by admin. 💰 *All bets* have been *refunded*."
-    NO_GAME_IN_PROGRESS = "❌ *No game* is currently in progress."
-    GAME_ALREADY_IN_PROGRESS = "❌ A *game is already in progress*. Please *finish the current game* first."
-    STARTING_NEW_GAME = "🎲 *Starting a new dice game*..."
+    GAME_STOPPED_BY_ADMIN = "🛑 <b>Game stopped</b> by admin."
+    GAME_STOPPED_WITH_REFUNDS = "🛑 <b>Game stopped</b> by admin. 💰 <b>All bets</b> have been <b>refunded</b>."
+    NO_GAME_IN_PROGRESS = "❌ <b>No game</b> is currently in progress."
+    GAME_ALREADY_IN_PROGRESS = "❌ A <b>game is already in progress</b>. Please <b>finish the current game</b> first."
+    STARTING_NEW_GAME = "🎲 <b>Starting a new dice game</b>..."
     FAILED_GAME_CREATION = "❌ Error: Failed to create a new game. Please try again."
     
     # User welcome messages
     WELCOME_WITH_REFERRAL = "👋 *Welcome to Rangoon Dice Bot, {name}!*\n\n{message}\n\n!"
     WELCOME_STANDARD = "👋 *Welcome to RGN Dice Bot, {name}!*\n\nGroup ထဲဝင်ဖို့ အောက်ကခလုတ်လေးကို နှိပ်ပြီး စဆော့လို့ရပါပြီနော်!"
-    WELCOME_WITH_REFERRAL_LINK = "👋 *Welcome to RGN Dice Bot, {name}!*\n\nGroup ထဲဝင်ဖို့ အောက်ကခလုတ်လေးကို နှိပ်ပြီး စဆော့လို့ရပါပြီနော်\n\n🎁 *Invite Friends & Earn Rewards*\nShare your referral link to earn *{bonus} points* for each new player who joins!\n\n📱 *Your Referral Link:*\n`{referral_link}`"
+    WELCOME_WITH_REFERRAL_LINK = "👋 *Welcome to RGN Dice Bot, {name}!*\n\nGroup ထဲဝင်ဖို့ အောက်ကခလုတ်လေးကို နှိပ်ပြီး စဆော့လို့ရပါပြီနော်\n\n🎁 *Invite Friends & Earn Rewards*\nShare your referral link to earn *{bonus} ကျပ်* for each new player who joins!\n\n📱 *Your Referral Link:*\n`{referral_link}`"
     
     # Deposit and withdrawal messages
     DEPOSIT_MESSAGE = "*ငွေထည့်ရန်*\n\nငွေထည့်ရန် အောက်ပါ Admin များထံ ဆက်သွယ်ပါ။\n\n{admin_list}"
@@ -112,11 +112,11 @@ class MessageTemplates:
     STARTING_NEW_GAME = "🎲 Starting a new dice game..."
     
     # Referral messages
-    REFERRAL_LINK_MESSAGE = "🎮 *Join Rangoon Dice Official group!* 🎮\n\n🚀  *Your Rewards:* User တစ်ယောက် join ရင်{bonus}ကျပ်ရပါမယ်!\n🎁 *Their Welcome Gift:* Join တာနဲ့ 500ကျပ်ရပါမယ်!\n\n{referral_link}\n\n🏆 *Your Referral Empire:* {points} points earned so far"
+    REFERRAL_LINK_MESSAGE = "🎮 *Join Rangoon Dice Official group!* 🎮\n\n🚀  *Your Rewards:* User တစ်ယောက် join ရင်{bonus}ကျပ်ရပါမယ်!\n🎁 *Their Welcome Gift:* Join တာနဲ့ 500ကျပ်ရပါမယ်!\n\n{referral_link}\n\n🏆 *Your Referral Empire:* {points} ကျပ် earned so far"
     NEW_MEMBER_WELCOME = "👋 Welcome to the group, {name}!\n\nUse /help to learn how to play the dice game."
     
     # Help message
-    HELP_MESSAGE = "🎲 *RGN Dice Bot Help* 🎲\n\n*Game rules :*\n• အံစာတုံး ၂ တုံးလှိမ့်ပါမယ်\n• ၂ခု ပေါင်းခြင်း 2-6: *SMALL* \n• ၂ခု ပေါင်းခြင်း 8-12: *BIG* \n• ၂ခု ပေါင်းခြင်း 7: *LUCKY*\n\n*ကစားနည်း :*\n• Big ပေါ်လောင်းရန် B 500, Big 5000 စသဖြင့်လောင်းလို့ရပါတယ်\n• Small ပေါ်လောင်းရန် S 500, Small 2000 စသဖြင့်လောင်းလို့ရပါတယ်\n• LUCKY ပေါ်လောင်းရန် L 5000, LUCKY 50000 စသဖြင့်လောင်းလို့ရပါတယ်\n\n*Rules :*\n• အနည်းဆုံး ၁၀၀ ကျပ်မှစတင်လောင်းလို့ရပါတယ်\n• လောင်းပြီးသားဟာကို cancel လို့မရပါဘူး\n• admin တွေကပဲ game ကိုစတင်လို့ရပါတယ်\n\n*Points:*\n• Big/Small ဆိုရင် 2 ဆရပါမယ်\n• LUCKY ဆိုရင် 5 ဆရပါမယ်\n• Share ခလုတ်လေးနှိပ်ပြီး သူငယ််ချင်းတွေကို ပို့ပေးလို့ရပါတယ် \n• Share ထားတယ့် link ကနေတစ်ဆင့်ဝင်လာရင် ၅၀၀ ကျပ်ရရှိမှာဖြစ်ပါတယ်"
+    HELP_MESSAGE = "🎲 *RGN Dice Bot Help* 🎲\n\n*Game rules :*\n• အံစာတုံး ၂ တုံးလှိမ့်ပါမယ်\n• ၂ခု ပေါင်းခြင်း 2-6: *SMALL* \n• ၂ခု ပေါင်းခြင်း 8-12: *BIG* \n• ၂ခု ပေါင်းခြင်း 7: *LUCKY*\n\n*ကစားနည်း :*\n• Big ပေါ်လောင်းရန် B 500, Big 5000 စသဖြင့်လောင်းလို့ရပါတယ်\n• Small ပေါ်လောင်းရန် S 500, Small 2000 စသဖြင့်လောင်းလို့ရပါတယ်\n• LUCKY ပေါ်လောင်းရန် L 5000, LUCKY 50000 စသဖြင့်လောင်းလို့ရပါတယ်\n\n*Rules :*\n• အနည်းဆုံး ၁၀၀ ကျပ်မှစတင်လောင်းလို့ရပါတယ်\n• လောင်းပြီးသားဟာကို cancel လို့မရပါဘူး\n• admin တွေကပဲ game ကိုစတင်လို့ရပါတယ်\n\n*ကျပ်:*\n• Big/Small ဆိုရင် 2 ဆရပါမယ်\n• LUCKY ဆိုရင် 5 ဆရပါမယ်\n• Share ခလုတ်လေးနှိပ်ပြီး သူငယ််ချင်းတွေကို ပို့ပေးလို့ရပါတယ် \n• Share ထားတယ့် link ကနေတစ်ဆင့်ဝင်လာရင် ၅၀၀ ကျပ်ရရှိမှာဖြစ်ပါတယ်"
     
     # Admin score adjustment messages
     SCORE_ADDED = "✅ *{display_name}* ကို *{amount}* ကျပ် ဖြည့်ပြီးပါပြီ .\nOld score: *{old_score}*\nNew score: *{new_score}*{reason_text}"
@@ -126,10 +126,10 @@ class MessageTemplates:
     USER_INFO_HEADER = "👤 *User Information*\n\n"
     USER_INFO_USER = "*User:* {display_name}\n"
     USER_INFO_USER_ID = "*User ID:* {user_id}\n\n"
-    USER_INFO_CHAT_SCORE = "*Wallet:* {score} points\n"
+    USER_INFO_CHAT_SCORE = "*Wallet:* {score} ကျပ်\n"
     USER_INFO_WINS = "*Wins:* {wins}\n"
     USER_INFO_LOSSES = "*Losses:* {losses}\n"
-    USER_INFO_REFERRAL_POINTS = "🎁 *Referral Points:* {referral_points} points\n"
+    USER_INFO_REFERRAL_POINTS = "🎁 *Referral ကျပ်:* {referral_points} ကျပ်\n"
     USER_INFO_REFERRED_BY = "👤 *Referred By:* {referrer_name} ({referrer_id})\n"
     
     # Admin wallet messages
@@ -147,6 +147,9 @@ class MessageTemplates:
     
     # Score adjustment fallback messages
     SCORE_ADJUSTMENT_FALLBACK = "Score adjusted: {old_score} → {new_score}"
+    
+    # Admin refill messages
+    ADMIN_REFILL_SUCCESS = "✅ *Admin Wallet Refilled!*\n\n💰 *Amount:* {amount} ကျပ်\n👤 *Admin:* {admin_name}\n🆔 *Admin ID:* {admin_id}\n\n*New Balance:* {new_balance} ကျပ်"
 
 
 def format_game_status(game_status: Dict[str, Any], time_remaining: Optional[int] = None) -> str:
@@ -187,7 +190,7 @@ def get_parse_mode_for_message(message: str) -> str:
     else:
         return "Markdown"
 
-def format_bet_confirmation(bet_type: str, amount: int, result_message: str, username: str = "User", referral_points: int = 0, user_id: str = None, game = None, global_data = None) -> str:
+async def format_bet_confirmation(bet_type: str, amount: int, result_message: str, username: str = "User", referral_points: int = 0, user_id: str = None, game = None, global_data = None, context = None) -> str:
     """
     Formats a bet confirmation message.
     
@@ -209,23 +212,18 @@ def format_bet_confirmation(bet_type: str, amount: int, result_message: str, use
         except (IndexError, ValueError):
             pass
     
-    # Get proper display name - always use HTML formatting to avoid markdown conflicts
-    display_name = username
-    if global_data and user_id:
-        user_global_data = global_data.get('global_user_data', {}).get(user_id, {})
-        full_name = user_global_data.get('full_name', username)
-        telegram_username = user_global_data.get('username')
-        
-        if telegram_username and telegram_username.strip():
-            # Use HTML entities for special characters
-            safe_full_name = full_name.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-            safe_username = telegram_username.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-            display_name = f"{safe_full_name}(@{safe_username})"
-        else:
-            display_name = full_name.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-    else:
-        # Fallback: escape the username properly for HTML
-        display_name = username.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+    # Get proper display name using get_user_display_name
+    display_name = escape_html(username)  # Default fallback
+    if context and user_id:
+        try:
+            from utils.user_utils import get_user_display_name
+            display_name = await get_user_display_name(context, int(user_id))
+            # If it's a fallback user (User {ID} format), use the original username
+            if display_name.startswith('User ') and display_name.endswith(str(user_id)):
+                display_name = escape_html(username)
+        except Exception:
+            # Fallback to escaped username if get_user_display_name fails
+            display_name = escape_html(username)
     
     # Get user's total bets display
     total_bets_display = ""
@@ -248,7 +246,7 @@ def format_bet_confirmation(bet_type: str, amount: int, result_message: str, use
     else:
         total_bets_display = f"🔴 {bet_type} {amount} ကျပ်"
     
-    # Always use HTML formatting to avoid markdown conflicts
+    # Use HTML formatting for consistency
     message = f"✅ {display_name} <b>{bet_type}</b> ပေါ် <b>{amount}</b> လောင်းကြေးထပ်လိုက်ပါပြီ\n\n"
     message += f"📊 <b>Total Bets:</b>\n{total_bets_display}\n\n"
     message += f"💰 <b>Wallet</b> - <b>{score}</b> ကျပ်\n"
@@ -275,7 +273,7 @@ def format_bet_error(error_message: str) -> str:
     return MessageTemplates.GENERAL_ERROR.format(message=error_message)
 
 
-def format_participants_list(game, chat_data, global_data=None) -> str:
+async def format_participants_list(game, chat_data, global_data=None, context=None) -> str:
     """
     Formats a participants list with their bets.
     """
@@ -285,38 +283,36 @@ def format_participants_list(game, chat_data, global_data=None) -> str:
     if "player_stats" in chat_data:
         for user_id_str in game.participants:
             if user_id_str in chat_data["player_stats"]:
-                # Get display name from global data if available
-                display_name = "Unknown"
-                if global_data:
-                    user_global_data = global_data.get('global_user_data', {}).get(user_id_str, {})
-                    full_name = user_global_data.get('full_name', 'Unknown')
-                    telegram_username = user_global_data.get('username')
+                # Get display name using get_user_display_name
+                display_name = None
+                if context:
+                    try:
+                        from utils.user_utils import get_user_display_name
+                        display_name = await get_user_display_name(context, int(user_id_str))
+                        # Skip fallback users (User {ID} format)
+                        if display_name.startswith('User ') and display_name.endswith(str(user_id_str)):
+                            display_name = None
+                    except Exception:
+                        display_name = None
+                
+                # Only process if we have a valid display name (skip non-existent users)
+                if display_name:
+                    # Get user's bets
+                    user_bets = []
+                    for bet_type, bets in game.bets.items():
+                        if user_id_str in bets:
+                            bet_amount = bets[user_id_str]
+                            if bet_type == "BIG":
+                                user_bets.append(f"B {bet_amount}")
+                            elif bet_type == "SMALL":
+                                user_bets.append(f"S {bet_amount}")
+                            elif bet_type == "LUCKY":
+                                user_bets.append(f"L {bet_amount}")
                     
-                    if telegram_username and telegram_username.strip():
-                        display_name = f"{escape_markdown_username(full_name)}(@{escape_markdown_username(telegram_username)})"
-                    else:
-                        display_name = escape_markdown_username(full_name)
-                else:
-                    # Fallback to chat data username
-                    username = chat_data["player_stats"][user_id_str].get("username", "Unknown")
-                    display_name = escape_markdown_username(username)
-                
-                # Get user's bets
-                user_bets = []
-                for bet_type, bets in game.bets.items():
-                    if user_id_str in bets:
-                        bet_amount = bets[user_id_str]
-                        if bet_type == "BIG":
-                            user_bets.append(f"B {bet_amount}")
-                        elif bet_type == "SMALL":
-                            user_bets.append(f"S {bet_amount}")
-                        elif bet_type == "LUCKY":
-                            user_bets.append(f"L {bet_amount}")
-                
-                if user_bets:
-                    bet_details = ", ".join(user_bets)
-                    participants_details.append(f"*{display_name}* - {bet_details}")
-                    participant_count += 1
+                    if user_bets:
+                        bet_details = ", ".join(user_bets)
+                        participants_details.append(f"<b>{display_name}</b> - {bet_details}")
+                        participant_count += 1
     
     if participants_details:
         return MessageTemplates.PARTICIPANTS_HEADER.format(count=participant_count) + "\n" + "\n".join(participants_details)
@@ -355,12 +351,12 @@ def format_dice_result(dice1: int, dice2: int, dice_sum: int) -> str:
     return f"🎲 *Rolled Dices* 🎲\n\n🎯 *first dice rolled: {dice1_str} + second dice rolled: {dice2_str} = {dice_sum}*\n🏆 *Result: {result_type}*"
 
 
-def format_game_summary(result: Dict[str, Any], global_data: Dict[str, Any] = None) -> str:
+async def format_game_summary(result: Dict[str, Any], global_data: Dict[str, Any] = None, context=None) -> str:
     """
     Formats a game summary message.
     """
     # This is an alias for format_game_result to maintain backward compatibility
-    return format_game_result(result, global_data)
+    return await format_game_result(result, global_data, context)
 
 
 def format_wallet(player_stats: Dict[str, Any], global_user_data: Dict[str, Any], user_id: Optional[int] = None) -> str:
@@ -373,24 +369,24 @@ def format_wallet(player_stats: Dict[str, Any], global_user_data: Dict[str, Any]
     
     # Format display name as "Name(@username)" if username exists, otherwise just "Name"
     if full_name and username and username.strip():
-        display_name = f"{escape_markdown_username(full_name)}(@{escape_markdown_username(username)})"
+        display_name = f"{escape_html(full_name)}(@{escape_html(username)})"
     else:
-        display_name = escape_markdown_username(full_name or "Unknown User")
+        display_name = escape_html(full_name or "Unknown User")
     
     score = player_stats.get('score', 0)
     referral_points = global_user_data.get('referral_points', 0)
     total = score + referral_points
     
-    # Use the new format requested by user
-    message = f"💰 *{display_name}'s Wallet*\n\n"
-    message += f"*Wallet:* {score} points\n"
-    message += f"*Referral Points:* {referral_points} points\n"
-    message += f"*Total:* {total} points"
+    # Use HTML formatting instead of Markdown
+    message = f"💰 <b>{display_name}'s Wallet</b>\n\n"
+    message += f"<b>Wallet:</b> {score} points\n"
+    message += f"<b>Referral Points:</b> {referral_points} points\n"
+    message += f"<b>Total:</b> {total} points"
     
     return message
 
 
-def format_game_result(result: Dict[str, Any], global_data: Dict[str, Any] = None) -> str:
+async def format_game_result(result: Dict[str, Any], global_data: Dict[str, Any] = None, context=None) -> str:
     """
     Formats a game result message with dice emoji representations.
     """
@@ -407,83 +403,75 @@ def format_game_result(result: Dict[str, Any], global_data: Dict[str, Any] = Non
     dice1_str = str(dice1)
     dice2_str = str(dice2)
     
-    message = "🎲 *Rolled Dices* 🎲\n\n"
-    message += f"🎯 *{dice1_str} + {dice2_str} = {dice_sum}*\n"
-    message += f"🏆 *Result: {winning_type}* (x*{multiplier}*)\n\n"
+    message = "🎲 <b>Rolled Dices</b> 🎲\n\n"
+    message += f"🎯 <b>{dice1_str} + {dice2_str} = {dice_sum}</b>\n"
+    message += f"🏆 <b>Result: {winning_type}</b> (x<b>{multiplier}</b>)\n\n"
     
-    message += "💰 *Payouts:*\n"
+    message += "💰 <b>Payouts:</b>\n"
     
     # Combine all participants and show their payouts
     all_participants = []
     
     # Add winners with positive amounts
     for winner in winners:
-        # Get proper display name
+        # Get proper display name using get_user_display_name
         user_id = winner.get('user_id')
-        display_name = "Unknown"
-        if user_id and global_data:
-            user_global_data = global_data.get('global_user_data', {}).get(str(user_id), {})
-            full_name = user_global_data.get('full_name', 'Unknown')
-            telegram_username = user_global_data.get('username')
-            
-            if telegram_username and telegram_username.strip():
-                display_name = f"{escape_markdown_username(full_name)}(@{escape_markdown_username(telegram_username)})"
-            else:
-                display_name = escape_markdown_username(full_name)
-        else:
-            # Fallback to winner username
-            display_name = escape_markdown_username(winner.get('username', 'Unknown'))
+        display_name = None
+        if user_id and context:
+            from utils.user_utils import get_user_display_name
+            display_name = await get_user_display_name(context, user_id)
+            # Skip fallback users (User {ID} format)
+            if display_name.startswith('User ') and display_name.endswith(str(user_id)):
+                display_name = None
         
-        bet_amount = winner.get('bet_amount', 0)
-        winnings = winner.get('winnings', 0)
-        # Get wallet balance from winner data if available
-        wallet_balance = winner.get('wallet_balance', 'N/A')
-        all_participants.append({
-            'username': display_name,
-            'amount': f"+{winnings}",
-            'wallet': wallet_balance
-        })
+        # Only add if we have a valid display name (skip non-existent users)
+        if display_name:
+            bet_amount = winner.get('bet_amount', 0)
+            winnings = winner.get('winnings', 0)
+            # Get wallet balance from winner data if available
+            wallet_balance = winner.get('wallet_balance', 'N/A')
+            all_participants.append({
+                'username': display_name,
+                'amount': f"+{winnings}",
+                'wallet': wallet_balance
+            })
     
     # Add losers with negative amounts
     for loser in losers:
-        # Get proper display name
+        # Get proper display name using get_user_display_name
         user_id = loser.get('user_id')
-        display_name = "Unknown"
-        if user_id and global_data:
-            user_global_data = global_data.get('global_user_data', {}).get(str(user_id), {})
-            full_name = user_global_data.get('full_name', 'Unknown')
-            telegram_username = user_global_data.get('username')
-            
-            if telegram_username and telegram_username.strip():
-                display_name = f"{escape_markdown_username(full_name)}(@{escape_markdown_username(telegram_username)})"
-            else:
-                display_name = escape_markdown_username(full_name)
-        else:
-            # Fallback to loser username
-            display_name = escape_markdown_username(loser.get('username', 'Unknown'))
+        display_name = None
+        if user_id and context:
+            from utils.user_utils import get_user_display_name
+            display_name = await get_user_display_name(context, user_id)
+            # Skip fallback users (User {ID} format)
+            if display_name.startswith('User ') and display_name.endswith(str(user_id)):
+                display_name = None
         
-        bet_amount = loser.get('bet_amount', 0)
-        # Get wallet balance from loser data if available
-        wallet_balance = loser.get('wallet_balance', 'N/A')
-        all_participants.append({
-            'username': display_name,
-            'amount': f"-{bet_amount}",
-            'wallet': wallet_balance
-        })
+        # Only add if we have a valid display name (skip non-existent users)
+        if display_name:
+            bet_amount = loser.get('bet_amount', 0)
+            # Get wallet balance from loser data if available
+            wallet_balance = loser.get('wallet_balance', 'N/A')
+            all_participants.append({
+                'username': display_name,
+                'amount': f"-{bet_amount}",
+                'wallet': wallet_balance
+            })
     
     # Check if there are any participants
     if not all_participants:
-        message += "*No participants* in this match\n"
+        message += "<b>No participants</b> in this match\n"
     else:
         # Show all participants in the new format
         for participant in all_participants[:10]:  # Limit to 10 participants
             username = participant['username']
             amount = participant['amount']
             wallet = participant['wallet']
-            message += f"*{username}:* {amount} (*wallet:* {wallet})\n"
+            message += f"<b>{username}:</b> {amount} (<b>wallet:</b> {wallet})\n"
 
         if len(all_participants) > 10:
-            message += f"...and *{len(all_participants) - 10} more participants*\n"
+            message += f"...and <b>{len(all_participants) - 10} more participants</b>\n"
 
         # Show totals
         total_payout = result.get('total_payout', 0)
@@ -493,16 +481,16 @@ def format_game_result(result: Dict[str, Any], global_data: Dict[str, Any] = Non
     return message
 
 
-def format_leaderboard(chat_data: Dict[str, Any], context: Any, title: str = "🏆 Leaderboard", global_data: Dict[str, Any] = None) -> str:
+async def format_leaderboard(chat_data: Dict[str, Any], context: Any, title: str = "🏆 Leaderboard", global_data: Dict[str, Any] = None) -> str:
     """
     Formats a leaderboard message with player rankings.
     """
     if not chat_data or 'player_stats' not in chat_data:
-        return f"*{title}*\n\nNo players found."
+        return f"<b>{title}</b>\n\nNo players found."
     
     player_stats = chat_data.get('player_stats', {})
     if not player_stats:
-        return f"*{title}*\n\nNo players found."
+        return f"<b>{title}</b>\n\nNo players found."
     
     # Convert player_stats dictionary to a list of player dictionaries
     players = []
@@ -516,37 +504,43 @@ def format_leaderboard(chat_data: Dict[str, Any], context: Any, title: str = "�
             players.append(player)
     
     if not players:
-        return f"*{title}*\n\nNo players found."
+        return f"<b>{title}</b>\n\nNo players found."
     
     # Sort players by score in descending order
     sorted_players = sorted(players, key=lambda x: x.get('score', 0), reverse=True)
     
     # Format the leaderboard message
-    message = f"*{title}*\n\n"
-    for i, player in enumerate(sorted_players[:10], 1):  # Show top 10 players
+    message = f"<b>{title}</b>\n\n"
+    valid_players = []
+    
+    for player in sorted_players[:20]:  # Check top 20 to get 10 valid ones
         user_id = player.get('user_id')
-        display_name = "Unknown"
+        display_name = None
         
-        # Get proper display name from global_data
-        if user_id and global_data:
-            user_global_data = global_data.get('global_user_data', {}).get(str(user_id), {})
-            full_name = user_global_data.get('full_name', 'Unknown')
-            telegram_username = user_global_data.get('username')
+        # Get proper display name using get_user_display_name
+        if user_id and context:
+            from utils.user_utils import get_user_display_name
+            display_name = await get_user_display_name(context, int(user_id))
+            # Skip fallback users (User {ID} format)
+            if display_name.startswith('User ') and display_name.endswith(str(user_id)):
+                display_name = None
+        
+        # Only add if we have a valid display name (skip non-existent users)
+        if display_name:
+            valid_players.append({
+                'display_name': display_name,
+                'score': player.get('score', 0)
+            })
             
-            if telegram_username and telegram_username.strip():
-                display_name = f"{escape_markdown_username(full_name)}(@{escape_markdown_username(telegram_username)})"
-            else:
-                display_name = escape_markdown_username(full_name)
-        else:
-            # Fallback to stored username
-            username = player.get('username', 'Unknown')
-            if isinstance(username, str) and username != 'Unknown':
-                display_name = escape_markdown_username(username)
-            else:
-                display_name = 'Unknown'
-        
-        score = player.get('score', 0)
-        message += f"*{i}.* *{display_name}:* *{score}* points\n"
+            # Stop when we have 10 valid players
+            if len(valid_players) >= 10:
+                break
+    
+    if not valid_players:
+        return f"<b>{title}</b>\n\nNo valid players found."
+    
+    for i, player in enumerate(valid_players, 1):
+        message += f"<b>{i}.</b> <b>{player['display_name']}:</b> <b>{player['score']}</b> points\n"
     
     return message
 

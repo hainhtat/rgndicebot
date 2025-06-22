@@ -97,6 +97,11 @@ def create_new_game(chat_id: int) -> DiceGame:
     Returns the new game instance.
     """
     chat_data = get_chat_data_for_id(chat_id)
+    
+    # Ensure match_counter exists (backward compatibility)
+    if "match_counter" not in chat_data:
+        chat_data["match_counter"] = 1
+    
     match_id = chat_data["match_counter"]
     
     # Create a new game

@@ -8,7 +8,7 @@ from telegram.ext import ContextTypes
 
 from config.constants import global_data, get_chat_data_for_id
 from config.settings import REFERRAL_BONUS_POINTS as REFERRAL_BONUS, MAIN_GAME_GROUP_LINK as MAIN_GROUP_LINK, ALLOWED_GROUP_IDS, TIMEZONE, SUPER_ADMINS
-from data.file_manager import save_data
+from data.file_manager import save_data, load_data
 from handlers.utils import check_allowed_chat
 from utils.formatting import escape_markdown, escape_markdown_username
 from utils.message_formatter import format_wallet, MessageTemplates
@@ -119,12 +119,8 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     # Create the referral link dynamically
     referral_link = f"https://t.me/{bot_username}?start={user_id}"
     
-    # Create a share button that opens a pre-composed message with the referral link
-    share_text = f"🎲 Hey! I'm having a blast playing RGN Dice Bot! Join me and let's play together - you'll get bonus points when you start! {referral_link}"
-    share_url = f"https://t.me/share/url?url={referral_link}&text={share_text}"
-    
-    # Add a share button to the keyboard
-    keyboard.append([InlineKeyboardButton("📤 Share Referral Link", url=share_url)])
+    # Add a share button that sends private message instead of group message
+    keyboard.append([InlineKeyboardButton("📤 Share Referral Link", callback_data=f"share_referral_{user_id}")])
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     # Standard welcome message with referral link
@@ -229,7 +225,7 @@ async def check_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     # Send the wallet message
     await update.message.reply_text(
         wallet_message,
-        parse_mode="Markdown"
+        parse_mode="HTML"
     )
 
 
@@ -307,11 +303,34 @@ async def withdrawal_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     chat_id = update.effective_chat.id
     user_id = update.effective_user.id
     
-    # Check if user is an admin and restrict access
-    if await is_admin(chat_id, user_id, context):
+    # Note: Admins can withdraw from their personal score, not admin wallet
+    # Admin wallets are separate from personal scores
+    
+    # Check if user has at least 1000 points
+    try:
+        load_data(global_data)
+        chat_data = global_data["all_chat_data"].get(str(chat_id), {})
+        player_stats = chat_data.get("player_stats", {}).get(str(user_id), {})
+        user_score = player_stats.get("score", 0)
+        
+        if user_score < 1000:
+            user_display_name = await get_user_display_name(context, user_id, chat_id)
+            await update.message.reply_text(
+                f"❌ <b>Insufficient balance for withdrawal!</b>\n\n"
+                f"👤 User: {user_display_name}\n"
+                f"💰 Current balance: <b>{user_score:,}</b> ကျပ်\n"
+                f"💸 Minimum required: <b>1,000</b> ကျပ်\n\n"
+                f"Please earn more points by playing games or through referrals.",
+                parse_mode="HTML"
+            )
+            return
+            
+    except Exception as e:
+        logger.error(f"Error checking user balance for withdrawal: {e}")
         await update.message.reply_text(
-            "❌ *Admins cannot use the withdrawal system.*\n\nAs an admin, you have access to admin wallets that are managed separately.",
-            parse_mode="Markdown"
+            "❌ <b>Error checking your balance.</b>\n\n"
+            "Please try again later or contact an admin.",
+            parse_mode="HTML"
         )
         return
     
@@ -354,6 +373,73 @@ async def withdrawal_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await update.message.reply_text(
             withdrawal_message.replace('*', ''),
             parse_mode=None
+        )
+
+
+async def handle_share_referral_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """
+    Handle share referral button callback - sends private message and opens share dialog.
+    """
+    query = update.callback_query
+    await query.answer()
+    
+    # Extract user_id from callback data
+    callback_data = query.data
+    user_id = callback_data.split('_')[-1]
+    
+    # Get bot username
+    bot_info = await context.bot.get_me()
+    bot_username = bot_info.username
+    
+    # Create referral link
+    referral_link = f"https://t.me/{bot_username}?start={user_id}"
+    
+    # Get user's referral stats
+    chat_id = update.effective_chat.id
+    load_data(global_data)
+    chat_data = global_data.get(str(chat_id), {})
+    player_stats = chat_data.get("player_stats", {}).get(str(user_id), {})
+    referral_points = player_stats.get("referral_points", 0)
+    
+    # Create private message with referral info
+    private_message = (
+        f"🎮 <b>Join Rangoon Dice Official group!</b> 🎮\n\n"
+        f"🚀 <b>Your Rewards:</b> User တစ်ယောက် join ရင်500ကျပ်ရပါမယ်!\n"
+        f"🎁 <b>Their Welcome Gift:</b> Join တာနဲ့ 500ကျပ်ရပါမယ်!\n\n"
+        f"<code>{referral_link}</code>\n\n"
+        f"🏆 <b>Your Referral Empire:</b> {referral_points:,} points earned so far"
+    )
+    
+    # Create share text for the share dialog
+    share_text = (
+        f"🎲 Dice ဆော့ပြီးပိုက်ဆံရှာရအောင် 🚀\n\n"
+        f"🎁 Group join လိုက်တာနဲ့ 500 ကျပ်တန်းရမှာနော်\n"        
+        f"✨ Ready to roll? Tap here: {referral_link}\n\n"
+        f"🏆 Let's make some dice magic happen! 🎯"
+    )
+    
+    try:
+        # Send private message to the user
+        await context.bot.send_message(
+            chat_id=query.from_user.id,
+            text=private_message,
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📤 Share with Friends", switch_inline_query=share_text)]
+            ])
+        )
+        
+        # Confirm to user that message was sent privately
+        await query.edit_message_text(
+            text="📤 *Referral link sent to your private chat!*",
+            parse_mode="Markdown"
+        )
+        
+    except Exception as e:
+        logger.error(f"Error sending private share message: {e}")
+        await query.edit_message_text(
+            text="❌ *Error sending private message.*\n\nPlease make sure you have started a private chat with the bot first by clicking /start in a private message.",
+            parse_mode="Markdown"
         )
 
 
@@ -422,29 +508,69 @@ async def get_referral_link(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     # Create the referral link dynamically using the bot's username
     referral_link = f"https://t.me/{bot_username}?start={user_id}"
     
-    # Create a share button that opens a pre-composed message with the referral link
-    import urllib.parse
-    share_text = f"🎲 Hey! Join me in the most EPIC dice adventure ever! 🚀\n\n💥 RGN Dice Bot is absolutely INSANE! We're rolling dice, winning big, and having a blast! 🎉\n\n🎁 YOU get 500 points instantly when you join!\n💎 I get rewarded too when you become my gaming buddy!\n🔥 Together we'll dominate the leaderboards!\n\n✨ Ready to roll? Tap here: {referral_link}\n\n🏆 Let's make some dice magic happen! 🎯"
-    encoded_text = urllib.parse.quote(share_text)
-    share_url = f"https://t.me/share/url?url={referral_link}&text={encoded_text}"
+    # Get user's referral stats
+    chat_id = update.effective_chat.id
+    load_data(global_data)
+    chat_data = global_data.get(str(chat_id), {})
+    player_stats = chat_data.get("player_stats", {}).get(str(user_id), {})
+    referral_points = player_stats.get("referral_points", 0)
     
-    keyboard = [
-        [InlineKeyboardButton("📤 Share with Friends", url=share_url)]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    # Create a simpler referral link message
-    referral_message = MessageTemplates.REFERRAL_LINK_MESSAGE.format(
-        bonus=REFERRAL_BONUS,
-        referral_link=referral_link,
-        points=global_user_data.get('referral_points', 0)
+    # Create private message with referral info
+    private_message = (
+        f"🎮 <b>Join Rangoon Dice Official group!</b> 🎮\n\n"
+        f"🚀 <b>Your Rewards:</b> User တစ်ယောက် join ရင်500ကျပ်ရပါမယ်!\n"
+        f"🎁 <b>Their Welcome Gift:</b> Join တာနဲ့ 500ကျပ်ရပါမယ်!\n\n"
+        f"<code>{referral_link}</code>\n\n"
+        f"🏆 <b>Your Referral Empire:</b> {referral_points:,} points earned so far"
     )
     
-    await update.message.reply_text(
-        referral_message,
-        parse_mode="Markdown",
-        reply_markup=reply_markup
+    # Create share text for the share dialog
+    share_text = (
+        f"🎲 Hey! Dice ဆော့ပြီးပိုက်ဆံရှာကြမယ်! 🚀\n\n"
+        f"🎁 Join တာနဲ့ 500ကျပ်ရပါမယ်!\n"
+        f"🔥 Together we'll dominate the leaderboards!\n\n"
+        f"✨ Group join ရန်နှိပ်ပါ {referral_link}\n\n"
+        f"🏆 Let's make some dice magic happen! 🎯"
     )
+    
+    try:
+        # Send private message to the user
+        await context.bot.send_message(
+            chat_id=user_id,
+            text=private_message,
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📤 Share with Friends", switch_inline_query=share_text)]
+            ])
+        )
+        
+        # Send short confirmation in the group
+        await update.message.reply_text(
+            "📤 *Referral link sent to your private chat!*",
+            parse_mode="Markdown"
+        )
+        
+    except Exception as e:
+        logger.error(f"Error sending private referral message: {e}")
+        # Fallback to group message if private message fails
+        referral_message = (
+            f"🎮 *Join Rangoon Dice Official group!* 🎮\n\n"
+            f"🚀 *Your Rewards:* User တစ်ယောက် join ရင်500ကျပ်ရပါမယ်!\n"
+            f"🎁 *Their Welcome Gift:* Join တာနဲ့ 500ကျပ်ရပါမယ်!\n\n"
+            f"{referral_link}\n\n"
+            f"🏆 *Your Referral Empire:* {referral_points:,} ကျပ် earned so far"
+        )
+        
+        keyboard = [
+            [InlineKeyboardButton("📤 Share with Friends", callback_data=f"share_referral_{user_id}")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await update.message.reply_text(
+            f"❌ *Could not send private message.*\n\nPlease start a private chat with the bot first by clicking /start in a private message.\n\n{referral_message}",
+            parse_mode="Markdown",
+            reply_markup=reply_markup
+        )
 
 
 async def handle_new_chat_member(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -478,6 +604,33 @@ async def handle_new_chat_member(update: Update, context: ContextTypes.DEFAULT_T
                     parse_mode="Markdown"
                 )
                 logger.info(f"Sent referral notification to user {referrer_id} for new member {user_id}")
+                
+                # Send notification to superadmins about referral join
+                try:
+                    # Get referrer and new user display names
+                    referrer_name = await get_user_display_name(context, referrer_id, chat_id)
+                    new_user_name = await get_user_display_name(context, user_id, chat_id)
+                    
+                    superadmin_message = f"🎯 *New Referral Join*\n\n" \
+                             f"👤 *New User:* {new_user_name} ({user_id})\n" \
+                             f"👥 *Invited by:* {referrer_name} ({referrer_id})\n" \
+                             f"💰 *Bonus Awarded:* {REFERRAL_BONUS} ကျပ်"
+                    
+                    # Send to all superadmins
+                    for superadmin_id in SUPER_ADMINS:
+                        try:
+                            await context.bot.send_message(
+                                chat_id=superadmin_id,
+                                text=superadmin_message,
+                                parse_mode="Markdown"
+                            )
+                        except Exception as e:
+                            logger.error(f"Failed to send referral notification to superadmin {superadmin_id}: {e}")
+                    
+                    logger.info(f"Sent referral join notification to superadmins for user {user_id} referred by {referrer_id}")
+                except Exception as e:
+                    logger.error(f"Failed to send superadmin notifications for referral join: {e}")
+                    
             except Exception as e:
                 logger.error(f"Failed to send referral notification to user {referrer_id}: {e}")
         
@@ -517,6 +670,4 @@ async def handle_new_chat_member(update: Update, context: ContextTypes.DEFAULT_T
             except Exception as e2:
                 logger.error(f"Failed to send welcome message without markdown: {e2}")
         
-        # Send keyboard to the new member
-        from utils.telegram_utils import send_keyboard_to_new_member
-        await send_keyboard_to_new_member(context, chat_id, user_id)
+        # Keyboard sending removed to avoid unwanted welcome message

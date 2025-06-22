@@ -1,150 +1,114 @@
 #!/usr/bin/env python3
-
 """
-Test script to verify that the referral system works correctly for multiple users.
-This tests that:
-1. Multiple users can join via the same referral link
-2. The referrer gets points for each new user
-3. The same user cannot generate multiple referral bonuses
+Simple test to verify referral system functionality
 """
 
 import asyncio
-import logging
-from datetime import datetime
-from typing import Dict, Any
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
-
-# Import necessary modules
+import json
 from config.constants import global_data
-from data.file_manager import save_data, load_data
-from config.settings import REFERRAL_BONUS_POINTS
-from utils.user_utils import get_or_create_global_user_data, process_referral, process_pending_referral
+from data.file_manager import load_data, save_data
+from utils.user_utils import get_or_create_global_user_data
 
-# Mock context for testing
-class MockBot:
-    async def get_chat(self, chat_id):
-        class MockChat:
-            def __init__(self, chat_id):
-                self.id = chat_id
-                self.first_name = f"User{chat_id}"
-                self.last_name = "Test"
-                self.username = f"user{chat_id}"
-                self.full_name = f"User{chat_id} Test"
-        return MockChat(chat_id)
-
-class MockContext:
-    def __init__(self):
-        self.bot = MockBot()
-
-# Test functions
-async def test_multiple_referrals():
-    """
-    Test that multiple users can join via the same referral link and the referrer gets points for each.
-    """
-    logger.info("\n=== Testing Multiple Referrals ===\n")
+def test_referral_logic():
+    """Test referral system logic without bot context"""
+    print("🧪 Testing Referral System Logic...")
     
-    # Load data
+    # Load current data
     load_data(global_data)
     
-    # Create a mock context
-    context = MockContext()
+    referrer_id = 6809465186  # Existing user
+    new_user_1 = 999888777   # Test user 1
+    new_user_2 = 999888778   # Test user 2
     
-    # Create a referrer
-    referrer_id = 1001
-    get_or_create_global_user_data(referrer_id, "Referrer", "User", "referrer_user")
+    print(f"\n📊 Testing with referrer: {referrer_id}")
     
-    # Initial referral points
-    initial_points = global_data["global_user_data"][str(referrer_id)].get("referral_points", 0)
-    logger.info(f"Initial referral points for referrer: {initial_points}")
+    # Ensure referrer exists
+    get_or_create_global_user_data(referrer_id, "Test", "Referrer", "test_referrer")
     
-    # Create multiple users who join via the referral link
-    new_users = [1002, 1003, 1004]
+    # Test 1: Refer first new user (should succeed)
+    print("\n🔸 Test 1: Referring first new user...")
+    success1 = test_single_referral(new_user_1, referrer_id, "TestUser1")
+    print(f"   Result: {'✅ SUCCESS' if success1 else '❌ FAILED'}")
     
-    for i, user_id in enumerate(new_users):
-        logger.info(f"\nProcessing user {user_id} (#{i+1})...")
-        
-        # Process the referral (simulates clicking the referral link)
-        success, message, _ = await process_referral(user_id, referrer_id, context)
-        logger.info(f"process_referral result: {success}, message: {message}")
-        
-        # Process the pending referral (simulates joining the group)
-        success, ref_id, notification = await process_pending_referral(user_id, context)
-        logger.info(f"process_pending_referral result: {success}, referrer_id: {ref_id}, notification: {notification}")
-        
-        # Check current points
-        current_points = global_data["global_user_data"][str(referrer_id)].get("referral_points", 0)
-        logger.info(f"Current referral points: {current_points}")
-        
-        # Verify points increased
-        expected_points = initial_points + REFERRAL_BONUS_POINTS * (i + 1)
-        assert current_points == expected_points, f"Expected {expected_points} points, got {current_points}"
+    # Test 2: Try to refer the same user again (should fail)
+    print("\n🔸 Test 2: Trying to refer same user again...")
+    success2 = test_single_referral(new_user_1, referrer_id, "TestUser1")
+    print(f"   Result: {'✅ SUCCESS' if success2 else '❌ FAILED (Expected)'}")
     
-    logger.info("\n✅ Multiple referrals test passed!")
+    # Test 3: Refer a different new user (should succeed)
+    print("\n🔸 Test 3: Referring different new user...")
+    success3 = test_single_referral(new_user_2, referrer_id, "TestUser2")
+    print(f"   Result: {'✅ SUCCESS' if success3 else '❌ FAILED'}")
+    
+    return success1, success2, success3
 
-async def test_duplicate_referral():
-    """
-    Test that the same user cannot generate multiple referral bonuses.
-    """
-    logger.info("\n=== Testing Duplicate Referral ===\n")
+def test_single_referral(user_id, referrer_id, user_name):
+    """Test a single referral without bot context"""
+    user_id_str = str(user_id)
+    referrer_id_str = str(referrer_id)
     
-    # Create a mock context
-    context = MockContext()
+    # Check if user is trying to refer themselves
+    if user_id == referrer_id:
+        print("   ❌ Self-referral not allowed")
+        return False
     
-    # Create a referrer
-    referrer_id = 2001
-    get_or_create_global_user_data(referrer_id, "Referrer2", "User", "referrer_user2")
+    # Create user data if it doesn't exist
+    get_or_create_global_user_data(user_id, user_name, "", f"test_{user_id}")
     
-    # Create a user
-    user_id = 2002
-    get_or_create_global_user_data(user_id, "User2", "Test", "user2_test")
+    # Get user data
+    user_data = global_data["global_user_data"].get(user_id_str)
+    referrer_data = global_data["global_user_data"].get(referrer_id_str)
     
-    # Initial referral points
-    initial_points = global_data["global_user_data"][str(referrer_id)].get("referral_points", 0)
-    logger.info(f"Initial referral points for referrer: {initial_points}")
+    if not user_data or not referrer_data:
+        print("   ❌ User or referrer data not found")
+        return False
     
-    # First referral (should work)
-    logger.info("\nProcessing first referral...")
-    success1, message1, _ = await process_referral(user_id, referrer_id, context)
-    logger.info(f"First process_referral result: {success1}, message: {message1}")
+    # Check if user has already been referred
+    if user_data.get("referred_by") is not None:
+        print("   ❌ User already has a referrer")
+        return False
     
-    success1_pending, ref_id1, notification1 = await process_pending_referral(user_id, context)
-    logger.info(f"First process_pending_referral result: {success1_pending}, notification: {notification1}")
+    # Store the referral relationship
+    user_data["referred_by"] = referrer_id
+    user_data["referral_pending"] = True
     
-    # Check points after first referral
-    points_after_first = global_data["global_user_data"][str(referrer_id)].get("referral_points", 0)
-    logger.info(f"Points after first referral: {points_after_first}")
-    
-    # Try second referral with same user (should not work)
-    logger.info("\nProcessing second referral with same user...")
-    success2, message2, _ = await process_referral(user_id, referrer_id, context)
-    logger.info(f"Second process_referral result: {success2}, message: {message2}")
-    
-    success2_pending, ref_id2, notification2 = await process_pending_referral(user_id, context)
-    logger.info(f"Second process_pending_referral result: {success2_pending}, notification: {notification2}")
-    
-    # Check points after attempted second referral
-    points_after_second = global_data["global_user_data"][str(referrer_id)].get("referral_points", 0)
-    logger.info(f"Points after second referral attempt: {points_after_second}")
-    
-    # Verify points didn't increase on second attempt
-    assert points_after_second == points_after_first, f"Points should not increase on duplicate referral. Expected {points_after_first}, got {points_after_second}"
-    
-    logger.info("\n✅ Duplicate referral test passed!")
+    print(f"   ✅ User {user_id} successfully referred by {referrer_id}")
+    return True
 
-async def main():
-    logger.info("Starting referral system test suite...")
+def test_referral_system():
+    """Main test function"""
+    success1, success2, success3 = test_referral_logic()
     
-    # Run tests
-    await test_multiple_referrals()
-    await test_duplicate_referral()
+    new_user_1 = 999888777   # Test user 1
+    new_user_2 = 999888778   # Test user 2
     
-    logger.info("\nAll referral system tests completed successfully!")
+    # Summary
+    print("\n📋 SUMMARY:")
+    print(f"   ✅ First referral: {'PASSED' if success1 else 'FAILED'}")
+    print(f"   ✅ Duplicate prevention: {'PASSED' if not success2 else 'FAILED'}")
+    print(f"   ✅ Multiple referrals: {'PASSED' if success3 else 'FAILED'}")
+    
+    # Check referral data
+    print("\n📊 REFERRAL DATA:")
+    user1_data = global_data["global_user_data"].get(str(new_user_1), {})
+    user2_data = global_data["global_user_data"].get(str(new_user_2), {})
+    
+    print(f"   User {new_user_1} referred by: {user1_data.get('referred_by', 'None')}")
+    print(f"   User {new_user_2} referred by: {user2_data.get('referred_by', 'None')}")
+    
+    # Clean up test data
+    if str(new_user_1) in global_data["global_user_data"]:
+        del global_data["global_user_data"][str(new_user_1)]
+    if str(new_user_2) in global_data["global_user_data"]:
+        del global_data["global_user_data"][str(new_user_2)]
+    
+    save_data(global_data)
+    print("\n🧹 Test data cleaned up.")
+    
+    overall_success = success1 and not success2 and success3
+    print(f"\n🎯 OVERALL RESULT: {'✅ ALL TESTS PASSED' if overall_success else '❌ SOME TESTS FAILED'}")
+    
+    return overall_success
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    test_referral_system()

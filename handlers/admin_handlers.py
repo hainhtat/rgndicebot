@@ -13,7 +13,7 @@ from config.constants import GAME_STATE_WAITING, GAME_STATE_CLOSED, GAME_STATE_O
 from config.settings import ADMIN_INITIAL_POINTS, TIMEZONE
 from data.file_manager import save_data
 from handlers.utils import check_admin_permission, get_current_game
-from utils.formatting import escape_markdown, escape_markdown_username
+from utils.formatting import escape_markdown, escape_markdown_username, escape_html
 from utils.message_formatter import MessageTemplates, get_parse_mode_for_message
 from utils.telegram_utils import is_admin, update_group_admins, get_admins_from_chat
 from utils.user_utils import get_user_display_name, adjust_user_score
@@ -150,34 +150,84 @@ async def adjust_score(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     # Get admin wallet data
     admin_wallet_data = get_admin_data(admin_id, chat_id, admin_username)
     
+    # Get user display name for validation messages
+    display_name = await get_user_display_name(context, target_user_id, chat_id)
+    
+    # Validate target user - cannot be bot or admin
+    if target_user.is_bot:
+        await update.message.reply_text(
+            "❌ *Invalid target!*\n\nYou cannot adjust the score of a bot.",
+            parse_mode="Markdown"
+        )
+        return
+    
+    # Check if target is an admin (prevent adjusting admin scores)
+    if await is_admin(chat_id, target_user_id, context):
+        await update.message.reply_text(
+            "❌ *Invalid target!*\n\nYou cannot adjust the score of another admin.",
+            parse_mode="Markdown"
+        )
+        return
+    
     # Check if admin has enough points for positive adjustments (giving points to users)
     if amount > 0 and admin_wallet_data["points"] < amount:
         await update.message.reply_text(
             f"❌ *Insufficient admin wallet balance!*\n\n"
-            f"💰 Your current balance: *{admin_wallet_data['points']:,}* points\n"
-            f"💸 Required amount: *{amount:,}* points\n\n"
+            f"💰 Your current balance: *{admin_wallet_data['points']:,}* ကျပ်\n"
+            f"💸 Required amount: *{amount:,}* ကျပ်\n\n"
             f"⏰ Admin wallets are refilled daily at 6 AM Myanmar time.",
             parse_mode="Markdown"
         )
         return
     
+    # For negative adjustments (taking points from user), check if user has sufficient balance
+    if amount < 0:
+        current_user_score = chat_data["player_stats"][target_user_id_str]["score"]
+        required_amount = abs(amount)
+        if current_user_score < required_amount:
+            await update.message.reply_text(
+                f"❌ *Insufficient user balance!*\n\n"
+                f"👤 User: {display_name}\n"
+                f"💰 Current balance: *{current_user_score:,}* ကျပ်\n"
+                f"💸 Required amount: *{required_amount:,}* ကျပ်\n\n"
+                f"Cannot deduct more ကျပ် than the user has.",
+                parse_mode="Markdown"
+            )
+            return
+    
     # Adjust admin wallet points based on the action
     if amount > 0:
         # Giving points to user - deduct from admin wallet
         admin_wallet_data["points"] -= amount
-        wallet_action = f"deducted {amount:,} points"
+        wallet_action = f"deducted {amount:,} ကျပ်"
     else:
         # Taking points from user - add to admin wallet
         admin_wallet_data["points"] += abs(amount)
-        wallet_action = f"added {abs(amount):,} points"
+        wallet_action = f"added {abs(amount):,} ကျပ်"
     
     # Log the admin wallet transaction
-    logger.info(f"Admin wallet transaction - Admin {admin_id} ({admin_username}) {wallet_action}. New balance: {admin_wallet_data['points']:,} points in chat {chat_id}")
+    logger.info(f"Admin wallet transaction - Admin {admin_id} ({admin_username}) {wallet_action}. New balance: {admin_wallet_data['points']:,} ကျပ် in chat {chat_id}")
     
-    # Adjust the score
+    # Adjust the score with validation
     player_stats = chat_data["player_stats"][target_user_id_str]
     old_score = player_stats["score"]
-    player_stats["score"] += amount
+    new_score = old_score + amount
+    
+    # Prevent negative balances for deductions
+    if amount < 0 and new_score < 0:
+        # Get user display name for error message
+        error_display_name = await get_user_display_name(context, target_user_id, chat_id)
+        await update.message.reply_text(
+            f"❌ *Cannot deduct {abs(amount):,} points!*\n\n"
+            f"👤 User: {error_display_name}\n"
+            f"💰 Current balance: *{old_score:,}* points\n"
+            f"💸 Requested deduction: *{abs(amount):,}* points\n\n"
+            f"User would have a negative balance of *{new_score:,}* points.",
+            parse_mode="Markdown"
+        )
+        return
+    
+    player_stats["score"] = new_score
     
     # Save the updated data
     save_data(global_data)
@@ -335,55 +385,28 @@ async def check_user_score(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     total_games = wins + losses
     win_rate = (wins / total_games * 100) if total_games > 0 else 0
     
-    # Check if display name has escaped characters that conflict with markdown
-    escaped_display_name = escape_markdown_username(display_name)
-    has_conflicts = ('\\*' in escaped_display_name or '\\[' in escaped_display_name or '\\(' in escaped_display_name)
-    
-    if has_conflicts:
-        # Use HTML formatting to avoid conflicts
-        message = "👤 <b>User Information</b>\n\n"
-        message += f"🎮 <b>Player:</b> {escaped_display_name}\n\n"
-        message += f"💰 <b>Wallet:</b> {player_stats['score']} points\n"
-        message += f"🏆 <b>Wins:</b> {wins}\n"
-        message += f"💔 <b>Losses:</b> {losses}\n"
-        message += f"📊 <b>Win Rate:</b> {win_rate:.1f}%\n"
-    else:
-        # Use standard markdown formatting
-        message = MessageTemplates.USER_INFO_HEADER
-        message += f"🎮 *Player:* {display_name}\n\n"
-        message += f"💰 {MessageTemplates.USER_INFO_CHAT_SCORE.format(score=player_stats['score'])}"
-        message += f"🏆 {MessageTemplates.USER_INFO_WINS.format(wins=wins)}"
-        message += f"💔 {MessageTemplates.USER_INFO_LOSSES.format(losses=losses)}"
-        message += f"📊 *Win Rate:* {win_rate:.1f}%\n"
+    # Use HTML formatting consistently
+    escaped_display_name = escape_html(display_name)
+    message = "👤 <b>User Information</b>\n\n"
+    message += f"🎮 <b>Player:</b> {escaped_display_name}\n\n"
+    message += f"💰 <b>Wallet:</b> {player_stats['score']} points\n"
+    message += f"🏆 <b>Wins:</b> {wins}\n"
+    message += f"💔 <b>Losses:</b> {losses}\n"
+    message += f"📊 <b>Win Rate:</b> {win_rate:.1f}%\n"
     
     if global_user_data:
-        if has_conflicts:
-            # Use HTML formatting
-            message += f"🎁 <b>Referral Points:</b> {global_user_data.get('referral_points', 0)} points\n"
-            
-            if global_user_data.get('referred_by'):
-                referrer_id = global_user_data['referred_by']
-                referrer_name = await get_user_display_name(context, referrer_id, chat_id)
-                escaped_referrer_name = escape_markdown_username(referrer_name)
-                message += f"👤 <b>Referred By:</b> {escaped_referrer_name} ({referrer_id})\n"
-        else:
-            # Use markdown formatting
-            message += MessageTemplates.USER_INFO_REFERRAL_POINTS.format(
-                referral_points=global_user_data.get('referral_points', 0)
-            )
-            
-            if global_user_data.get('referred_by'):
-                referrer_id = global_user_data['referred_by']
-                referrer_name = await get_user_display_name(context, referrer_id, chat_id)
-                message += MessageTemplates.USER_INFO_REFERRED_BY.format(
-                    referrer_name=escape_markdown_username(referrer_name),
-                    referrer_id=referrer_id
-                )
+        # Use HTML formatting consistently
+        message += f"🎁 <b>Referral Points:</b> {global_user_data.get('referral_points', 0)} points\n"
+        
+        if global_user_data.get('referred_by'):
+            referrer_id = global_user_data['referred_by']
+            referrer_name = await get_user_display_name(context, referrer_id, chat_id)
+            escaped_referrer_name = escape_html(referrer_name)
+            message += f"👤 <b>Referred By:</b> {escaped_referrer_name} ({referrer_id})\n"
     
-    # Send the message with dynamic parse mode
-    parse_mode = get_parse_mode_for_message(message)
+    # Send the message with HTML parse mode
     try:
-        await update.message.reply_text(message, parse_mode=parse_mode)
+        await update.message.reply_text(message, parse_mode="HTML")
     except telegram.error.BadRequest as e:
         if "can't parse entities" in str(e).lower():
             # Fallback to plain text if parsing fails
@@ -433,7 +456,7 @@ async def stop_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     current_game = get_current_game(chat_id)
     
     if not current_game:
-        await update.message.reply_text(MessageTemplates.NO_GAME_IN_PROGRESS)
+        await update.message.reply_text(MessageTemplates.NO_GAME_IN_PROGRESS, parse_mode="HTML")
         return
     
     # Process refunds if there are bets
@@ -460,7 +483,7 @@ async def stop_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         # Save the updated data
         save_data(global_data)
         
-        await update.message.reply_text(MessageTemplates.GAME_STOPPED_WITH_REFUNDS)
+        await update.message.reply_text(MessageTemplates.GAME_STOPPED_WITH_REFUNDS, parse_mode="HTML")
         
         # Keyboard sending removed as requested
     else:
@@ -473,7 +496,7 @@ async def stop_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         
         # Save the updated data
         save_data(global_data)
-        await update.message.reply_text(MessageTemplates.GAME_STOPPED_BY_ADMIN)
+        await update.message.reply_text(MessageTemplates.GAME_STOPPED_BY_ADMIN, parse_mode="HTML")
         
         # Keyboard sending removed as requested
 
@@ -717,6 +740,24 @@ async def handle_admin_score_adjustment(update: Update, context: ContextTypes.DE
     # Get admin wallet data
     admin_wallet_data = get_admin_data(admin_id, chat_id, admin_username)
     
+    # Get current user score for validation before any wallet changes
+    player_stats = chat_data["player_stats"][target_user_id_str]
+    old_score = player_stats["score"]
+    
+    # Validate negative adjustments - prevent deducting more than user has
+    if amount < 0 and old_score + amount < 0:
+        display_name = await get_user_display_name(context, target_user_id, chat_id)
+        await update.message.reply_text(
+            f"❌ *Cannot deduct points!*\n\n"
+            f"👤 User: {display_name}\n"
+            f"💰 Current balance: *{old_score:,}* points\n"
+            f"💸 Attempted deduction: *{abs(amount):,}* points\n\n"
+            f"⚠️ This would result in a negative balance of *{old_score + amount:,}* points.\n"
+            f"Maximum deduction allowed: *{old_score:,}* points",
+            parse_mode="Markdown"
+        )
+        return
+
     # Check if admin has enough points for positive adjustments (giving points to users)
     if amount > 0 and admin_wallet_data["points"] < amount:
         await update.message.reply_text(
@@ -727,7 +768,7 @@ async def handle_admin_score_adjustment(update: Update, context: ContextTypes.DE
             parse_mode="Markdown"
         )
         return
-    
+
     # Adjust admin wallet points based on the action
     if amount > 0:
         # Giving points to user - deduct from admin wallet
@@ -737,13 +778,11 @@ async def handle_admin_score_adjustment(update: Update, context: ContextTypes.DE
         # Taking points from user - add to admin wallet
         admin_wallet_data["points"] += abs(amount)
         wallet_action = f"added {abs(amount):,} points"
-    
+
     # Log the admin wallet transaction
     logger.info(f"Admin wallet transaction (quick adjust) - Admin {admin_id} ({admin_username}) {wallet_action}. New balance: {admin_wallet_data['points']:,} points in chat {chat_id}")
     
     # Adjust the score
-    player_stats = chat_data["player_stats"][target_user_id_str]
-    old_score = player_stats["score"]
     player_stats["score"] += amount
     
     # Save the updated data

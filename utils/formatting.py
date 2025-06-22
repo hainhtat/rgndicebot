@@ -48,6 +48,24 @@ def escape_markdown_username(text: str) -> str:
     
     return text
 
+
+def escape_html(text: str) -> str:
+    """
+    Escapes characters that have special meaning in HTML to ensure they are displayed literally.
+    Used for content that should NOT be interpreted as HTML formatting.
+    """
+    if not text:
+        return text
+    
+    # HTML entities for special characters
+    text = text.replace('&', '&amp;')  # Must be first to avoid double escaping
+    text = text.replace('<', '&lt;')
+    text = text.replace('>', '&gt;')
+    text = text.replace('"', '&quot;')
+    text = text.replace("'", '&#x27;')
+    
+    return text
+
 # Note: The formatting functions have been moved to utils/message_formatter.py
 # This file is kept for backward compatibility and only contains the escape_markdown function
 # which is used by message_formatter.py
