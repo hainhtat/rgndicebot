@@ -32,8 +32,8 @@ class MessageTemplates:
 "⚫ *SMALL (2-6):* *S 500* or *SMALL 500* လို့ရိုက်ပါ\n"
 "🍀 *LUCKY (7):* *L 500* or *LUCKY 500* လို့ရိုက်ပါ\n\n"
 "💰 *လျော်မည့်ဆ:*\n"
-        "- *BIG/SMALL:* *2x*\n"
-        "- *LUCKY:* *5x*"
+        "- *BIG/SMALL:* *1.95x*\n"
+        "- *LUCKY:* *4.5x*"
     )
     
     # Bet confirmation

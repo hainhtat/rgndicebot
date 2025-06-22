@@ -148,8 +148,8 @@ async def create_game_status_message(game: DiceGame, context: ContextTypes.DEFAU
         message += "🍀 *LUCKY (7):* L 500 or LUCKY 500 လို့ရိုက်ပါ\n\n"
         
         message += "💰 *လျော်မည့်ဆ:*\n"
-        message += "- BIG/SMALL: 2x\n"
-        message += "- LUCKY: 5x\n"
+        message += "- BIG/SMALL: 1.95x\n"
+        message += "- LUCKY: 4.5x\n"
         
         logger.info(f"Created game status message: {message}")
         return message
