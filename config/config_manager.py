@@ -12,7 +12,7 @@ DEFAULT_CONFIG = {
     # Bot settings
     "bot": {
         "name": "Dice Game Bot",
-        "version": "1.0.0",
+        "version": "3.3",
         "description": "A Telegram bot for playing dice games"
     },
     
@@ -24,9 +24,9 @@ DEFAULT_CONFIG = {
         "auto_roll_interval_seconds": 5,
         "betting_time_seconds": 60,
         "payout_multipliers": {
-            "big": 2.0,
-            "small": 2.0,
-            "lucky": 5.0
+            "big": 1.95,
+            "small": 1.95,
+            "lucky": 4.5
         }
     },
     

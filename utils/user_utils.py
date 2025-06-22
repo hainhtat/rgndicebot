@@ -37,8 +37,10 @@ def get_or_create_global_user_data(user_id: int, first_name: Optional[str] = Non
             "full_name": full_name_init,
             "username": username,
             "referral_points": 0,
+            "bonus_points": 0,
             "referred_by": None,
-            "welcome_bonus_received": False
+            "welcome_bonus_received": False,
+            "last_cashback_date": None
         }
     else:
         # Update existing user's data with more complete info if available
@@ -326,8 +328,8 @@ def process_welcome_bonus(user_id: int, chat_id: int, first_name: Optional[str] 
             "last_active": datetime.now().isoformat()
         }
     
-    # Add welcome bonus to referral points instead of main wallet
-    user_data["referral_points"] = user_data.get("referral_points", 0) + WELCOME_BONUS_POINTS
+    # Add welcome bonus to bonus points
+    user_data["bonus_points"] = user_data.get("bonus_points", 0) + WELCOME_BONUS_POINTS
     
     # Update player stats
     player_stats = global_data["all_chat_data"][chat_id_str]["player_stats"][user_id_str]

@@ -18,6 +18,14 @@ ADMIN_INITIAL_POINTS = int(os.environ.get("ADMIN_INITIAL_POINTS", "10000000"))  
 REFERRAL_BONUS_POINTS = int(os.environ.get("REFERRAL_BONUS_POINTS", "500"))  # Points awarded for referrals
 WELCOME_BONUS_POINTS = int(os.environ.get("WELCOME_BONUS_POINTS", "500"))  # Welcome bonus for new group members
 
+# New referral system settings
+REFERRAL_POINTS_BET_RATIO = float(os.environ.get("REFERRAL_POINTS_BET_RATIO", "0.5"))  # Max 50% of bet can be referral points
+MIN_MAIN_SCORE_REQUIRED = int(os.environ.get("MIN_MAIN_SCORE_REQUIRED", "500"))  # Minimum main score to use referral points
+
+# Bonus system settings
+DAILY_CASHBACK_PERCENTAGE = float(os.environ.get("DAILY_CASHBACK_PERCENTAGE", "0.05"))  # 5% daily cashback
+BONUS_EXPIRY_DAYS = int(os.environ.get("BONUS_EXPIRY_DAYS", "30"))  # Bonus points expire after 30 days
+
 # Data file path
 DATA_FILE_PATH = os.environ.get("DATA_FILE_PATH", "data.json")
 
@@ -52,7 +60,7 @@ if env_super_admins:
 
 # Allowed group IDs
 ALLOWED_GROUP_IDS = [
-    # -1002780424700, #test group
+    -1002780424700, #test group
     -1002689980361, #main gp
 ]  # Add allowed group IDs here
 

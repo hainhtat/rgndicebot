@@ -24,7 +24,7 @@ async def refill_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     
     # Check if user is a super admin
     if user_id not in SUPER_ADMINS:
-        await update.message.reply_text("❌ This command is only available to super admins.")
+        await update.message.reply_text(MessageTemplates.SUPER_ADMIN_ONLY_COMMAND)
         return
     
     # Get all groups where the bot is active
@@ -46,7 +46,7 @@ async def refill_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             continue
     
     if not bot_groups:
-        await update.message.reply_text("❌ No active groups found.")
+        await update.message.reply_text(MessageTemplates.NO_ACTIVE_GROUPS)
         return
     
     # Create keyboard with group options
@@ -79,14 +79,14 @@ async def handle_refill_group_selection(update: Update, context: ContextTypes.DE
     
     # Check if user is a super admin
     if user_id not in SUPER_ADMINS:
-        await query.edit_message_text("❌ This command is only available to super admins.")
+        await query.edit_message_text(MessageTemplates.SUPER_ADMIN_ONLY_COMMAND)
         return
     
     # Extract group ID from callback data
     try:
         group_id = int(query.data.split("_")[-1])
     except (ValueError, IndexError):
-        await query.edit_message_text("❌ Invalid group selection.")
+        await query.edit_message_text(MessageTemplates.INVALID_GROUP_SELECTION)
         return
     
     # Get admins in the selected group
@@ -113,7 +113,7 @@ async def handle_refill_group_selection(update: Update, context: ContextTypes.DE
                 continue
         
         if not group_admins:
-            await query.edit_message_text("❌ No admins found in the selected group.")
+            await query.edit_message_text(MessageTemplates.NO_ADMINS_IN_GROUP)
             return
         
         # Create keyboard with admin options
@@ -164,7 +164,7 @@ async def handle_refill_group_selection(update: Update, context: ContextTypes.DE
         
     except Exception as e:
         logger.error(f"Error handling group selection: {e}")
-        await query.edit_message_text("❌ Error processing group selection.")
+        await query.edit_message_text(MessageTemplates.ERROR_PROCESSING_GROUP)
 
 
 async def handle_refill_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -178,7 +178,7 @@ async def handle_refill_action(update: Update, context: ContextTypes.DEFAULT_TYP
     
     # Check if user is a super admin
     if user_id not in SUPER_ADMINS:
-        await query.edit_message_text("❌ This command is only available to super admins.")
+        await query.edit_message_text(MessageTemplates.SUPER_ADMIN_ONLY_COMMAND)
         return
     
     try:
@@ -249,7 +249,7 @@ async def handle_refill_action(update: Update, context: ContextTypes.DEFAULT_TYP
         elif action == "admin":
             # Refill specific admin
             if len(callback_parts) < 4:
-                await query.edit_message_text("❌ Invalid callback data for admin refill.")
+                await query.edit_message_text(MessageTemplates.INVALID_CALLBACK_DATA)
                 return
             target_admin_id = int(callback_parts[3])
             target_admin_id_str = str(target_admin_id)
@@ -287,7 +287,7 @@ async def handle_refill_action(update: Update, context: ContextTypes.DEFAULT_TYP
             
     except Exception as e:
         logger.error(f"Error handling refill action: {e}")
-        await query.edit_message_text("❌ Error processing refill action.")
+        await query.edit_message_text(MessageTemplates.ERROR_PROCESSING_REFILL)
 
 
 async def handle_custom_amount_request(update: Update, context: ContextTypes.DEFAULT_TYPE, group_id: int, refill_type: str, admin_id: Optional[int] = None) -> None:
@@ -331,7 +331,7 @@ async def handle_custom_amount_request(update: Update, context: ContextTypes.DEF
         
     except Exception as e:
         logger.error(f"Error handling custom amount request: {e}")
-        await query.edit_message_text("❌ Error processing custom amount request.")
+        await query.edit_message_text(MessageTemplates.ERROR_PROCESSING_CUSTOM_AMOUNT)
 
 
 async def handle_refill_amount_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -342,32 +342,32 @@ async def handle_refill_amount_command(update: Update, context: ContextTypes.DEF
     
     # Check if user is a super admin
     if user_id not in SUPER_ADMINS:
-        await update.message.reply_text("❌ This command is only available to super admins.")
+        await update.message.reply_text(MessageTemplates.SUPER_ADMIN_ONLY_COMMAND)
         return
     
     # Check if there's a refill context
     refill_context = context.user_data.get('refill_context')
     if not refill_context:
-        await update.message.reply_text("❌ No active refill request. Please use /refill first.")
+        await update.message.reply_text(MessageTemplates.NO_ACTIVE_REFILL_REQUEST)
         return
     
     # Parse the amount
     try:
         if not context.args:
-            await update.message.reply_text("❌ Please provide an amount. Example: /refill_amount 5000000")
+            await update.message.reply_text(MessageTemplates.PROVIDE_AMOUNT_EXAMPLE)
             return
         
         amount = int(context.args[0])
         if amount <= 0:
-            await update.message.reply_text("❌ Amount must be a positive number.")
+            await update.message.reply_text(MessageTemplates.AMOUNT_MUST_BE_POSITIVE)
             return
         
         if amount > 50000000:  # 50M limit
-            await update.message.reply_text("❌ Amount cannot exceed 50,000,000 points.")
+            await update.message.reply_text(MessageTemplates.AMOUNT_EXCEEDS_LIMIT)
             return
         
     except ValueError:
-        await update.message.reply_text("❌ Invalid amount. Please enter a valid number.")
+        await update.message.reply_text(MessageTemplates.INVALID_AMOUNT_NUMBER)
         return
     
     try:
@@ -450,7 +450,7 @@ async def handle_refill_amount_command(update: Update, context: ContextTypes.DEF
         
     except Exception as e:
         logger.error(f"Error processing custom refill amount: {e}")
-        await update.message.reply_text("❌ Error processing refill amount.")
+        await update.message.reply_text(MessageTemplates.ERROR_PROCESSING_REFILL_AMOUNT)
 
 
 async def handle_back_to_groups(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -464,7 +464,7 @@ async def handle_back_to_groups(update: Update, context: ContextTypes.DEFAULT_TY
     
     # Check if user is a super admin
     if user_id not in SUPER_ADMINS:
-        await query.edit_message_text("❌ This command is only available to super admins.")
+        await query.edit_message_text(MessageTemplates.SUPER_ADMIN_ONLY_COMMAND)
         return
     
     # Recreate the group selection menu
@@ -486,7 +486,7 @@ async def handle_back_to_groups(update: Update, context: ContextTypes.DEFAULT_TY
             continue
     
     if not bot_groups:
-        await query.edit_message_text("❌ No active groups found.")
+        await query.edit_message_text(MessageTemplates.NO_ACTIVE_GROUPS)
         return
     
     # Create keyboard with group options

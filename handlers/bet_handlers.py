@@ -119,7 +119,7 @@ async def place_bet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if callback_data.startswith("info_"):
             # Handle info button click
             info_type = callback_data.split("_")[1]
-            await update.callback_query.answer(f"Info about {info_type} betting")
+            await update.callback_query.answer(MessageTemplates.INFO_ABOUT_BETTING.format(info_type=info_type))
             return
         
         # Parse bet type and amount from callback data
@@ -128,7 +128,7 @@ async def place_bet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             bet_type = match.group(1).upper()
             amount = int(match.group(2))
         else:
-            await update.callback_query.answer("Invalid bet format")
+            await update.callback_query.answer(MessageTemplates.INVALID_BET_FORMAT)
             return
     else:
         # This is a text message for betting
@@ -169,9 +169,10 @@ async def place_bet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
         result_message = process_bet(game, user_id, username, bet_type, amount, chat_data, global_data)
         
-        # Get referral points AFTER processing the bet to show remaining amount
+        # Get referral points and bonus points AFTER processing the bet to show remaining amount
         updated_global_user_data = global_data.get("global_user_data", {}).get(str(user_id), {})
         remaining_referral_points = updated_global_user_data.get("referral_points", 0)
+        remaining_bonus_points = updated_global_user_data.get("bonus_points", 0)
         
         # Send confirmation message
         confirmation_message = await format_bet_confirmation(
@@ -180,6 +181,7 @@ async def place_bet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             result_message=result_message,
             username=username,
             referral_points=remaining_referral_points,
+            bonus_points=remaining_bonus_points,
             user_id=str(user_id),
             game=game,
             global_data=global_data,
@@ -188,7 +190,7 @@ async def place_bet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         
         # Always use HTML parse mode since format_bet_confirmation now returns HTML
         if is_callback:
-            await update.callback_query.answer("လောင်းကြေးထပ်လိုက်ပါပြီ!")
+            await update.callback_query.answer(MessageTemplates.BET_PLACED_SUCCESS)
             await update.callback_query.edit_message_text(
                 text=confirmation_message,
                 parse_mode="HTML"
@@ -235,7 +237,7 @@ async def roll_dice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     # Get the current game
     game = get_current_game(chat_id)
     if not game:
-        await update.callback_query.answer("No active game found")
+        await update.callback_query.answer(MessageTemplates.NO_ACTIVE_GAME_CALLBACK)
         return
     
     # Check if the game is in the correct state
@@ -319,7 +321,7 @@ async def roll_dice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             )
             
         except Exception as fallback_error:
-            await update.callback_query.answer(f"Critical error: {str(fallback_error)}")
+            await update.callback_query.answer(MessageTemplates.CRITICAL_ERROR_FALLBACK.format(error=str(fallback_error)))
             logger.error(f"Critical error in manual roll fallback: {fallback_error}", exc_info=True)
 
 @error_handler

@@ -8,6 +8,7 @@ from telegram.ext import ContextTypes
 from config.constants import global_data, SUPER_ADMINS, ADMIN_WALLET_AMOUNT
 from utils.telegram_utils import is_admin
 from utils.formatting import escape_markdown
+from utils.message_formatter import MessageTemplates
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +23,7 @@ async def admin_panel_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     
     # Check if user is an admin in this chat
     if not await is_admin(chat_id, user_id, context):
-        await update.message.reply_text("❌ This feature is only available to admins.")
+        await update.message.reply_text(MessageTemplates.ADMIN_ONLY_FEATURE)
         return
     
     is_super_admin = user_id in SUPER_ADMINS
@@ -75,7 +76,7 @@ async def handle_admin_panel_callback(update: Update, context: ContextTypes.DEFA
     
     # Check if user is an admin
     if not await is_admin(chat_id, user_id, context):
-        await query.edit_message_text("❌ This feature is only available to admins.")
+        await query.edit_message_text(MessageTemplates.ADMIN_ONLY_FEATURE)
         return
     
     action = query.data.replace("admin_panel_", "")
@@ -121,7 +122,7 @@ async def handle_admin_panel_callback(update: Update, context: ContextTypes.DEFA
         elif action == "refill":
             # Check if super admin
             if user_id not in SUPER_ADMINS:
-                await query.edit_message_text("❌ This feature is only available to super admins.")
+                await query.edit_message_text(MessageTemplates.SUPER_ADMIN_ONLY_FEATURE)
                 return
             
             # Import and call refill function
@@ -138,7 +139,7 @@ async def handle_admin_panel_callback(update: Update, context: ContextTypes.DEFA
         elif action == "manual_refill":
             # Check if super admin
             if user_id not in SUPER_ADMINS:
-                await query.edit_message_text("❌ This feature is only available to super admins.")
+                await query.edit_message_text(MessageTemplates.SUPER_ADMIN_ONLY_FEATURE)
                 return
                 
             await query.edit_message_text(
@@ -148,4 +149,4 @@ async def handle_admin_panel_callback(update: Update, context: ContextTypes.DEFA
             
     except Exception as e:
         logger.error(f"Error handling admin panel callback: {e}")
-        await query.edit_message_text("❌ Error processing admin panel action.")
+        await query.edit_message_text(MessageTemplates.ERROR_PROCESSING_ADMIN_PANEL)

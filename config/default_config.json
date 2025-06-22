@@ -10,9 +10,9 @@
     "roll_delay_seconds": 5,
     "min_bet": 100,
     "max_bet": 1000000,
-    "big_multiplier": 2.0,
-    "small_multiplier": 2.0,
-    "lucky_multiplier": 5.0,
+    "big_multiplier": 1.95,
+    "small_multiplier": 1.95,
+    "lucky_multiplier":4.5,
     "idle_game_limit": 3,
     "manual_stop_cooldown_seconds": 10
   },

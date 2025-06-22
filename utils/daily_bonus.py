@@ -3,12 +3,10 @@ from datetime import datetime, timedelta
 from typing import Dict, Any
 
 from config.constants import global_data
+from config.settings import DAILY_CASHBACK_PERCENTAGE
 from data.file_manager import save_data
 
 logger = logging.getLogger(__name__)
-
-# Daily cashback percentage (10%)
-DAILY_CASHBACK_PERCENTAGE = 0.10
 
 async def process_daily_cashback(context):
     """
@@ -59,13 +57,25 @@ async def process_daily_cashback(context):
         # Award cashback to users with losses
         for user_id, total_loss in user_daily_losses.items():
             if total_loss > 0:
-                # Calculate cashback (10% of total loss)
+                # Calculate cashback (5% of total loss)
                 cashback = int(total_loss * DAILY_CASHBACK_PERCENTAGE)
                 
                 if cashback > 0:
-                    # Update user's score
+                    # Update user's bonus points instead of main score
                     if user_id in chat_data["player_stats"]:
-                        chat_data["player_stats"][user_id]["score"] += cashback
+                        # Initialize global user data if not exists
+                        if "global_user_data" not in global_data:
+                            global_data["global_user_data"] = {}
+                        if user_id not in global_data["global_user_data"]:
+                            global_data["global_user_data"][user_id] = {
+                                "referral_points": 0,
+                                "bonus_points": 0,
+                                "last_cashback_date": None
+                            }
+                        
+                        # Add cashback to bonus points
+                        global_data["global_user_data"][user_id]["bonus_points"] += cashback
+                        global_data["global_user_data"][user_id]["last_cashback_date"] = str(today)
                         
                         # Record the cashback in daily_losses
                         if user_id not in global_data["daily_losses"]:
@@ -87,7 +97,7 @@ async def process_daily_cashback(context):
                                 f"🌟 Great news! You've received your daily cashback bonus!\n\n"
                                 f"💰 *Cashback Amount:* {cashback:,} points\n"
                                 f"📊 *Yesterday's Activity:* {total_loss:,} points\n"
-                                f"🎯 *Cashback Rate:* 10%\n\n"
+                                f"🎯 *Cashback Rate:* {int(DAILY_CASHBACK_PERCENTAGE * 100)}%\n\n"
                                 f"🚀 Your points have been automatically added to your wallet!\n"
                                 f"🎲 Ready for another exciting day of gaming?"
                             )

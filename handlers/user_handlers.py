@@ -306,20 +306,30 @@ async def withdrawal_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     # Note: Admins can withdraw from their personal score, not admin wallet
     # Admin wallets are separate from personal scores
     
-    # Check if user has at least 1000 points
+    # Check if user has at least 5000 points
     try:
         load_data(global_data)
         chat_data = global_data["all_chat_data"].get(str(chat_id), {})
         player_stats = chat_data.get("player_stats", {}).get(str(user_id), {})
         user_score = player_stats.get("score", 0)
         
-        if user_score < 1000:
+        # Get global user data for referral and bonus points
+        global_user_data = global_data["global_user_data"].get(str(user_id), {})
+        referral_points = global_user_data.get('referral_points', 0)
+        bonus_points = global_user_data.get('bonus_points', 0)
+        total_balance = user_score + referral_points + bonus_points
+        
+        if user_score < 5000:
             user_display_name = await get_user_display_name(context, user_id, chat_id)
             await update.message.reply_text(
-                f"❌ <b>Insufficient balance for withdrawal!</b>\n\n"
+                f"❌ <b>Insufficient main wallet balance for withdrawal!</b>\n\n"
                 f"👤 User: {user_display_name}\n"
-                f"💰 Current balance: <b>{user_score:,}</b> ကျပ်\n"
-                f"💸 Minimum required: <b>1,000</b> ကျပ်\n\n"
+                f"💰 <b>Main Wallet:</b> <b>{user_score:,}</b> ကျပ်\n"
+                f"🎁 <b>Referral Points:</b> <b>{referral_points:,}</b> ကျပ်\n"
+                f"🎁 <b>Bonus Points:</b> <b>{bonus_points:,}</b> ကျပ်\n"
+                f"📊 <b>Total Balance:</b> <b>{total_balance:,}</b> ကျပ်\n\n"
+                f"💸 <b>Minimum main wallet required:</b> <b>5,000</b> ကျပ်\n\n"
+                f"<i>Note: Only main wallet balance can be withdrawn. Referral and bonus points cannot be withdrawn directly.</i>\n\n"
                 f"Please earn more points by playing games or through referrals.",
                 parse_mode="HTML"
             )
@@ -358,7 +368,17 @@ async def withdrawal_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     # Format admin list
     admin_list_text = "\n".join(admin_usernames)
     
+    # Get user balance information
+    main_wallet = player_stats.get('score', 0)
+    referral_points = global_user_data.get('referral_points', 0)
+    bonus_points = global_user_data.get('bonus_points', 0)
+    total_balance = main_wallet + referral_points + bonus_points
+    
     withdrawal_message = MessageTemplates.WITHDRAWAL_MESSAGE.format(
+        main_wallet=main_wallet,
+        referral_points=referral_points,
+        bonus_points=bonus_points,
+        total_balance=total_balance,
         admin_list=admin_list_text
     )
     

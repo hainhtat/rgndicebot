@@ -37,8 +37,8 @@ class MessageTemplates:
     )
     
     # Bet confirmation
-    BET_CONFIRMATION = "✅ {display_name} *{bet_type}* ပေါ် *{amount}* လောင်းကြေးထပ်လိုက်ပါပြီ\n\n📊 *Total Bets:*\n{total_bets_display}\n\n💰 *Wallet* - *{score}* ကျပ်\n🎁 *Referral* - *{referral_points}* ကျပ်"
-    INSUFFICIENT_FUNDS = "❌ သင့်တွင် *လုံလောက်သော ငွေမရှိပါ*။ 💰*Wallet:* {score} + *{referral_points}* referral ကျပ် = *{total}*"
+    BET_CONFIRMATION = "✅ {display_name} *{bet_type}* ပေါ် *{amount}* လောင်းကြေးထပ်လိုက်ပါပြီ\n\n📊 *Total Bets:*\n{total_bets_display}\n\n💰 *Wallet* - *{score}* ကျပ်\n🎁 *Referral* - *{referral_points}* ကျပ်\n🎁 *Bonus* - *{bonus_points}* ကျပ်"
+    INSUFFICIENT_FUNDS = "❌ သင့်တွင် *လုံလောက်သော ငွေမရှိပါ*။ 💰*Wallet:* {score} + *{referral_points}* referral + *{bonus_points}* bonus ကျပ် = *{total}*"
     INVALID_BET_AMOUNT = "❌ *ငွေပမာဏ အနည်းဆုံး 1 ဖြစ်ရပါမည်*။"
     NO_ACTIVE_GAME = "❌ *No active game* is accepting bets right now."
     
@@ -51,6 +51,7 @@ class MessageTemplates:
     WALLET_HEADER = "💰 *{name}'s Wallet*\n\n"
     WALLET_MAIN_BALANCE = "*💵 Main Balance:* {score} ကျပ်\n"
     WALLET_REFERRAL_BONUS = "*🎁 Referral Bonus:* {referral_points} ကျပ်\n"
+    WALLET_BONUS_POINTS = "*🎁 Bonus Points:* {bonus_points} ကျပ်\n"
     WALLET_TOTAL_BALANCE = "*📊 Total Balance:* {total} ကျပ်"
     
     # Game result
@@ -84,7 +85,7 @@ class MessageTemplates:
     
     # Deposit and withdrawal messages
     DEPOSIT_MESSAGE = "*ငွေထည့်ရန်*\n\nငွေထည့်ရန် အောက်ပါ Admin များထံ ဆက်သွယ်ပါ။\n\n{admin_list}"
-    WITHDRAWAL_MESSAGE = "*ငွေထုတ်ရန်*\n\nငွေထုတ်ရန် အောက်ပါ Admin များထံ ဆက်သွယ်ပါ။\n\n{admin_list}"
+    WITHDRAWAL_MESSAGE = "*ငွေထုတ်ရန်*\n\n💰 *Main Wallet:* {main_wallet} ကျပ်\n🎁 *Referral Points:* {referral_points} ကျပ်\n🎉 *Bonus Points:* {bonus_points} ကျပ်\n📊 *Total Balance:* {total_balance} ကျပ်\n\n⚠️ *Note:* Only Main Wallet balance can be withdrawn (Minimum: 5,000 ကျပ်)\n\nငွေထုတ်ရန် အောက်ပါ Admin များထံ ဆက်သွယ်ပါ။\n\n{admin_list}"
     
     # Error messages
     INVALID_COMMAND_FORMAT = "❌ *Invalid command format*\nUsage: {usage}"
@@ -148,6 +149,55 @@ class MessageTemplates:
     # Score adjustment fallback messages
     SCORE_ADJUSTMENT_FALLBACK = "Score adjusted: {old_score} → {new_score}"
     
+    # Error messages for admin/super admin access
+    SUPER_ADMIN_ONLY_COMMAND = "❌ This command is only available to super admins."
+    ADMIN_ONLY_FEATURE = "❌ This feature is only available to admins."
+    SUPER_ADMIN_ONLY_FEATURE = "❌ This feature is only available to super admins."
+    
+    # Refill system messages
+    NO_ACTIVE_GROUPS = "❌ No active groups found."
+    INVALID_GROUP_SELECTION = "❌ Invalid group selection."
+    NO_ADMINS_IN_GROUP = "❌ No admins found in the selected group."
+    ERROR_PROCESSING_GROUP = "❌ Error processing group selection."
+    INVALID_CALLBACK_DATA = "❌ Invalid callback data for admin refill."
+    ERROR_PROCESSING_REFILL = "❌ Error processing refill action."
+    ERROR_PROCESSING_CUSTOM_AMOUNT = "❌ Error processing custom amount request."
+    NO_ACTIVE_REFILL_REQUEST = "❌ No active refill request. Please use /refill first."
+    PROVIDE_AMOUNT_EXAMPLE = "❌ Please provide an amount. Example: /refill_amount 5000000"
+    AMOUNT_MUST_BE_POSITIVE = "❌ Amount must be a positive number."
+    AMOUNT_EXCEEDS_LIMIT = "❌ Amount cannot exceed 50,000,000 points."
+    INVALID_AMOUNT_NUMBER = "❌ Invalid amount. Please enter a valid number."
+    ERROR_PROCESSING_REFILL_AMOUNT = "❌ Error processing refill amount."
+    ADMINS_CANNOT_REFILL_ADMINS = "❌ Admins cannot refill other admins' points. Only super admins can do this."
+    
+    # Admin panel messages
+    ERROR_PROCESSING_ADMIN_PANEL = "❌ Error processing admin panel action."
+    ERROR_GO_BACK_GROUPS = "❌ Error: Unable to go back to groups list."
+    
+    # Game callback messages
+    CHAT_NOT_AUTHORIZED = "This chat is not authorized to use this bot."
+    GAME_ALREADY_IN_PROGRESS_CALLBACK = "A game is already in progress. Please finish the current game first."
+    FAILED_CREATE_GAME = "Failed to create a new game. Please try again."
+    FAILED_CREATE_STATUS_MESSAGE = "Failed to create game status message. Please try again."
+    NEW_GAME_CREATED = "New game created!"
+    FAILED_UPDATE_GAME_STATUS = "Failed to update game status. Please try again."
+    UNEXPECTED_ERROR = "An unexpected error occurred. Please try again."
+    
+    # Bet callback messages
+    INFO_ABOUT_BETTING = "Info about {info_type} betting"
+    INVALID_BET_FORMAT = "Invalid bet format"
+    BET_PLACED_SUCCESS = "လောင်းကြေးထပ်လိုက်ပါပြီ!"
+    NO_ACTIVE_GAME_CALLBACK = "No active game found"
+    CRITICAL_ERROR_FALLBACK = "Critical error: {error}"
+    
+    # Super admin messages
+    NO_PERMISSION_COMMAND = "❌ You don't have permission to use this command."
+    PRIVATE_CHAT_ONLY = "❌ This command can only be used in private chat with the bot."
+    NO_GROUPS_CONFIGURED = "❌ No groups are configured."
+    NO_PERMISSION_FEATURE = "❌ You don't have permission to use this feature."
+    NO_ADMINS_FOUND = "❌ *No Admins Found*\n\n"
+    ERROR_LOADING_ADMIN_LIST = "❌ Error loading admin list. Please try again."
+    
     # Admin refill messages
     ADMIN_REFILL_SUCCESS = "✅ *Admin Wallet Refilled!*\n\n💰 *Amount:* {amount} ကျပ်\n👤 *Admin:* {admin_name}\n🆔 *Admin ID:* {admin_id}\n\n*New Balance:* {new_balance} ကျပ်"
 
@@ -190,7 +240,7 @@ def get_parse_mode_for_message(message: str) -> str:
     else:
         return "Markdown"
 
-async def format_bet_confirmation(bet_type: str, amount: int, result_message: str, username: str = "User", referral_points: int = 0, user_id: str = None, game = None, global_data = None, context = None) -> str:
+async def format_bet_confirmation(bet_type: str, amount: int, result_message: str, username: str = "User", referral_points: int = 0, bonus_points: int = 0, user_id: str = None, game = None, global_data = None, context = None) -> str:
     """
     Formats a bet confirmation message.
     
@@ -200,6 +250,7 @@ async def format_bet_confirmation(bet_type: str, amount: int, result_message: st
         result_message: The result message from process_bet (contains score info)
         username: The username of the player
         referral_points: Optional referral points used (default 0)
+        bonus_points: Optional bonus points used (default 0)
         user_id: The user ID to get proper display name and total bets
         game: The current game object to get user's total bets
         global_data: Global data to get user information
@@ -250,18 +301,20 @@ async def format_bet_confirmation(bet_type: str, amount: int, result_message: st
     message = f"✅ {display_name} <b>{bet_type}</b> ပေါ် <b>{amount}</b> လောင်းကြေးထပ်လိုက်ပါပြီ\n\n"
     message += f"📊 <b>Total Bets:</b>\n{total_bets_display}\n\n"
     message += f"💰 <b>Wallet</b> - <b>{score}</b> ကျပ်\n"
-    message += f"🎁 <b>Referral</b> - <b>{referral_points}</b> ကျပ်"
+    message += f"🎁 <b>Referral</b> - <b>{referral_points}</b> ကျပ်\n"
+    message += f"🎉 <b>Bonus</b> - <b>{bonus_points}</b> ကျပ်"
     return message
 
 
-def format_insufficient_funds(score: int, referral_points: int, amount: int) -> str:
+def format_insufficient_funds(score: int, referral_points: int, bonus_points: int, amount: int) -> str:
     """
     Formats an insufficient funds message.
     """
-    total = score + referral_points
+    total = score + referral_points + bonus_points
     return MessageTemplates.INSUFFICIENT_FUNDS.format(
         score=score,
         referral_points=referral_points,
+        bonus_points=bonus_points,
         total=total
     )
 
@@ -375,12 +428,14 @@ def format_wallet(player_stats: Dict[str, Any], global_user_data: Dict[str, Any]
     
     score = player_stats.get('score', 0)
     referral_points = global_user_data.get('referral_points', 0)
-    total = score + referral_points
+    bonus_points = global_user_data.get('bonus_points', 0)
+    total = score + referral_points + bonus_points
     
     # Use HTML formatting instead of Markdown
     message = f"💰 <b>{display_name}'s Wallet</b>\n\n"
     message += f"<b>Wallet:</b> {score} points\n"
     message += f"<b>Referral Points:</b> {referral_points} points\n"
+    message += f"<b>Bonus Points:</b> {bonus_points} points\n"
     message += f"<b>Total:</b> {total} points"
     
     return message

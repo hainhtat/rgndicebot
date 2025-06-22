@@ -7,6 +7,7 @@ from typing import Dict, List, Tuple, Optional, Any, Union
 from config.config_manager import get_config
 from utils.logging_utils import get_logger
 from utils.error_handler import BotError, GameStateError, InvalidBetError
+from utils.message_formatter import format_insufficient_funds
 
 # Import constants
 from config.constants import (
@@ -19,6 +20,7 @@ from config.constants import (
 # Import from utils
 from utils.user_utils import get_or_create_global_user_data
 from data.file_manager import save_data
+from config.settings import REFERRAL_POINTS_BET_RATIO, MIN_MAIN_SCORE_REQUIRED
 
 # Get logger for this module
 logger = get_logger(__name__)
@@ -134,37 +136,64 @@ def place_bet(game: DiceGame, user_id: int, username: str, bet_type: str, amount
     if player_stats["username"] != username and username:
         player_stats["username"] = username
     
-    # Get global user data for referral points
+    # Get global user data for referral points and bonus points
     global_user_data = get_or_create_global_user_data(user_id, username=username)
     
-    # Check if player has enough points (including referral points)
-    total_available = player_stats["score"] + global_user_data.get("referral_points", 0)
+    # Calculate available funds
+    main_score = player_stats["score"]
+    referral_points = global_user_data.get("referral_points", 0)
+    bonus_points = global_user_data.get("bonus_points", 0)
+    total_available = main_score + referral_points + bonus_points
     
     if total_available < amount:
         logger.warning(f"Insufficient funds: {total_available} < {amount} for user {user_id}")
-        raise InvalidBetError(f"You don't have enough points. Your balance: {total_available}")
+        insufficient_message = format_insufficient_funds(main_score, referral_points, bonus_points, amount)
+        raise InvalidBetError(insufficient_message)
     
-    # Determine which source to deduct from first (referral points first)
+    # Initialize usage counters
     referral_points_used = 0
+    bonus_points_used = 0
     main_score_used = 0
     
-    if global_user_data.get("referral_points", 0) > 0:
-        referral_points_used = min(global_user_data["referral_points"], amount)
-        global_user_data["referral_points"] -= referral_points_used
+    # Check if user can use referral points (minimum main score requirement)
+    can_use_referral = main_score >= MIN_MAIN_SCORE_REQUIRED
     
-    # If referral points weren't enough, use main score
-    if referral_points_used < amount:
-        main_score_used = amount - referral_points_used
+    # Calculate maximum referral points that can be used (50% of bet amount)
+    max_referral_for_bet = int(amount * REFERRAL_POINTS_BET_RATIO)
+    
+    # Use bonus points first (no restrictions)
+    if bonus_points > 0:
+        bonus_points_used = min(bonus_points, amount)
+        global_user_data["bonus_points"] -= bonus_points_used
+        amount -= bonus_points_used
+    
+    # Use referral points if allowed and needed
+    if amount > 0 and can_use_referral and referral_points > 0:
+        referral_points_used = min(referral_points, max_referral_for_bet, amount)
+        global_user_data["referral_points"] -= referral_points_used
+        amount -= referral_points_used
+    
+    # Use main score for remaining amount
+    if amount > 0:
+        if main_score < amount:
+            # Restore used points if main score is insufficient
+            global_user_data["bonus_points"] += bonus_points_used
+            global_user_data["referral_points"] += referral_points_used
+            raise InvalidBetError(f"Insufficient main score. Need {amount} more main score points.")
+        main_score_used = amount
         player_stats["score"] -= main_score_used
+    
+    # Restore original bet amount for logging
+    original_amount = bonus_points_used + referral_points_used + main_score_used
     
     # Add the bet to the game
     user_id_str = str(user_id)
     
     # If player already bet on this type, add to their existing bet
     if user_id_str in game.bets[bet_type]:
-        game.bets[bet_type][user_id_str] += amount
+        game.bets[bet_type][user_id_str] += original_amount
     else:
-        game.bets[bet_type][user_id_str] = amount
+        game.bets[bet_type][user_id_str] = original_amount
     
     # Add player to participants set
     game.participants.add(user_id_str)
@@ -174,18 +203,21 @@ def place_bet(game: DiceGame, user_id: int, username: str, bet_type: str, amount
     player_stats["last_active"] = datetime.now().isoformat()
     
     # Log the bet
-    logger.info(f"Bet placed: user={user_id}, type={bet_type}, amount={amount}, "
-                f"referral_points_used={referral_points_used}, main_score_used={main_score_used}")
+    logger.info(f"Bet placed: user={user_id}, type={bet_type}, amount={original_amount}, "
+                f"bonus_points_used={bonus_points_used}, referral_points_used={referral_points_used}, main_score_used={main_score_used}")
     
     # Construct response message
-    if referral_points_used > 0 and main_score_used > 0:
-        source_msg = f"(Used {referral_points_used} referral points and {main_score_used} main points)"
-    elif referral_points_used > 0:
-        source_msg = f"(Used {referral_points_used} referral points)"
-    else:
-        source_msg = ""
+    source_parts = []
+    if bonus_points_used > 0:
+        source_parts.append(f"{bonus_points_used} bonus")
+    if referral_points_used > 0:
+        source_parts.append(f"{referral_points_used} referral")
+    if main_score_used > 0:
+        source_parts.append(f"{main_score_used} main")
     
-    return f"✅ Bet placed: {bet_type} {amount} {source_msg}\nYour balance: {player_stats['score']} points"
+    source_msg = f"(Used {', '.join(source_parts)} points)" if source_parts else ""
+    
+    return f"✅ Bet placed: {bet_type} {original_amount} {source_msg}\nYour balance: {player_stats['score']} main, {global_user_data.get('referral_points', 0)} referral, {global_user_data.get('bonus_points', 0)} bonus points"
 
 
 def payout(game: DiceGame, chat_data: Dict, global_data: Dict) -> Dict:

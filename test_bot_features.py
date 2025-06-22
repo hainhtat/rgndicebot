@@ -130,12 +130,12 @@ class BotTester:
             current_balance = player_stats[test_user].get('score', 0)
             
             # Test minimum withdrawal amount
-            min_withdrawal_met = current_balance >= 1000
+            min_withdrawal_met = current_balance >= 5000
             
             self.log_test(
                 "Minimum Withdrawal Amount Check", 
                 min_withdrawal_met,
-                f"Balance: {current_balance}, Required: 1000"
+                f"Balance: {current_balance}, Required: 5000"
             )
             
             # Test balance calculation accuracy

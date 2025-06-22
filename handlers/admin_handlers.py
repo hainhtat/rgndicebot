@@ -389,14 +389,20 @@ async def check_user_score(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     escaped_display_name = escape_html(display_name)
     message = "👤 <b>User Information</b>\n\n"
     message += f"🎮 <b>Player:</b> {escaped_display_name}\n\n"
-    message += f"💰 <b>Wallet:</b> {player_stats['score']} points\n"
+    message += f"💰 <b>Main Wallet:</b> {player_stats['score']} points\n"
+    message += f"🎁 <b>Referral Points:</b> {global_user_data.get('referral_points', 0)} points\n"
+    message += f"🎁 <b>Bonus Points:</b> {global_user_data.get('bonus_points', 0)} points\n"
+    
+    # Calculate total balance
+    total_balance = player_stats['score'] + global_user_data.get('referral_points', 0) + global_user_data.get('bonus_points', 0)
+    message += f"📊 <b>Total Balance:</b> {total_balance} points\n\n"
+    
     message += f"🏆 <b>Wins:</b> {wins}\n"
     message += f"💔 <b>Losses:</b> {losses}\n"
     message += f"📊 <b>Win Rate:</b> {win_rate:.1f}%\n"
     
     if global_user_data:
-        # Use HTML formatting consistently
-        message += f"🎁 <b>Referral Points:</b> {global_user_data.get('referral_points', 0)} points\n"
+        # Additional user info can be added here
         
         if global_user_data.get('referred_by'):
             referrer_id = global_user_data['referred_by']
@@ -645,7 +651,7 @@ async def manual_refill(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         # Check if target is an admin and current user is not super admin
         if admin_id != user_id and admin_id not in SUPER_ADMINS:
             # Regular admins cannot refill other admins
-            await update.message.reply_text("❌ Admins cannot refill other admins' points. Only super admins can do this.")
+            await update.message.reply_text(MessageTemplates.ADMINS_CANNOT_REFILL_ADMINS)
             return
         
         admin_data["chat_points"][chat_id_str]["points"] = ADMIN_WALLET_AMOUNT

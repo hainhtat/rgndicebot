@@ -9,6 +9,7 @@ from config.constants import global_data, SUPER_ADMIN_IDS, ALLOWED_GROUP_IDS
 from utils.telegram_utils import create_inline_keyboard
 from utils.error_handler import error_handler
 from data.file_manager import save_data
+from utils.message_formatter import MessageTemplates
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +26,7 @@ async def my_groups_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     if user_id not in SUPER_ADMIN_IDS:
         # Using simple markdown instead of HTML conversion
         await update.message.reply_text(
-            "❌ You don't have permission to use this command.",
+            MessageTemplates.NO_PERMISSION_COMMAND,
             parse_mode="Markdown"
         )
         return
@@ -33,7 +34,7 @@ async def my_groups_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     # Only work in private chats
     if update.effective_chat.type != "private":
         await update.message.reply_text(
-            "❌ This command can only be used in private chat with the bot.",
+            MessageTemplates.PRIVATE_CHAT_ONLY,
             parse_mode="Markdown"
         )
         return
@@ -41,7 +42,7 @@ async def my_groups_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     # Get all allowed groups
     if not ALLOWED_GROUP_IDS:
         await update.message.reply_text(
-            "❌ No groups are configured.",
+            MessageTemplates.NO_GROUPS_CONFIGURED,
             parse_mode="Markdown"
         )
         return
@@ -92,7 +93,7 @@ async def show_groups_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     
     if not configured_groups:
         await query.edit_message_text(
-            "❌ *No Groups Configured*\n\n"
+            MessageTemplates.NO_GROUPS_CONFIGURED + "\n\n"
             "No groups have been configured yet. Please add groups to the configuration first.",
             parse_mode="Markdown"
         )
@@ -131,7 +132,7 @@ async def handle_mygroups_callback(update: Update, context: ContextTypes.DEFAULT
     # Check if user is a super admin
     if user_id not in SUPER_ADMIN_IDS:
         await query.edit_message_text(
-            "❌ You don't have permission to use this feature.",
+            MessageTemplates.NO_PERMISSION_FEATURE,
             parse_mode="Markdown"
         )
         return
@@ -202,7 +203,7 @@ async def handle_mygroups_callback(update: Update, context: ContextTypes.DEFAULT
             # Use edit_message_text instead of calling my_groups_command
             await show_groups_list(update, context)
         else:
-            await query.edit_message_text("❌ Error: Unable to go back to groups list.")
+            await query.edit_message_text(MessageTemplates.ERROR_GO_BACK_GROUPS)
     
     elif data.startswith("admin_wallets_"):
         # Show admin wallets for specific group
@@ -236,7 +237,7 @@ async def show_specific_admin_refill(update: Update, context: ContextTypes.DEFAU
         
         if not admins:
             await query.edit_message_text(
-                f"❌ *No Admins Found*\n\n"
+                MessageTemplates.NO_ADMINS_FOUND +
                 f"*Group:* {escape_markdown(group_name)}\n\n"
                 f"No admins found in this group.",
                 parse_mode="Markdown"
@@ -291,7 +292,7 @@ async def show_specific_admin_refill(update: Update, context: ContextTypes.DEFAU
     except Exception as e:
         logger.error(f"Error showing specific admin refill for group {group_id}: {e}")
         await query.edit_message_text(
-            "❌ Error loading admin list. Please try again."
+            MessageTemplates.ERROR_LOADING_ADMIN_LIST
         )
 
 

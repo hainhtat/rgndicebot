@@ -200,7 +200,7 @@ async def new_game_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     if not await check_allowed_chat(update, context):
         logger.warning(f"Chat {chat_id} is not allowed to use the bot")
         try:
-            await query.answer("This chat is not authorized to use this bot.")
+            await query.answer(MessageTemplates.CHAT_NOT_AUTHORIZED)
         except Exception as e:
             logger.error(f"Failed to answer query: {str(e)}")
         return
@@ -215,7 +215,7 @@ async def new_game_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         if current_game:
             logger.warning(f"Game creation failed: A game is already in progress in chat {chat_id}")
             try:
-                await query.answer("A game is already in progress. Please finish the current game first.")
+                await query.answer(MessageTemplates.GAME_ALREADY_IN_PROGRESS_CALLBACK)
             except Exception as e:
                 logger.error(f"Failed to answer query: {str(e)}")
             return
@@ -262,7 +262,7 @@ async def new_game_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         if not current_game:
             logger.error(f"Failed to retrieve current game for chat {chat_id} after creation")
             try:
-                await query.answer("Failed to create a new game. Please try again.")
+                await query.answer(MessageTemplates.FAILED_CREATE_GAME)
             except Exception as e:
                 logger.error(f"Failed to answer query: {str(e)}")
             return
@@ -276,7 +276,7 @@ async def new_game_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         except Exception as e:
             logger.error(f"Error creating status message: {str(e)}")
             try:
-                await query.answer("Failed to create game status message. Please try again.")
+                await query.answer(MessageTemplates.FAILED_CREATE_STATUS_MESSAGE)
             except Exception as e2:
                 logger.error(f"Failed to answer query: {str(e2)}")
             return
@@ -294,19 +294,19 @@ async def new_game_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             )
             logger.info(f"Successfully edited message with new game status for chat {chat_id}")
             try:
-                await query.answer("New game created!")
+                await query.answer(MessageTemplates.NEW_GAME_CREATED)
             except Exception as e:
                 logger.error(f"Failed to answer query after successful edit: {str(e)}")
         except Exception as e:
             logger.error(f"Error editing message with new game status: {str(e)}")
             try:
-                await query.answer("Failed to update game status. Please try again.")
+                await query.answer(MessageTemplates.FAILED_UPDATE_GAME_STATUS)
             except Exception as e2:
                 logger.error(f"Failed to answer query after edit error: {str(e2)}")
     except Exception as e:
         logger.error(f"Unexpected error in new_game_callback: {str(e)}")
         try:
-            await query.answer("An unexpected error occurred. Please try again.")
+            await query.answer(MessageTemplates.UNEXPECTED_ERROR)
         except Exception as e2:
             logger.error(f"Failed to answer query after unexpected error: {str(e2)}")
 
@@ -436,7 +436,7 @@ async def bot_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "• Betting system with points\n"
         "• Leaderboards and statistics\n"
         "• Referral system\n\n"
-        "*Version:* 1.0.0\n"
+        "*Version:* 3.3\n"
         "*Created by:* RGN Team\n"
     )
     
