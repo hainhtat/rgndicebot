@@ -1,0 +1,58 @@
+
+================================================================================
+COMPREHENSIVE DICE BOT TEST REPORT
+================================================================================
+Test Date: 2025-06-30 16:27:14
+Database Mode: True
+
+
+CORE FUNCTIONS:
+  ✅ PASS - 3/3 tests passed (100.0%)
+    ✅ User Data Creation: User data created with structure: ['full_name', 'username', 'referral_points', 'bonus_points', 'referred_by', 'welcome_bonus_received', 'last_cashback_date']
+    ✅ Data Persistence: Points saved: 100
+    ✅ Chat Data Structure: Chat data has keys: ['player_stats', 'match_counter', 'match_history', 'group_admins', 'consecutive_idle_matches', 'pending_referrals', 'game_state', 'current_bets', 'current_match_id']
+
+REFERRAL SYSTEM:
+  ✅ PASS - 4/4 tests passed (100.0%)
+    ✅ Create Referrer User: Referrer created with 0 referral points
+    ✅ Process Referral Bonus: Awarded 500 points (expected 500)
+    ✅ Self-Referral Prevention: Self-referral blocked: True, message: ❌ You cannot refer yourself.
+    ✅ Duplicate Referral Prevention: Duplicate referral blocked: True
+
+WELCOME BONUS:
+  ✅ PASS - 3/3 tests passed (100.0%)
+    ✅ First Welcome Bonus: Awarded 500 points, flag set: True
+    ✅ Duplicate Welcome Bonus Prevention: Duplicate bonus blocked: True, message: Welcome bonus already received
+    ✅ Data Integrity: Required fields present: True
+
+DAILY CASHBACK:
+  ✅ PASS - 3/3 tests passed (100.0%)
+    ✅ Cashback Calculation: Expected: 5, Actual: 5
+    ✅ Cashback Tracking: Loss tracking recorded: True
+    ✅ No Cashback for Winners: Winner bonus change: 0
+
+SECURITY TESTS:
+  ✅ PASS - 4/4 tests passed (100.0%)
+    ✅ Input Validation: Handled 8/8 malicious inputs safely
+    ✅ Data Type Validation: Type checks passed: 4/4
+    ✅ Boundary Value Testing: Boundary tests passed: 3/3
+    ✅ Concurrent Access Handling: Points: 0 -> 10 (expected: 10)
+
+GAME FUNCTIONS:
+  ✅ PASS - 4/4 tests passed (100.0%)
+    ✅ Initial Game State: Initial state: waiting
+    ✅ Player Stats Structure: Player stats: ['score', 'games_played', 'games_won', 'total_bet', 'total_won', 'username', 'display_name']
+    ✅ Valid Bet Placement: Score after bet: 900
+    ✅ Insufficient Funds Protection: Large bet blocked: True
+
+ADMIN FUNCTIONS:
+  ✅ PASS - 3/3 tests passed (100.0%)
+    ✅ Score Adjustment: Score changed from 900 to 1400
+    ✅ User Score Checking: User exists in player stats: True
+    ✅ Admin Permission Check: Admin permission system accessible
+
+OVERALL SUMMARY:
+  ✅ PASS - 24/24 tests passed (100.0%)
+  Total Categories: 7
+
+================================================================================

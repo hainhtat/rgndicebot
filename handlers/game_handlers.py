@@ -1,20 +1,23 @@
 import logging
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple, Any
+from config.settings import USE_DATABASE
+from database.adapter import db_adapter
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
 from config.constants import global_data, get_chat_data_for_id
-from data.file_manager import save_data
+
 from game.game_logic import DiceGame
 from handlers.utils import (
     check_allowed_chat, 
     get_current_game, 
     create_new_game,
     create_game_status_message,
-    create_betting_keyboard
+    create_betting_keyboard,
+    save_data_unified
 )
 from utils.message_formatter import format_leaderboard, format_game_history, MessageTemplates
 
@@ -68,7 +71,8 @@ async def start_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     create_new_game(chat_id)
     
     # Save data after creating the game
-    save_data(global_data)
+    from main import save_data_unified
+    save_data_unified(global_data)
     
     # Get the current game
     current_game = get_current_game(chat_id)
@@ -135,6 +139,15 @@ async def roll_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             # Cooldown period has passed, clear the flag
             chat_data.pop("manual_stop_cooldown", None)
     
+    # Check if games are in inactive state and activate them
+    game_state = chat_data.get("game_state", "active")
+    if game_state == "inactive":
+        chat_data["game_state"] = "active"
+        await update.message.reply_text(
+            "✅ *Games activated!*\n\nStarting a new dice game...",
+            parse_mode="Markdown"
+        )
+    
     # Get chat data
     current_game = get_current_game(chat_id)
     
@@ -154,7 +167,7 @@ async def roll_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     current_game = create_new_game(chat_id)
     
     # Save data after creating the game
-    save_data(global_data)
+    save_data_unified(global_data)
     
     # Check if current_game is not None before proceeding
     if current_game is None:
@@ -254,7 +267,7 @@ async def new_game_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         logger.info(f"New game created with ID {game.match_id}")
         
         # Save the data
-        save_data(global_data)
+        save_data_unified(global_data)
         logger.info(f"Data saved after creating new game for chat {chat_id}")
         
         # Get the current game
@@ -433,7 +446,7 @@ async def bot_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "A fun dice betting game for Telegram groups!\n\n"
         "*Features:*\n"
         "• Real-time dice rolling\n"
-        "• Betting system with points\n"
+        "• Betting system with ကျပ်\n"
         "• Leaderboards and statistics\n"
         "• Referral system\n\n"
         "*Version:* 3.3\n"

@@ -1,5 +1,7 @@
 import logging
 from typing import Dict, List, Optional, Tuple, Any, Union
+from config.settings import USE_DATABASE
+from database.adapter import db_adapter
 
 import telegram
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -71,6 +73,20 @@ async def check_admin_permission(update: Update, context: ContextTypes.DEFAULT_T
     return True
 
 
+
+
+def save_data_unified(global_data: Dict = None) -> None:
+    """Unified save function that works with both database and file storage"""
+    # Import the proper save function from main
+    from main import save_data_unified as main_save_data_unified
+    main_save_data_unified(global_data)
+        
+def load_data_unified() -> Dict:
+    """Unified load function that works with both database and file storage"""
+    # Import the proper load function from main
+    from main import load_data_unified as main_load_data_unified
+    return main_load_data_unified()
+
 def get_current_game(chat_id: int) -> Optional[DiceGame]:
     """
     Gets the current game for a chat if it exists and is not over.
@@ -84,8 +100,8 @@ def get_current_game(chat_id: int) -> Optional[DiceGame]:
         if current_game and current_game.state == GAME_STATE_OVER:
             # Clean up finished game
             chat_data["current_game"] = None
-            from data.file_manager import save_data
-            save_data(global_data)
+            
+            save_data_unified(global_data)
         return None
     
     return current_game
@@ -143,8 +159,8 @@ async def create_game_status_message(game: DiceGame, context: ContextTypes.DEFAU
         
         # Add game instructions for text betting
         message += "*လောင်းကြေးထပ်ရန်*\n"
-        message += "🔴 *BIG (8-12):* B 500 or BIG 500 လို့ရိုက်ပါ\n"
-        message += "⚫ *SMALL (2-6):* S 500 or SMALL 500 လို့ရိုက်ပါ\n"
+        message += "🎲 *BIG (8-12):* B 500 or BIG 500 လို့ရိုက်ပါ\n"
+        message += "🎯 *SMALL (2-6):* S 500 or SMALL 500 လို့ရိုက်ပါ\n"
         message += "🍀 *LUCKY (7):* L 500 or LUCKY 500 လို့ရိုက်ပါ\n\n"
         
         message += "💰 *လျော်မည့်ဆ:*\n"
@@ -159,10 +175,6 @@ async def create_game_status_message(game: DiceGame, context: ContextTypes.DEFAU
 
 
 def create_betting_keyboard():
-    """
-    Create the betting keyboard with buttons for different bet types and amounts.
-    Note: As per requirements, buttons have been removed from the opening bet message.
-    Users will place bets using text commands only.
-    """
-    # Return None instead of a keyboard to remove all buttons
+    """Create inline keyboard for betting options."""
+    # Inline betting keyboard removed - users should place bets via text commands
     return None

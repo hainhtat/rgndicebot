@@ -6,7 +6,8 @@ Simple test to verify referral system functionality
 import asyncio
 import json
 from config.constants import global_data
-from data.file_manager import load_data, save_data
+
+from main import load_data_unified, save_data_unified
 from utils.user_utils import get_or_create_global_user_data
 
 def test_referral_logic():
@@ -102,7 +103,7 @@ def test_referral_system():
     if str(new_user_2) in global_data["global_user_data"]:
         del global_data["global_user_data"][str(new_user_2)]
     
-    save_data(global_data)
+    save_data_unified(global_data)
     print("\n🧹 Test data cleaned up.")
     
     overall_success = success1 and not success2 and success3

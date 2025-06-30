@@ -1,14 +1,17 @@
 import logging
 from typing import Dict, Any, List
 from datetime import datetime
+from config.settings import USE_DATABASE
+from database.adapter import db_adapter
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
-from config.constants import global_data, SUPER_ADMIN_IDS, ALLOWED_GROUP_IDS
-from utils.telegram_utils import create_inline_keyboard
+from config.constants import global_data, SUPER_ADMIN_IDS, ALLOWED_GROUP_IDS, SUPER_ADMINS, get_chat_data_for_id
+from handlers.utils import load_data_unified, save_data_unified
+from utils.telegram_utils import create_inline_keyboard, is_admin
 from utils.error_handler import error_handler
-from data.file_manager import save_data
+
 from utils.message_formatter import MessageTemplates
 
 logger = logging.getLogger(__name__)
@@ -156,13 +159,13 @@ async def handle_mygroups_callback(update: Update, context: ContextTypes.DEFAULT
             [
                 InlineKeyboardButton(
                     "💰 Refill All Players",
-                    callback_data=f"refill_all_{group_id}"
+                    callback_data=f"refill_players_{group_id}"
                 )
             ],
             [
                 InlineKeyboardButton(
                     "👑 Refill All Admins",
-                    callback_data=f"refill_all_{group_id}"
+                    callback_data=f"refill_admins_{group_id}"
                 )
             ],
             [
@@ -215,10 +218,109 @@ async def handle_mygroups_callback(update: Update, context: ContextTypes.DEFAULT
         group_id = int(data.replace("refill_specific_", ""))
         await show_specific_admin_refill(update, context, group_id)
     
-    elif data.startswith("refill_all_") or data.startswith("refill_admin_"):
-        # Handle refill actions
+    elif data.startswith("refill_players_"):
+        # Handle refill all players
+        group_id = int(data.replace("refill_players_", ""))
+        await refill_all_players(update, context, group_id)
+    
+    elif data.startswith("refill_admins_") or data.startswith("refill_all_") or data.startswith("refill_admin_"):
+        # Handle refill actions for admins
         from handlers.refill_handlers import handle_refill_action
         await handle_refill_action(update, context)
+
+
+async def refill_all_players(update: Update, context: ContextTypes.DEFAULT_TYPE, group_id: int) -> None:
+    """
+    Refill all players in a group with 500 points and mark them as having received welcome bonus.
+    """
+    query = update.callback_query
+    user_id = update.effective_user.id
+    
+    # Check if user is a super admin
+    if user_id not in SUPER_ADMINS:
+        await query.edit_message_text(MessageTemplates.SUPER_ADMIN_ONLY_COMMAND)
+        return
+    
+    try:
+        # Get chat data
+        chat_data = get_chat_data_for_id(group_id)
+        global_data = load_data_unified()
+        
+        # Get group info
+        try:
+            chat = await context.bot.get_chat(group_id)
+            group_name = chat.title or f"Group {group_id}"
+        except Exception as e:
+            logger.error(f"Error getting info for group {group_id}: {e}")
+            group_name = f"Group {group_id}"
+        
+        refilled_count = 0
+        player_stats = chat_data.get('player_stats', {})
+        
+        for user_id_str in player_stats.keys():
+            try:
+                uid = int(user_id_str)
+                # Skip admins
+                if await is_admin(group_id, uid, context):
+                    continue
+                
+                # Initialize player if needed
+                if user_id_str not in player_stats:
+                    player_stats[user_id_str] = {
+                        "score": 0,
+                        "total_bets": 0,
+                        "total_wins": 0,
+                        "total_losses": 0,
+                        "biggest_win": 0,
+                        "biggest_loss": 0,
+                        "win_streak": 0,
+                        "loss_streak": 0,
+                        "current_streak": 0,
+                        "last_bet_time": None,
+                        "username": f"Player {uid}"
+                    }
+                
+                # Add 500 bonus points to global user data
+                global_user_data = global_data.get("global_user_data", {})
+                if user_id_str not in global_user_data:
+                    global_user_data[user_id_str] = {
+                        "username": player_stats[user_id_str].get("username", f"Player {uid}"),
+                        "referral_points": 0,
+                        "bonus_points": 0,
+                        "referred_by": None,
+                        "welcome_bonus_received": False,
+                        "last_cashback_date": None
+                    }
+                
+                # Add 500 bonus points
+                global_user_data[user_id_str]["bonus_points"] = global_user_data[user_id_str].get("bonus_points", 0) + 500
+                
+                # Mark as having received welcome bonus
+                if "welcome_bonus_received" not in player_stats[user_id_str]:
+                    player_stats[user_id_str]["welcome_bonus_received"] = True
+                
+                refilled_count += 1
+                
+            except Exception as e:
+                logger.warning(f"Error refilling player {user_id_str}: {e}")
+                continue
+        
+        # Save data
+        save_data_unified(global_data)
+        
+        # Send confirmation message
+        message = f"✅ *Refill All Players Completed!*\n\n"
+        message += f"🏢 *Group:* {group_name}\n"
+        message += f"👥 *Players Refilled:* {refilled_count}\n"
+        message += f"🎁 *Bonus Points per Player:* 500 points\n"
+        message += f"🎁 *Welcome Bonus:* Marked as received\n\n"
+        message += f"*Total Bonus Points Distributed:* {refilled_count * 500:,} points"
+        
+        await query.edit_message_text(message, parse_mode='Markdown')
+        
+    except Exception as e:
+        logger.error(f"Error in refill_all_players: {e}")
+        await query.edit_message_text(f"❌ Error refilling players: {str(e)}")
 
 
 async def show_specific_admin_refill(update: Update, context: ContextTypes.DEFAULT_TYPE, group_id: int) -> None:

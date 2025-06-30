@@ -132,7 +132,7 @@ def error_handler(func: Callable) -> Callable:
                         break
             
             # Send error message to user
-            if update.effective_chat:
+            if update and update.effective_chat:
                 try:
                     await context.bot.send_message(
                         chat_id=update.effective_chat.id,

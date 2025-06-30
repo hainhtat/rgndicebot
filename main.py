@@ -4,6 +4,9 @@ import os
 import pytz
 import asyncio
 from datetime import time, datetime, timedelta
+from typing import Dict
+from config.settings import USE_DATABASE
+from database.adapter import db_adapter
 
 import telegram
 from telegram import Update, Bot, KeyboardButton, ReplyKeyboardMarkup
@@ -16,7 +19,7 @@ from utils.logging_utils import setup_logging, get_logger
 # Import from reorganized modules
 from config.constants import global_data, ALLOWED_GROUP_IDS
 from config.settings import BOT_TOKEN, TIMEZONE, SUPER_ADMINS
-from data.file_manager import load_data, save_data
+
 
 # Import error handler
 from utils.error_handler import error_handler, handle_error
@@ -28,7 +31,7 @@ import handlers
 # Import new handlers
 from handlers.admin_handlers import adjust_score, check_user_score, refresh_admins, stop_game, admin_wallets, manual_refill, handle_admin_score_adjustment
 from handlers.refill_handlers import refill_command, handle_refill_group_selection, handle_refill_action, handle_refill_back_to_groups, handle_refill_amount_command, handle_back_to_groups
-from handlers.admin_panel_handlers import admin_panel_handler, handle_admin_panel_callback
+# Removed admin panel handlers - using unified keyboard system
 from handlers.bet_handlers import place_bet, roll_dice
 from handlers import auto_roll_dice_wrapper
 from handlers.game_handlers import start_game, new_game_callback, game_status, show_leaderboard, show_history, show_help, bot_info, roll_command
@@ -53,41 +56,64 @@ logger = get_logger(__name__)
 # auto_roll_dice_wrapper is imported from handlers package
 
 # Import the dynamic keyboard function
-from utils.telegram_utils import create_custom_keyboard, is_admin, initialize_group_keyboards, send_user_keyboard_on_interaction, send_keyboard_to_new_member
+from utils.telegram_utils import create_custom_keyboard, is_admin
 
 
 
-# Function to initialize keyboards for all users in allowed groups
+# Function to initialize keyboard system for allowed groups
 async def initialize_keyboards(application):
     """
-    Send keyboards to all users in allowed groups when bot starts
+    Initialize keyboard system for allowed groups when bot starts.
+    Keyboards are now sent on-demand when users interact.
     """
-    logger.info("Initializing keyboards for all users in allowed groups...")
+    logger.info("Initializing keyboard system for allowed groups...")
+    
+    # Removed keyboard initialization - using unified system without admin-specific keyboards
+    logger.info("Bot startup complete - unified keyboard system active")
+
+
+async def send_startup_greeting(application):
+    """
+    Send a greeting message to all allowed groups when the bot restarts.
+    """
+    logger.info("Sending startup greeting to all allowed groups...")
+    
+    greeting_message = "🎲 *Bot Restarted Successfully!*\n\n" \
+                      "I'm back online and ready to serve! 🎉\n" \
+                      "All systems are operational. Let's play and win big! 💰"
     
     for chat_id in ALLOWED_GROUP_IDS:
         try:
-            # Get all members of the group
-            chat_members = await application.bot.get_chat_administrators(chat_id)
-            
-            # Send keyboards to administrators
-            for member in chat_members:
-                if not member.user.is_bot:
-                    # Keyboard sending removed as requested
-                    pass
-                    
-            logger.info(f"Initialized keyboards for administrators in group {chat_id}")
-            
+            await application.bot.send_message(
+                chat_id=chat_id,
+                text=greeting_message,
+                parse_mode="Markdown"
+            )
+            logger.info(f"Sent startup greeting to chat {chat_id}")
         except Exception as e:
-            logger.error(f"Failed to initialize keyboards for group {chat_id}: {e}")
+            logger.error(f"Failed to send startup greeting to chat {chat_id}: {e}")
+    
+    logger.info("Startup greeting process completed")
 
 # Handler for unhandled text messages
 async def unhandled_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     Logs unhandled text messages and provides appropriate responses.
     """
+    # Get the message text from either message or edited_message
+    message_text = None
+    if update.message:
+        message_text = update.message.text
+    elif update.edited_message:
+        message_text = update.edited_message.text
+    
+    # Skip if no text content (e.g., media messages)
+    if not message_text:
+        return
+    
     if update.effective_chat.type == "private":
         # Just log the message without sending any response
-        logger.info(f"Unhandled private message from {update.effective_user.id}: {update.message.text}")
+        logger.info(f"Unhandled private message from {update.effective_user.id}: {message_text}")
     else:
         # For group chats, send user keyboard to regular users on first interaction
         user_id = update.effective_user.id
@@ -99,32 +125,14 @@ async def unhandled_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # The keyboard functionality is already available through other handlers
             pass
         
-        logger.info(f"Unhandled group message from {update.effective_user.id} in chat {update.effective_chat.id}: {update.message.text}")
+        logger.info(f"Unhandled group message from {update.effective_user.id} in chat {update.effective_chat.id}: {message_text}")
 
 
 async def initialize_bot_keyboards(application: Application) -> None:
     """
-    Initialize keyboards for all allowed groups when the bot starts.
-    This ensures admins get their keyboards immediately upon bot startup.
+    Removed keyboard initialization - using unified system.
     """
-    try:
-        # Create a mock context with the bot instance
-        class MockContext:
-            def __init__(self, bot):
-                self.bot = bot
-        
-        context = MockContext(application.bot)
-        
-        for chat_id in ALLOWED_GROUP_IDS:
-            try:
-                await initialize_group_keyboards(context, chat_id)
-                logger.info(f"Initialized keyboards for group {chat_id}")
-            except Exception as e:
-                logger.error(f"Failed to initialize keyboards for group {chat_id}: {e}")
-        
-        logger.info("Bot keyboard initialization completed for all groups")
-    except Exception as e:
-        logger.error(f"Error during bot keyboard initialization: {e}")
+    logger.info("Unified keyboard system - no initialization needed")
 
 
 # Function to add scheduled jobs
@@ -138,7 +146,7 @@ async def add_scheduled_jobs(application: Application) -> None:
 
     # Define async wrapper for save_data
     async def save_data_async(context):
-        save_data(global_data)
+        save_data_unified(global_data)
         
     # Get configuration values for scheduling
     save_interval = config.get("data", "save_interval_minutes", 5)
@@ -177,18 +185,126 @@ async def add_scheduled_jobs(application: Application) -> None:
     logger.info(f"Scheduled daily cashback processing job (every day at {daily_time.strftime('%H:%M')} {TIMEZONE}).")
 
 
+
+
+def save_data_unified(global_data: Dict = None) -> None:
+    """Unified data saving function that uses database when enabled."""
+    if USE_DATABASE:
+        # Database handles saving automatically
+        pass
+    else:
+        # File manager was removed during migration
+        # This fallback should not be used in production
+        logger.warning("File manager fallback called but file_manager was removed")
+        if global_data is None:
+            from config.config_manager import global_data
+        save_data_unified(global_data)
+
+def load_data_unified() -> Dict:
+    """Unified data loading function that uses database when enabled."""
+    from config.constants import global_data
+    
+    if USE_DATABASE:
+        # Load data from database into global_data structure
+        try:
+            from database.adapter import db_adapter
+            from config.settings import ALLOWED_GROUP_IDS
+            
+            logger.info("Loading data from database...")
+            
+            # Load chat data for all allowed groups
+            for chat_id in ALLOWED_GROUP_IDS:
+                chat_id_str = str(chat_id)
+                
+                # Initialize chat data structure
+                if chat_id_str not in global_data["all_chat_data"]:
+                    global_data["all_chat_data"][chat_id_str] = {
+                        "player_stats": {},
+                        "match_counter": 1,
+                        "match_history": [],
+                        "group_admins": [],
+                        "consecutive_idle_matches": 0,
+                    }
+                
+                # Load match counter
+                match_counter = db_adapter.get_chat_match_counter(chat_id)
+                global_data["all_chat_data"][chat_id_str]["match_counter"] = match_counter
+                
+                # Load recent matches for history
+                recent_matches = db_adapter.get_recent_matches(chat_id, 50)
+                global_data["all_chat_data"][chat_id_str]["match_history"] = recent_matches
+                
+                # Load leaderboard to get player stats
+                leaderboard = db_adapter.get_chat_leaderboard(chat_id, 1000)  # Get all players
+                for player in leaderboard:
+                    user_id_str = str(player["user_id"])
+                    global_data["all_chat_data"][chat_id_str]["player_stats"][user_id_str] = {
+                        "username": player["username"],
+                        "score": player["score"],
+                        "total_wins": player["total_wins"],
+                        "total_losses": player["total_losses"],
+                        "total_bets": player["total_bets"],
+                        "last_active": player["last_active"]
+                    }
+            
+            # Load admin data from database
+            logger.info("Loading admin data from database...")
+            admin_data_list = db_adapter.db_queries.get_all_admin_data()
+            for admin_data in admin_data_list:
+                user_id_str = str(admin_data['user_id'])
+                chat_id_str = str(admin_data['chat_id'])
+                
+                # Initialize admin data structure if not exists
+                if user_id_str not in global_data["admin_data"]:
+                    global_data["admin_data"][user_id_str] = {
+                        "username": admin_data.get('username', f"Admin {admin_data['user_id']}"),
+                        "chat_points": {}
+                    }
+                
+                # Set chat points for this admin
+                global_data["admin_data"][user_id_str]["chat_points"][chat_id_str] = {
+                    "points": admin_data['points'],
+                    "last_refill": admin_data.get('last_refill')
+                }
+            
+            logger.info(f"Loaded data for {len(ALLOWED_GROUP_IDS)} groups and {len(admin_data_list)} admin wallets from database")
+            
+        except Exception as e:
+            logger.error(f"Error loading data from database: {e}")
+    
+    return global_data
+
 def main() -> None:
     """
     Main function to set up and run the Telegram bot.
     """
     logger.info("Starting bot setup...")
 
+    # Initialize database if using database mode
+    if USE_DATABASE:
+        from database.connection import init_database
+        if init_database():
+            logger.info("Database initialized successfully.")
+        else:
+            logger.error("Failed to initialize database. Exiting.")
+            return
+    
     # Load data from the JSON file at startup
-    load_data(global_data)
+    load_data_unified()
     logger.info("Global data loaded from file.")
 
-    # Create the application
-    application = ApplicationBuilder().token(BOT_TOKEN).build()
+    # Create the application with performance optimizations
+    application = (
+        ApplicationBuilder()
+        .token(BOT_TOKEN)
+        .concurrent_updates(True)  # Enable concurrent update processing
+        .pool_timeout(30)  # Increase pool timeout
+        .connection_pool_size(20)  # Increase connection pool size
+        .read_timeout(30)  # Increase read timeout
+        .write_timeout(30)  # Increase write timeout
+        .connect_timeout(30)  # Increase connect timeout
+        .build()
+    )
 
     # Set up error handler
     application.add_error_handler(handle_error)
@@ -217,12 +333,13 @@ def main() -> None:
     application.add_handler(CallbackQueryHandler(handle_refill_action, pattern='^refill_(all|admin|custom)_'))
     application.add_handler(CallbackQueryHandler(handle_back_to_groups, pattern='^refill_back_to_groups$'))
     
-    # Admin panel callback handlers
-    application.add_handler(CallbackQueryHandler(handle_admin_panel_callback, pattern='^admin_panel_'))
+    # Removed admin panel callback handlers - using unified keyboard system
     
     # Superadmin callback handlers
     application.add_handler(CallbackQueryHandler(handle_mygroups_callback, pattern='^mygroups_'))
     application.add_handler(CallbackQueryHandler(handle_mygroups_callback, pattern='^admin_wallets_'))
+    
+    # Using unified keyboard system - all users get the same reply keyboard buttons
     
     # Callback query handlers
     
@@ -239,8 +356,10 @@ def main() -> None:
     bet_pattern = re.compile(r"^(big|b|small|s|lucky|l)\s*(\d+)$|^(b|s|l)(\d+)$", re.IGNORECASE)
     application.add_handler(MessageHandler(filters.TEXT & filters.Regex(bet_pattern), place_bet))
 
+    # Removed keyboard wrapper functions - using unified keyboard system without repeated keyboard sending
+
     # Message Handlers for the Custom Reply Keyboard Buttons
-    # User buttons
+    # All users get the same keyboard buttons
     application.add_handler(MessageHandler(filters.TEXT & filters.Regex("^💰 My Wallet$"), check_wallet))
     application.add_handler(MessageHandler(filters.TEXT & filters.Regex("^🏆 Leaderboard$"), show_leaderboard))
     application.add_handler(MessageHandler(filters.TEXT & filters.Regex("^💵 ငွေထည့်မည်$"), deposit_handler))
@@ -286,27 +405,41 @@ def main() -> None:
     # Add handler for new chat members (for referral processing)
     application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, handle_new_chat_member))
     
-    # Add post-init callback to initialize keyboards, start scheduler, and add scheduled jobs
+    # Add post-init callback to initialize keyboards, start scheduler, add scheduled jobs, and send greeting
     async def post_init_callback(app):
         await initialize_bot_keyboards(app)
         start_scheduler()
         await add_scheduled_jobs(app)
+        await send_startup_greeting(app)
     
     application.post_init = post_init_callback
     
-    # Start the bot
+    # Start the bot with performance optimizations
     logger.info("Dice Game Bot started polling...")
     try:
-        application.run_polling(allowed_updates=Update.ALL_TYPES)
+        application.run_polling(
+            allowed_updates=Update.ALL_TYPES,
+            drop_pending_updates=True,  # Drop pending updates on startup
+            poll_interval=1.0,  # Reduce polling interval for better responsiveness
+            timeout=30,  # Increase timeout
+            bootstrap_retries=5  # Add retry mechanism
+        )
     except KeyboardInterrupt:
         logger.info("Bot stopped by user")
+    except Exception as e:
+        logger.error(f"Bot crashed with error: {e}")
+        # Attempt to restart after a brief delay
+        import time
+        time.sleep(5)
+        logger.info("Attempting to restart bot...")
+        main()  # Recursive restart
     finally:
         # Stop the scheduler when bot shuts down
         stop_scheduler()
 
     # Save data on graceful shutdown
     logger.info("Bot is shutting down. Attempting to save data to JSON file.")
-    save_data(global_data)
+    save_data_unified(global_data)
 
 if __name__ == "__main__":
     # Call main function

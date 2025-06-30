@@ -1,7 +1,9 @@
-import logging
 import asyncio
+import logging
 from datetime import datetime, time
-from typing import Optional
+from typing import Optional, Dict
+from config.settings import USE_DATABASE
+from database.adapter import db_adapter
 
 import pytz
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -9,7 +11,7 @@ from apscheduler.triggers.cron import CronTrigger
 
 from config.constants import get_admin_data, ADMIN_WALLET_AMOUNT, ADMIN_WALLET_REFILL_HOUR, ADMIN_WALLET_REFILL_MINUTE
 from config.settings import TIMEZONE
-from data.file_manager import save_data
+
 from config.constants import global_data
 
 logger = logging.getLogger(__name__)
@@ -49,6 +51,13 @@ async def daily_admin_wallet_refill():
                 wallet_info["last_refill"] = datetime.now()
                 refilled_count += 1
                 
+                # Sync with database if enabled
+                if USE_DATABASE:
+                    try:
+                        db_adapter.update_admin_points(int(admin_id_str), int(chat_id_str), ADMIN_WALLET_AMOUNT)
+                    except Exception as e:
+                        logger.error(f"Failed to sync admin wallet refill to database: {e}")
+                
                 # Track refill details for notification
                 admin_refills.append({
                     "chat_id": chat_id_str,
@@ -64,7 +73,7 @@ async def daily_admin_wallet_refill():
                 })
         
         # Save the updated data
-        save_data(global_data)
+        save_data_unified(global_data)
         
         # Send notification to super admins
         if refill_details:
@@ -120,6 +129,20 @@ async def send_refill_notification_to_super_admins(refill_details, total_refills
     except Exception as e:
         logger.error(f"Error sending refill notifications: {e}")
 
+
+
+
+def save_data_unified(global_data: Dict = None) -> None:
+    """Unified save function that works with both database and file storage"""
+    # Import the proper save function from main
+    from main import save_data_unified as main_save_data_unified
+    main_save_data_unified(global_data)
+        
+def load_data_unified() -> Dict:
+    """Unified load function that works with both database and file storage"""
+    # Import the proper load function from main
+    from main import load_data_unified as main_load_data_unified
+    return main_load_data_unified()
 
 def start_scheduler():
     """

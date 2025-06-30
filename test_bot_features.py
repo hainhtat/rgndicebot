@@ -14,7 +14,8 @@ from telegram.error import TelegramError
 # Import bot modules
 from config.settings import BOT_TOKEN, SUPER_ADMINS
 from config.constants import global_data
-from data.file_manager import load_data, save_data
+
+from main import load_data_unified, save_data_unified
 from utils.user_utils import process_referral, get_or_create_global_user_data
 
 # Setup logging
@@ -48,7 +49,7 @@ class BotTester:
         logger.info("\n🔒 Testing Referral Security Measures...")
         
         # Load current data
-        load_data(global_data)
+        global_data.update(load_data_unified())
         
         # Test 1: Prevent duplicate welcome bonus
         logger.info("Test 1: Duplicate welcome bonus prevention")
@@ -119,7 +120,7 @@ class BotTester:
         """Test payout calculations and security"""
         logger.info("\n💰 Testing Payout System...")
         
-        load_data(global_data)
+        global_data.update(load_data_unified())
         
         # Test withdrawal validation
         chat_data = global_data.get(str(self.test_chat_id), {})
@@ -155,7 +156,7 @@ class BotTester:
         """Test admin score adjustment validation"""
         logger.info("\n⚖️ Testing Admin Score Validation...")
         
-        load_data(global_data)
+        global_data.update(load_data_unified())
         
         chat_data = global_data.get(str(self.test_chat_id), {})
         player_stats = chat_data.get("player_stats", {})
@@ -228,7 +229,7 @@ class BotTester:
         """Test data integrity and consistency"""
         logger.info("\n🗄️ Testing Data Integrity...")
         
-        load_data(global_data)
+        global_data.update(load_data_unified())
         
         # Test data structure integrity
         required_keys = ['all_chat_data', 'global_user_data']

@@ -2,14 +2,16 @@ import logging
 import pytz
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple, Any
+from config.settings import USE_DATABASE
+from database.adapter import db_adapter
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
 from config.constants import global_data, get_chat_data_for_id
 from config.settings import REFERRAL_BONUS_POINTS as REFERRAL_BONUS, MAIN_GAME_GROUP_LINK as MAIN_GROUP_LINK, ALLOWED_GROUP_IDS, TIMEZONE, SUPER_ADMINS
-from data.file_manager import save_data, load_data
-from handlers.utils import check_allowed_chat
+
+from handlers.utils import check_allowed_chat, save_data_unified, load_data_unified
 from utils.formatting import escape_markdown, escape_markdown_username
 from utils.message_formatter import format_wallet, MessageTemplates
 from utils.user_utils import get_or_create_global_user_data, get_user_display_name, process_referral, process_pending_referral
@@ -206,7 +208,7 @@ async def check_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 "losses": 0,
                 "last_active": datetime.now()
             }
-            save_data(global_data)
+            save_data_unified(global_data)
         
         player_stats = chat_data["player_stats"][user_id_str]
         
@@ -308,7 +310,7 @@ async def withdrawal_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     
     # Check if user has at least 5000 points
     try:
-        load_data(global_data)
+        load_data_unified()
         chat_data = global_data["all_chat_data"].get(str(chat_id), {})
         player_stats = chat_data.get("player_stats", {}).get(str(user_id), {})
         user_score = player_stats.get("score", 0)
@@ -322,15 +324,14 @@ async def withdrawal_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         if user_score < 5000:
             user_display_name = await get_user_display_name(context, user_id, chat_id)
             await update.message.reply_text(
-                f"❌ <b>Insufficient main wallet balance for withdrawal!</b>\n\n"
+                f"❌ <b>ထုတ်ရန် လက်ကျန်ငွေမလုံလောက်ပါ!</b>\n\n"
                 f"👤 User: {user_display_name}\n"
                 f"💰 <b>Main Wallet:</b> <b>{user_score:,}</b> ကျပ်\n"
                 f"🎁 <b>Referral Points:</b> <b>{referral_points:,}</b> ကျပ်\n"
                 f"🎁 <b>Bonus Points:</b> <b>{bonus_points:,}</b> ကျပ်\n"
                 f"📊 <b>Total Balance:</b> <b>{total_balance:,}</b> ကျပ်\n\n"
-                f"💸 <b>Minimum main wallet required:</b> <b>5,000</b> ကျပ်\n\n"
-                f"<i>Note: Only main wallet balance can be withdrawn. Referral and bonus points cannot be withdrawn directly.</i>\n\n"
-                f"Please earn more points by playing games or through referrals.",
+                f"💸 <b>ငွေထုတ်ရန် :</b> <b>5,000</b> ကျပ်မှစတင်ထုတ်လို့ရပါတယ်နော်\n\n"
+                f"<i>Note: Main wallet ထဲကငွေကိုပဲထုတ်လို့ရပါတယ်။ referral နဲ့ bonus တွေကိုထုတ်လို့မရပါဘူး 🙅‍♂️.</i>\n\n",
                 parse_mode="HTML"
             )
             return
@@ -416,7 +417,7 @@ async def handle_share_referral_callback(update: Update, context: ContextTypes.D
     
     # Get user's referral stats
     chat_id = update.effective_chat.id
-    load_data(global_data)
+    load_data_unified()
     chat_data = global_data.get(str(chat_id), {})
     player_stats = chat_data.get("player_stats", {}).get(str(user_id), {})
     referral_points = player_stats.get("referral_points", 0)
@@ -530,7 +531,7 @@ async def get_referral_link(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     
     # Get user's referral stats
     chat_id = update.effective_chat.id
-    load_data(global_data)
+    load_data_unified()
     chat_data = global_data.get(str(chat_id), {})
     player_stats = chat_data.get("player_stats", {}).get(str(user_id), {})
     referral_points = player_stats.get("referral_points", 0)

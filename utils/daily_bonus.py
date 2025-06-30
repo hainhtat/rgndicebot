@@ -1,10 +1,13 @@
 import logging
 from datetime import datetime, timedelta
 from typing import Dict, Any
+from config.settings import USE_DATABASE
+from database.adapter import db_adapter
 
 from config.constants import global_data
 from config.settings import DAILY_CASHBACK_PERCENTAGE
-from data.file_manager import save_data
+
+from handlers.utils import save_data_unified
 
 logger = logging.getLogger(__name__)
 
@@ -73,9 +76,24 @@ async def process_daily_cashback(context):
                                 "last_cashback_date": None
                             }
                         
+                        # Check if user already received cashback today
+                        last_cashback_date = global_data["global_user_data"][user_id].get("last_cashback_date")
+                        if last_cashback_date == str(today):
+                            logger.info(f"User {user_id} already received cashback today ({today}), skipping")
+                            continue
+                        
                         # Add cashback to bonus points
                         global_data["global_user_data"][user_id]["bonus_points"] += cashback
                         global_data["global_user_data"][user_id]["last_cashback_date"] = str(today)
+                        
+                        # Sync with database if enabled
+                        if USE_DATABASE:
+                            try:
+                                # Update user's bonus points in database (using referral system for now)
+                                # Note: This could be enhanced with a dedicated bonus points table
+                                pass  # Bonus points are stored in global_data for now
+                            except Exception as e:
+                                logger.error(f"Failed to sync bonus points to database: {e}")
                         
                         # Record the cashback in daily_losses
                         if user_id not in global_data["daily_losses"]:
@@ -88,17 +106,17 @@ async def process_daily_cashback(context):
                             "processed_at": datetime.now().isoformat()
                         }
                         
-                        logger.info(f"💰 Awarded {cashback} points cashback to user {user_id} for {total_loss} points loss in chat {chat_id_str}")
+                        logger.info(f"💰 Awarded {cashback} ကျပ် cashback to user {user_id} for {total_loss} ကျပ် loss in chat {chat_id_str}")
                         
                         # Try to notify the user about their cashback with an engaging message
                         try:
                             cashback_message = (
                                 f"🎁 *Daily Cashback Reward!* 🎁\n\n"
                                 f"🌟 Great news! You've received your daily cashback bonus!\n\n"
-                                f"💰 *Cashback Amount:* {cashback:,} points\n"
-                                f"📊 *Yesterday's Activity:* {total_loss:,} points\n"
+                                f"💰 *Cashback Amount:* {cashback:,} ကျပ်\n"
+                                f"📊 *Yesterday's Activity:* {total_loss:,} ကျပ်\n"
                                 f"🎯 *Cashback Rate:* {int(DAILY_CASHBACK_PERCENTAGE * 100)}%\n\n"
-                                f"🚀 Your points have been automatically added to your wallet!\n"
+                                f"🚀 Your ကျပ် have been automatically added to your wallet!\n"
                                 f"🎲 Ready for another exciting day of gaming?"
                             )
                             
@@ -112,7 +130,7 @@ async def process_daily_cashback(context):
                             logger.error(f"❌ Failed to notify user {user_id} about cashback: {e}")
     
     # Save the updated data
-    save_data(global_data)
+    save_data_unified(global_data)
     
     # Count total users who received cashback
     total_cashback_users = 0
@@ -146,7 +164,7 @@ async def process_daily_cashback(context):
                         total_cashback_users += 1
                         total_cashback_amount += cashback
     
-    logger.info(f"🎉 Daily cashback processing completed! Processed {total_cashback_users} users with total cashback of {total_cashback_amount:,} points.")
+    logger.info(f"🎉 Daily cashback processing completed! Processed {total_cashback_users} users with total cashback of {total_cashback_amount:,} ကျပ်.")
     
     # Send notification to super admins about daily cashback processing
     await send_daily_cashback_notification_to_super_admins(total_cashback_users, total_cashback_amount, context)
@@ -165,7 +183,7 @@ async def send_daily_cashback_notification_to_super_admins(total_users, total_am
                 f"🎁 *Daily Cashback Report*\n\n"
                 f"📊 *Status:* No cashback processed today\n"
                 f"👥 *Users:* 0 users received cashback\n"
-                f"💰 *Total Amount:* 0 points\n\n"
+                f"💰 *Total Amount:* 0 ကျပ်\n\n"
                 f"ℹ️ No users had losses yesterday to qualify for cashback."
             )
         else:
@@ -173,7 +191,7 @@ async def send_daily_cashback_notification_to_super_admins(total_users, total_am
                 f"🎁 *Daily Cashback Report*\n\n"
                 f"📊 *Status:* Successfully processed\n"
                 f"👥 *Users:* {total_users:,} users received cashback\n"
-                f"💰 *Total Amount:* {total_amount:,} points\n"
+                f"💰 *Total Amount:* {total_amount:,} ကျပ်\n"
                 f"📈 *Cashback Rate:* 10%\n\n"
                 f"✅ All eligible users have been notified via private message."
             )

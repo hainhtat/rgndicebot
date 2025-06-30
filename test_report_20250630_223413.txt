@@ -1,0 +1,102 @@
+COMPREHENSIVE SECURITY TEST REPORT
+==================================================
+
+Test Date: 2025-06-30 22:34:13
+Total Tests: 31
+Passed: 28
+Failed: 3
+Success Rate: 90.3%
+
+✅ PASS User user1 Player Stats Init
+   Details: User ID: 111111
+
+✅ PASS User user1 Global Data Init
+   Details: Username: testuser1
+
+✅ PASS User user1 Bonus Points Init
+   Details: Initial bonus points: 0
+
+✅ PASS User user2 Player Stats Init
+   Details: User ID: 222222
+
+✅ PASS User user2 Global Data Init
+   Details: Username: testuser2
+
+✅ PASS User user2 Bonus Points Init
+   Details: Initial bonus points: 0
+
+✅ PASS User user3 Player Stats Init
+   Details: User ID: 333333
+
+✅ PASS User user3 Global Data Init
+   Details: Username: testuser3
+
+✅ PASS User user3 Bonus Points Init
+   Details: Initial bonus points: 0
+
+✅ PASS User referrer Player Stats Init
+   Details: User ID: 444444
+
+✅ PASS User referrer Global Data Init
+   Details: Username: referrer
+
+✅ PASS User referrer Bonus Points Init
+   Details: Initial bonus points: 0
+
+✅ PASS Referral Link Establishment
+   Details: User 111111 referred by 444444
+
+❌ FAIL Self-Referral Prevention
+   Details: Users cannot refer themselves
+
+✅ PASS Duplicate Referral Prevention
+   Details: Referral changes should be restricted
+
+✅ PASS Welcome Bonus Single Grant
+   Details: Initial score: 1000
+
+✅ PASS Multiple Welcome Bonus Prevention
+   Details: Score unchanged: 1000 -> 1000
+
+✅ PASS Bonus Points Initialization
+   Details: Initial bonus points: 0
+
+✅ PASS Bonus Points Addition
+   Details: Bonus points added: 500
+
+❌ FAIL Betting with Mixed Points
+   Details: Error: place_bet() missing 3 required positional arguments: 'chat_data', 'global_data', and 'chat_id'
+
+✅ PASS Wallet Display - Main Balance
+   Details: Main balance shown in wallet
+
+✅ PASS Wallet Display - Referral Points
+   Details: Referral points shown in wallet
+
+✅ PASS Wallet Display - Bonus Points
+   Details: Bonus points shown in wallet
+
+✅ PASS Wallet Display - Total Balance
+   Details: Total balance calculated correctly
+
+✅ PASS Withdrawal - Minimum Main Wallet Check
+   Details: Main wallet: 3000, Required: 5000
+
+✅ PASS Withdrawal - Sufficient Main Wallet
+   Details: Main wallet: 6000, Required: 5000
+
+✅ PASS Daily Cashback Calculation
+   Details: Expected cashback: 100 points
+
+✅ PASS Daily Cashback Addition
+   Details: Bonus points: 2000 -> 2100
+
+❌ FAIL Bet Confirmation - Main Balance
+   Details: Main balance shown in confirmation
+
+✅ PASS Bet Confirmation - Referral Points
+   Details: Referral points shown in confirmation
+
+✅ PASS Bet Confirmation - Bonus Points
+   Details: Bonus points shown in confirmation
+

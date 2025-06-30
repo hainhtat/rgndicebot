@@ -24,7 +24,7 @@
     "backup_dir": "backups"
   },
   "user": {
-    "new_user_bonus": 500,
+    "new_user_bonus": 0,
     "referral_bonus": 500,
     "daily_cashback_percent": 5,
     "daily_cashback_min_loss": 1000,

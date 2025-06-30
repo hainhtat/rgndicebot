@@ -29,6 +29,17 @@ BONUS_EXPIRY_DAYS = int(os.environ.get("BONUS_EXPIRY_DAYS", "30"))  # Bonus poin
 # Data file path
 DATA_FILE_PATH = os.environ.get("DATA_FILE_PATH", "data.json")
 
+# Database settings
+DATABASE_URL = os.environ.get("DATABASE_URL", None)
+DB_HOST = os.environ.get("DB_HOST", "localhost")
+DB_PORT = os.environ.get("DB_PORT", "5432")
+DB_NAME = os.environ.get("DB_NAME", "dicebot_db")
+DB_USER = os.environ.get("DB_USER", "dicebot_user")
+DB_PASSWORD = os.environ.get("DB_PASSWORD", "")
+
+# Database mode - set to True to use PostgreSQL, False to use JSON
+USE_DATABASE = os.environ.get("USE_DATABASE", "False").lower() in ("true", "1", "t")
+
 # Main game group link
 # This should be updated to the appropriate group link
 MAIN_GAME_GROUP_LINK = os.environ.get("MAIN_GAME_GROUP_LINK", "https://t.me/rgndiceofficial")
@@ -60,7 +71,7 @@ if env_super_admins:
 
 # Allowed group IDs
 ALLOWED_GROUP_IDS = [
-    -1002780424700, #test group
+    # -1002780424700, #test group
     -1002689980361, #main gp
 ]  # Add allowed group IDs here
 

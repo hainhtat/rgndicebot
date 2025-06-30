@@ -1,16 +1,19 @@
 import logging
 from datetime import datetime
 from typing import Dict, List, Optional
+from config.settings import USE_DATABASE
+from database.adapter import db_adapter
 
 import telegram
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CallbackQueryHandler
 
 from config.constants import global_data, get_admin_data, SUPER_ADMINS, ADMIN_WALLET_AMOUNT
-from data.file_manager import save_data
+
 from utils.telegram_utils import is_admin
 from utils.message_formatter import MessageTemplates
 from utils.formatting import escape_markdown, escape_markdown_username
+from handlers.utils import save_data_unified
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +32,7 @@ async def refill_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     
     # Get all groups where the bot is active
     bot_groups = []
-    for chat_id_str, chat_data in global_data["chat_data"].items():
+    for chat_id_str, chat_data in global_data["all_chat_data"].items():
         try:
             chat_id = int(chat_id_str)
             # Try to get chat info to verify bot is still in the group
@@ -91,7 +94,7 @@ async def handle_refill_group_selection(update: Update, context: ContextTypes.DE
     
     # Get admins in the selected group
     try:
-        chat_data = global_data["chat_data"].get(str(group_id), {})
+        chat_data = global_data["all_chat_data"].get(str(group_id), {})
         admin_data = get_admin_data(user_id, group_id, update.effective_user.username or update.effective_user.first_name or f"Admin {user_id}")
         
         # Find all admins in this group
@@ -183,7 +186,7 @@ async def handle_refill_action(update: Update, context: ContextTypes.DEFAULT_TYP
     
     try:
         callback_parts = query.data.split("_")
-        action = callback_parts[1]  # "all", "admin", "custom"
+        action = callback_parts[1]  # "all", "admin", "custom", "admins"
         
         if action == "custom":
             # Handle custom amount requests
@@ -199,13 +202,15 @@ async def handle_refill_action(update: Update, context: ContextTypes.DEFAULT_TYP
             return
         
         group_id = int(callback_parts[2])
-        admin_data = get_admin_data(user_id, group_id, update.effective_user.username or update.effective_user.first_name or f"Admin {user_id}")
+        # Initialize admin data for the requesting user
+        get_admin_data(user_id, group_id, update.effective_user.username or update.effective_user.first_name or f"Admin {user_id}")
         group_id_str = str(group_id)
         
-        if action == "all":
+        if action == "all" or action == "admins":
             # Refill all admins in the group
             refilled_count = 0
-            chat_data = global_data["chat_data"].get(group_id_str, {})
+            chat_data = global_data["all_chat_data"].get(group_id_str, {})
+            admin_data = global_data["admin_data"]
             
             for user_id_str in chat_data.get('player_stats', {}).keys():
                 try:
@@ -234,7 +239,7 @@ async def handle_refill_action(update: Update, context: ContextTypes.DEFAULT_TYP
                     continue
             
             # Save data
-            save_data(global_data)
+            save_data_unified(global_data)
             
             chat_info = await context.bot.get_chat(group_id)
             group_title = chat_info.title or f"Group {group_id}"
@@ -253,6 +258,7 @@ async def handle_refill_action(update: Update, context: ContextTypes.DEFAULT_TYP
                 return
             target_admin_id = int(callback_parts[3])
             target_admin_id_str = str(target_admin_id)
+            admin_data = global_data["admin_data"]
             
             # Initialize admin data if needed
             if target_admin_id_str not in admin_data:
@@ -272,7 +278,7 @@ async def handle_refill_action(update: Update, context: ContextTypes.DEFAULT_TYP
             admin_data[target_admin_id_str]["chat_points"][group_id_str]["last_refill"] = datetime.now()
             
             # Save data
-            save_data(global_data)
+            save_data_unified(global_data)
             
             admin_username = admin_data[target_admin_id_str].get("username") or f"Admin {target_admin_id}"
             chat_info = await context.bot.get_chat(group_id)
@@ -379,7 +385,7 @@ async def handle_refill_amount_command(update: Update, context: ContextTypes.DEF
         if refill_type == 'custom_all':
             # Refill all admins with custom amount
             refilled_count = 0
-            chat_data = global_data["chat_data"].get(group_id_str, {})
+            chat_data = global_data["all_chat_data"].get(group_id_str, {})
             
             for user_id_str in chat_data.get('player_stats', {}).keys():
                 try:
@@ -408,7 +414,7 @@ async def handle_refill_amount_command(update: Update, context: ContextTypes.DEF
                     continue
             
             # Save data
-            save_data(global_data)
+            save_data_unified(global_data)
             
             await update.message.reply_text(
                 f"✅ *Custom Refill Complete*\n\n*Group:* {escape_markdown(refill_context['group_title'])}\n*Refilled:* {refilled_count} admins\n*Amount:* {amount:,} points each",
@@ -438,7 +444,7 @@ async def handle_refill_amount_command(update: Update, context: ContextTypes.DEF
             admin_data[admin_id_str]["chat_points"][group_id_str]["last_refill"] = datetime.now()
             
             # Save data
-            save_data(global_data)
+            save_data_unified(global_data)
             
             await update.message.reply_text(
                 f"✅ *Custom Refill Complete*\n\n*Group:* {escape_markdown(refill_context['group_title'])}\n*Admin:* {escape_markdown_username(refill_context['admin_username'])}\n*Amount:* {amount:,} points",
@@ -469,7 +475,7 @@ async def handle_back_to_groups(update: Update, context: ContextTypes.DEFAULT_TY
     
     # Recreate the group selection menu
     bot_groups = []
-    for chat_id_str, chat_data in global_data["chat_data"].items():
+    for chat_id_str, chat_data in global_data["all_chat_data"].items():
         try:
             chat_id = int(chat_id_str)
             chat_info = await context.bot.get_chat(chat_id)

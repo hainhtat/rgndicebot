@@ -1,6 +1,8 @@
 import logging
 from datetime import datetime
 from typing import Dict, Optional, Any, Tuple
+from config.settings import USE_DATABASE
+from database.adapter import db_adapter
 
 import telegram
 from telegram.ext import ContextTypes
@@ -14,10 +16,24 @@ from config.messages import (
     SUCCESS_POINTS_DEDUCTED, SUCCESS_WELCOME_BONUS, INFO_WELCOME_BONUS_ALREADY_RECEIVED,
     FALLBACK_USER_NAME, FALLBACK_USERNAME_DISPLAY, FALLBACK_FULL_NAME_USERNAME
 )
-from data.file_manager import save_data
+
 
 logger = logging.getLogger(__name__)
 
+
+
+
+def save_data_unified(global_data: Dict = None) -> None:
+    """Unified save function that works with both database and file storage"""
+    # Import the proper save function from main
+    from main import save_data_unified as main_save_data_unified
+    main_save_data_unified(global_data)
+        
+def load_data_unified() -> Dict:
+    """Unified load function that works with both database and file storage"""
+    # Import the proper load function from main
+    from main import load_data_unified as main_load_data_unified
+    return main_load_data_unified()
 
 def get_or_create_global_user_data(user_id: int, first_name: Optional[str] = None, 
                                   last_name: Optional[str] = None, username: Optional[str] = None) -> Dict[str, Any]:
@@ -173,7 +189,7 @@ async def process_referral(user_id: int, referrer_id: int, context: ContextTypes
     user_data["referral_pending"] = True  # Mark that this referral is pending (points not awarded yet)
     
     # Save the updated data
-    save_data(global_data)
+    save_data_unified(global_data)
     
     # Get referrer name
     referrer_name = referrer_data.get('full_name', FALLBACK_USER_NAME.format(user_id=referrer_id))
@@ -218,7 +234,7 @@ async def process_pending_referral(user_id: int, context: ContextTypes.DEFAULT_T
     user_data["referral_pending"] = False
     
     # Save the updated data
-    save_data(global_data)
+    save_data_unified(global_data)
     
     # Get user and referrer names
     try:
@@ -245,6 +261,9 @@ def adjust_user_score(user_id: int, chat_id: int, amount: int, is_admin: bool = 
     Adjusts a user's score by the specified amount.
     Returns a tuple of (success, message).
     """
+    from config.settings import USE_DATABASE
+    from database.adapter import db_adapter
+    
     user_id_str = str(user_id)
     
     # Get chat data
@@ -265,8 +284,16 @@ def adjust_user_score(user_id: int, chat_id: int, amount: int, is_admin: bool = 
     if not is_admin and player_stats["score"] < 0:
         player_stats["score"] = 0
     
+    # Sync with database if enabled
+    if USE_DATABASE:
+        try:
+            # Update player stats in database
+            db_adapter.update_player_stats(user_id, chat_id, amount, amount > 0, 0)
+        except Exception as e:
+            logger.error(f"Failed to sync user score adjustment to database: {e}")
+    
     # Save the updated data
-    save_data(global_data)
+    save_data_unified(global_data)
     
     # Return success message
     username = player_stats.get('username', FALLBACK_USER_NAME.format(user_id=user_id))
@@ -339,7 +366,7 @@ def process_welcome_bonus(user_id: int, chat_id: int, first_name: Optional[str] 
     user_data["welcome_bonuses_received"][chat_id_str] = True
     
     # Save the updated data
-    save_data(global_data)
+    save_data_unified(global_data)
     
     logger.info(f"Welcome bonus of {WELCOME_BONUS_POINTS} ကျပ် awarded to user {user_id} in chat {chat_id}")
     

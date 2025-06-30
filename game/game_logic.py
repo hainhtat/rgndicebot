@@ -2,6 +2,8 @@ import random
 import time
 from datetime import datetime
 from typing import Dict, List, Tuple, Optional, Any, Union
+from config.settings import USE_DATABASE
+from database.adapter import db_adapter
 
 # Import configuration and logging utilities
 from config.config_manager import get_config
@@ -14,12 +16,13 @@ from config.constants import (
     GAME_STATE_WAITING, GAME_STATE_CLOSED, GAME_STATE_OVER,
     BET_TYPE_BIG, BET_TYPE_SMALL, BET_TYPE_LUCKY,
     DEFAULT_BIG_MULTIPLIER, DEFAULT_SMALL_MULTIPLIER, DEFAULT_LUCKY_MULTIPLIER,
-    DEFAULT_MIN_BET, DEFAULT_MAX_BET, DEFAULT_IDLE_GAME_LIMIT
+    DEFAULT_MIN_BET, DEFAULT_MAX_BET, DEFAULT_IDLE_GAME_LIMIT,
+    get_chat_data_for_id
 )
 
 # Import from utils
 from utils.user_utils import get_or_create_global_user_data
-from data.file_manager import save_data
+
 from config.settings import REFERRAL_POINTS_BET_RATIO, MIN_MAIN_SCORE_REQUIRED
 
 # Get logger for this module
@@ -27,6 +30,14 @@ logger = get_logger(__name__)
 
 # Get configuration
 config = get_config()
+
+
+def save_data_unified(global_data: Dict) -> None:
+    """Unified data saving function that uses database when enabled."""
+    # Import the proper save function from main
+    from main import save_data_unified as main_save_data_unified
+    main_save_data_unified(global_data)
+
 
 class DiceGame:
     """Class representing a dice game instance for a specific chat."""
@@ -66,7 +77,7 @@ class DiceGame:
 
 
 def place_bet(game: DiceGame, user_id: int, username: str, bet_type: str, amount: int, 
-              chat_data: Dict, global_data: Dict) -> str:
+              chat_data: Dict, global_data: Dict, chat_id: int) -> str:
     """Place a bet for a player in the current game.
     
     Args:
@@ -77,6 +88,7 @@ def place_bet(game: DiceGame, user_id: int, username: str, bet_type: str, amount
         amount: The amount to bet
         chat_data: The chat-specific data dictionary
         global_data: The global data dictionary
+        chat_id: The Telegram chat ID
         
     Returns:
         A message indicating the result of the bet placement
@@ -108,39 +120,53 @@ def place_bet(game: DiceGame, user_id: int, username: str, bet_type: str, amount
         raise InvalidBetError(f"Maximum bet amount is {game.max_bet}.")
     
     # Get or initialize player stats
-    if "player_stats" not in chat_data:
-        chat_data["player_stats"] = {}
+    if USE_DATABASE:
+        chat_data_db = get_chat_data_for_id(chat_id)
+        player_stats = chat_data_db.get("player_stats", {})
+    else:
+        if "player_stats" not in chat_data:
+            chat_data["player_stats"] = {}
+        player_stats = chat_data["player_stats"]
     
-    if str(user_id) not in chat_data["player_stats"]:
-        chat_data["player_stats"][str(user_id)] = {
-            "username": username,
-            "score": config.get("user", "new_user_bonus", 0),
-            "total_bets": 0,
-            "total_wins": 0,
-            "total_losses": 0,
-            "last_active": datetime.now().isoformat()
-        }
+    # Get or create player stats
+    if USE_DATABASE:
+        current_player = db_adapter.get_or_create_player_stats(user_id, chat_id, username)
+        # Update the local player_stats dict for consistency
+        player_stats[str(user_id)] = current_player
+    else:
+        # Create new player if doesn't exist
+        if str(user_id) not in player_stats:
+            new_player_data = {
+                "username": username,
+                "score": config.get('user', 'new_user_bonus', 0),
+                "total_bets": 0,
+                "total_wins": 0,
+                "total_losses": 0,
+                "last_active": datetime.now().isoformat()
+            }
+            chat_data["player_stats"][str(user_id)] = new_player_data
+            player_stats[str(user_id)] = new_player_data
+        
+        # Get current player data
+        current_player = player_stats[str(user_id)]
     
-    # Ensure all required keys exist in player_stats
-    player_stats = chat_data["player_stats"][str(user_id)]
-    if "total_bets" not in player_stats:
-        player_stats["total_bets"] = 0
-    if "total_wins" not in player_stats:
-        player_stats["total_wins"] = 0
-    if "total_losses" not in player_stats:
-        player_stats["total_losses"] = 0
-    
-    player_stats = chat_data["player_stats"][str(user_id)]
+    # Ensure all required keys exist in current player data
+    if "total_bets" not in current_player:
+        current_player["total_bets"] = 0
+    if "total_wins" not in current_player:
+        current_player["total_wins"] = 0
+    if "total_losses" not in current_player:
+        current_player["total_losses"] = 0
     
     # Update username if it has changed
-    if player_stats["username"] != username and username:
-        player_stats["username"] = username
+    if current_player["username"] != username and username:
+        current_player["username"] = username
     
     # Get global user data for referral points and bonus points
     global_user_data = get_or_create_global_user_data(user_id, username=username)
     
     # Calculate available funds
-    main_score = player_stats["score"]
+    main_score = current_player["score"]
     referral_points = global_user_data.get("referral_points", 0)
     bonus_points = global_user_data.get("bonus_points", 0)
     total_available = main_score + referral_points + bonus_points
@@ -179,9 +205,9 @@ def place_bet(game: DiceGame, user_id: int, username: str, bet_type: str, amount
             # Restore used points if main score is insufficient
             global_user_data["bonus_points"] += bonus_points_used
             global_user_data["referral_points"] += referral_points_used
-            raise InvalidBetError(f"Insufficient main score. Need {amount} more main score points.")
+            raise InvalidBetError(f"Insufficient main score. Need {amount} more main score ကျပ်.")
         main_score_used = amount
-        player_stats["score"] -= main_score_used
+        current_player["score"] -= main_score_used
     
     # Restore original bet amount for logging
     original_amount = bonus_points_used + referral_points_used + main_score_used
@@ -199,8 +225,8 @@ def place_bet(game: DiceGame, user_id: int, username: str, bet_type: str, amount
     game.participants.add(user_id_str)
     
     # Update player stats
-    player_stats["total_bets"] += 1
-    player_stats["last_active"] = datetime.now().isoformat()
+    current_player["total_bets"] += 1
+    current_player["last_active"] = datetime.now().isoformat()
     
     # Log the bet
     logger.info(f"Bet placed: user={user_id}, type={bet_type}, amount={original_amount}, "
@@ -215,18 +241,19 @@ def place_bet(game: DiceGame, user_id: int, username: str, bet_type: str, amount
     if main_score_used > 0:
         source_parts.append(f"{main_score_used} main")
     
-    source_msg = f"(Used {', '.join(source_parts)} points)" if source_parts else ""
+    source_msg = f"(Used {', '.join(source_parts)} ကျပ်)" if source_parts else ""
     
-    return f"✅ Bet placed: {bet_type} {original_amount} {source_msg}\nYour balance: {player_stats['score']} main, {global_user_data.get('referral_points', 0)} referral, {global_user_data.get('bonus_points', 0)} bonus points"
+    return f"✅ Bet placed: {bet_type} {original_amount} {source_msg}\nYour balance: {current_player['score']} main, {global_user_data.get('referral_points', 0)} referral, {global_user_data.get('bonus_points', 0)} bonus ကျပ်"
 
 
-def payout(game: DiceGame, chat_data: Dict, global_data: Dict) -> Dict:
+def payout(game: DiceGame, chat_data: Dict, global_data: Dict, chat_id: int) -> Dict:
     """Process payouts for a completed game.
     
     Args:
         game: The completed DiceGame instance
         chat_data: The chat-specific data dictionary
         global_data: The global data dictionary
+        chat_id: The chat ID for database operations
         
     Returns:
         A dictionary containing game summary information
@@ -259,14 +286,30 @@ def payout(game: DiceGame, chat_data: Dict, global_data: Dict) -> Dict:
     
     # Process winners
     for user_id_str, bet_amount in game.bets[winning_bet_type].items():
+        user_id = int(user_id_str)
         # Calculate winnings
         winnings = int(bet_amount * multiplier)
         
-        # Update player stats
-        if user_id_str in chat_data["player_stats"]:
-            player = chat_data["player_stats"][user_id_str]
-            player["score"] += winnings
-            player["total_wins"] += 1
+        # Update player stats using database adapter
+        if USE_DATABASE:
+            # Update player stats in database
+            db_adapter.update_player_stats(user_id, chat_id, winnings, True, bet_amount)
+            
+            # Get fresh player data from database and update global_data
+            updated_stats = db_adapter.get_or_create_player_stats(user_id, chat_id)
+            chat_data_db = get_chat_data_for_id(chat_id)
+            
+            # Sync global_data with database
+            chat_data_db["player_stats"][user_id_str] = {
+                "username": updated_stats["username"],
+                "score": updated_stats["score"],
+                "total_wins": updated_stats["total_wins"],
+                "total_losses": updated_stats["total_losses"],
+                "total_bets": updated_stats["total_bets"],
+                "last_active": updated_stats["last_active"]
+            }
+            
+            player = chat_data_db["player_stats"][user_id_str]
             
             # Add to winners list
             winners_list.append({
@@ -279,16 +322,49 @@ def payout(game: DiceGame, chat_data: Dict, global_data: Dict) -> Dict:
             
             total_winners += 1
             total_payout += winnings
+        else:
+            if user_id_str in chat_data["player_stats"]:
+                player = chat_data["player_stats"][user_id_str]
+                player["score"] += winnings
+                player["total_wins"] += 1
+                
+                # Add to winners list
+                winners_list.append({
+                    "user_id": user_id_str,
+                    "username": player["username"],
+                    "bet_amount": bet_amount,
+                    "winnings": winnings,
+                    "wallet_balance": player["score"]  # Current wallet balance after winnings
+                })
+                
+                total_winners += 1
+                total_payout += winnings
     
     # Process losers (all bets that weren't on the winning type)
     for bet_type, bets in game.bets.items():
         if bet_type != winning_bet_type:
             for user_id_str, bet_amount in bets.items():
-                if user_id_str in chat_data["player_stats"]:
-                    player = chat_data["player_stats"][user_id_str]
-                    player["total_losses"] += 1
+                user_id = int(user_id_str)
+                if USE_DATABASE:
+                    # Update player stats in database (loss with bet amount deducted)
+                    db_adapter.update_player_stats(user_id, chat_id, -bet_amount, False, bet_amount)
                     
-                    # Add to losers list
+                    # Get fresh player data from database and update global_data
+                    updated_stats = db_adapter.get_or_create_player_stats(user_id, chat_id)
+                    chat_data_db = get_chat_data_for_id(chat_id)
+                    
+                    # Sync global_data with database
+                    chat_data_db["player_stats"][user_id_str] = {
+                        "username": updated_stats["username"],
+                        "score": updated_stats["score"],
+                        "total_wins": updated_stats["total_wins"],
+                        "total_losses": updated_stats["total_losses"],
+                        "total_bets": updated_stats["total_bets"],
+                        "last_active": updated_stats["last_active"]
+                    }
+                    
+                    player = chat_data_db["player_stats"][user_id_str]
+                    
                     # Get user's full name from global data if available
                     user_global_data = global_data.get("users", {}).get(user_id_str, {})
                     full_name = user_global_data.get("full_name", "")
@@ -302,6 +378,26 @@ def payout(game: DiceGame, chat_data: Dict, global_data: Dict) -> Dict:
                     })
                     
                     total_losers += 1
+                else:
+                    if user_id_str in chat_data["player_stats"]:
+                        player = chat_data["player_stats"][user_id_str]
+                        player["score"] -= bet_amount  # Deduct bet amount from score
+                        player["total_losses"] += 1
+                    
+                        # Add to losers list
+                        # Get user's full name from global data if available
+                        user_global_data = global_data.get("users", {}).get(user_id_str, {})
+                        full_name = user_global_data.get("full_name", "")
+                        
+                        losers_list.append({
+                            "user_id": user_id_str,
+                            "username": player["username"],
+                            "display_name": full_name or player["username"],
+                            "bet_amount": bet_amount,
+                            "wallet_balance": player["score"]  # Current wallet balance after loss
+                        })
+                        
+                        total_losers += 1
     
     # Update game state to indicate game is completely finished
     game.state = GAME_STATE_OVER
@@ -341,7 +437,7 @@ def payout(game: DiceGame, chat_data: Dict, global_data: Dict) -> Dict:
         chat_data["consecutive_idle_matches"] = 0
     
     # Save data
-    save_data(global_data)
+    save_data_unified(global_data)
     
     # Log the game result
     logger.info(f"Game completed: match_id={game.match_id}, result={game.result}, "

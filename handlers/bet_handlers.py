@@ -3,6 +3,8 @@ import random
 import asyncio
 from datetime import datetime, timedelta
 from typing import Dict, List, Tuple, Optional, Union, Any
+from config.settings import USE_DATABASE
+from database.adapter import db_adapter
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CallbackContext
@@ -34,10 +36,10 @@ from utils.message_formatter import (
 from game.game_logic import DiceGame, place_bet as process_bet, roll_dice as game_roll_dice, close_betting, payout
 
 # Import data management
-from data.file_manager import save_data
+
 
 # Import from handlers utils
-from handlers.utils import check_allowed_chat, get_current_game, create_new_game
+from handlers.utils import check_allowed_chat, get_current_game, create_new_game, save_data_unified
 
 # Get logger for this module
 logger = get_logger(__name__)
@@ -72,31 +74,55 @@ async def place_bet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     # Get chat data
     chat_data = get_chat_data_for_id(chat_id)
     
+    # Check if there's a manual stop cooldown in effect before allowing any betting
+    from datetime import datetime
+    manual_stop_time = chat_data.get("manual_stop_cooldown")
+    if manual_stop_time:
+        config = get_config()
+        cooldown_period = config.get("game", "manual_stop_cooldown_seconds", 10)
+        now = datetime.now()
+        cooldown_elapsed = (now - manual_stop_time).total_seconds()
+        
+        if cooldown_elapsed < cooldown_period:
+            error_message = f"❌ Betting is temporarily disabled. Please wait {int(cooldown_period - cooldown_elapsed)} more seconds."
+            if is_callback:
+                await update.callback_query.answer(error_message)
+            else:
+                await update.message.reply_text(error_message)
+            return
+        else:
+            # Cooldown expired, remove it
+            chat_data.pop("manual_stop_cooldown", None)
+    
+    # Check if games are in inactive state
+    chat_data = get_chat_data_for_id(chat_id)
+    game_state = chat_data.get("game_state", "active")
+    
+    if game_state == "inactive":
+        error_message = "🛑 *Game is currently inactive*\n\nNo games are running. Contact an admin to start a new game."
+        if is_callback:
+            await update.callback_query.answer(error_message)
+        else:
+            await update.message.reply_text(error_message, parse_mode="Markdown")
+        return
+    
     # Get the current game or create a new one if needed
     game = get_current_game(chat_id)
     if not game or game.state == GAME_STATE_OVER:
-        # Check if there's a manual stop cooldown in effect before creating new game
-        from datetime import datetime
-        manual_stop_time = chat_data.get("manual_stop_cooldown")
-        if manual_stop_time:
-            from config.config_manager import get_config
-            config = get_config()
-            cooldown_period = config.get("game", "manual_stop_cooldown_seconds", 10)
-            now = datetime.now()
-            cooldown_elapsed = (now - manual_stop_time).total_seconds()
-            
-            if cooldown_elapsed < cooldown_period:
-                error_message = f"❌ Game creation is temporarily disabled. Please wait {int(cooldown_period - cooldown_elapsed)} more seconds."
-                if is_callback:
-                    await update.callback_query.answer(error_message)
-                else:
-                    await update.message.reply_text(error_message)
-                return
-            else:
-                # Cooldown expired, remove it
-                chat_data.pop("manual_stop_cooldown", None)
+        # Check for consecutive idle matches before creating new game
+        consecutive_idle = chat_data.get("consecutive_idle_matches", 0)
+        config = get_config()
+        idle_game_limit = config.get('game', 'idle_game_limit', 3)
         
-        game = create_new_game(chat_id)
+        if consecutive_idle >= idle_game_limit:
+            error_message = "🛑 *Game stopped due to inactivity*\n\nNo bets were placed for 3 consecutive matches.\nUse /roll to start a new game."
+            if is_callback:
+                await update.callback_query.answer(error_message)
+            else:
+                await update.message.reply_text(error_message, parse_mode="Markdown")
+            return
+        else:
+            game = create_new_game(chat_id)
     
     # Validate game state - only allow betting when game is waiting for bets
     if game.state != GAME_STATE_WAITING:
@@ -132,9 +158,15 @@ async def place_bet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             return
     else:
         # This is a text message for betting
-        if not update.message or not update.message.text:
-            return  # Skip if no message text (e.g., edited messages)
-        message_text = update.message.text.strip().lower()
+        # Handle both regular messages and edited messages
+        message_text = None
+        if update.message and update.message.text:
+            message_text = update.message.text.strip().lower()
+        elif update.edited_message and update.edited_message.text:
+            message_text = update.edited_message.text.strip().lower()
+        
+        if not message_text:
+            return  # Skip if no message text
         
         # Parse bet type and amount from text
         # Format can be: "b 500", "big 100", "s 200", "small 300", "l 700", "lucky 400"
@@ -167,7 +199,7 @@ async def place_bet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     
     # Process the bet
     try:
-        result_message = process_bet(game, user_id, username, bet_type, amount, chat_data, global_data)
+        result_message = process_bet(game, user_id, username, bet_type, amount, chat_data, global_data, chat_id)
         
         # Get referral points and bonus points AFTER processing the bet to show remaining amount
         updated_global_user_data = global_data.get("global_user_data", {}).get(str(user_id), {})
@@ -259,7 +291,7 @@ async def roll_dice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         # Update the game result with actual dice values
         game.result = (dice1, dice2)
         
-        result = payout(game, chat_data, global_data)
+        result = payout(game, chat_data, global_data, chat_id)
         
         # Send result message
         await update.callback_query.edit_message_text(
@@ -293,7 +325,7 @@ async def roll_dice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         try:
             # Fallback: use manual dice roll if animation fails
             dice1, dice2 = game_roll_dice(game)
-            result = payout(game, chat_data, global_data)
+            result = payout(game, chat_data, global_data, chat_id)
             
             # Send fallback result message
             await update.callback_query.edit_message_text(
@@ -409,7 +441,9 @@ async def auto_roll_dice(update, context) -> None:
                         # Remove the current game to stop the auto-roll cycle
                         if chat_id_str in global_data["all_chat_data"]:
                             global_data["all_chat_data"][chat_id_str].pop("current_game", None)
-                            save_data(global_data)
+                            # Set game state to inactive
+                            global_data["all_chat_data"][chat_id_str]["game_state"] = "inactive"
+                            save_data_unified(global_data)
                         
                         # Send stop message with admin list
                         if context and hasattr(context, 'bot'):
@@ -479,14 +513,16 @@ async def auto_roll_dice(update, context) -> None:
                         # Remove the current game to stop the auto-roll cycle
                         if chat_id_str in global_data["all_chat_data"]:
                             global_data["all_chat_data"][chat_id_str].pop("current_game", None)
-                            save_data(global_data)
+                            # Set game state to inactive
+                            global_data["all_chat_data"][chat_id_str]["game_state"] = "inactive"
+                            save_data_unified(global_data)
                         
                         # Send stop message
                         if context and hasattr(context, 'bot'):
                             await send_message_with_retry(
                                 context,
                                 chat_id,
-                                "🛑 *Game stopped due to inactivity*\n\nNo bets were placed for 3 consecutive matches.\nUse /roll to start a new game.",
+                                "🛑 *Game stopped due to inactivity*\n\nNo bets were placed for 3 consecutive matches.\nContact an admin to start a new game.",
                                 parse_mode="Markdown"
                             )
                         
@@ -507,7 +543,7 @@ async def auto_roll_dice(update, context) -> None:
                             game.result = (dice1, dice2)
                             
                             # Process payouts with actual dice values
-                            result = payout(game, chat_data, global_data)
+                            result = payout(game, chat_data, global_data, chat_id)
                             
                             # Send game summary (contains dice result and payout info)
                             await send_message_with_retry(
@@ -523,7 +559,7 @@ async def auto_roll_dice(update, context) -> None:
                             logger.error(f"Error in dice roll and result for chat {chat_id}: {e}")
                             # Fallback: use manual dice roll if animation fails
                             dice1, dice2 = game_roll_dice(game)
-                            result = payout(game, chat_data, global_data)
+                            result = payout(game, chat_data, global_data, chat_id)
                             
                             # Send fallback result message
                             await send_message_with_retry(
@@ -542,7 +578,7 @@ async def auto_roll_dice(update, context) -> None:
                         # Remove the current game to stop the auto-roll cycle
                         if chat_id_str in global_data["all_chat_data"]:
                             global_data["all_chat_data"][chat_id_str].pop("current_game", None)
-                            save_data(global_data)
+                            save_data_unified(global_data)
                         
                         # Send stop message BEFORE any new game would be created
                         if context and hasattr(context, 'bot'):

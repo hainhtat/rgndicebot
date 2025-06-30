@@ -15,7 +15,8 @@ from typing import Dict, Any, List
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from config.constants import global_data
-from data.file_manager import load_data, save_data
+
+from main import load_data_unified, save_data_unified
 from utils.user_utils import get_or_create_global_user_data, get_user_display_name
 from game.game_logic import place_bet
 from utils.daily_bonus import process_daily_cashback
@@ -61,7 +62,7 @@ class ComprehensiveSecurityTester:
             "match_history": []
         }
         
-        save_data(global_data)
+        save_data_unified(global_data)
         print("✅ Test environment setup complete")
         
     def initialize_test_user(self, user_id, chat_id, username, full_name):
@@ -385,7 +386,7 @@ class ComprehensiveSecurityTester:
             f"Bonus points: {initial_bonus} -> {final_bonus}"
         )
         
-    def test_bet_confirmation_format(self):
+    async def test_bet_confirmation_format(self):
         """Test bet confirmation includes bonus points"""
         print("\n🎲 Testing Bet Confirmation Format...")
         
@@ -403,12 +404,11 @@ class ComprehensiveSecurityTester:
         
         # Test bet confirmation format
         try:
-            confirmation = format_bet_confirmation(
-                display_name="Test User 1",
+            confirmation = await format_bet_confirmation(
                 bet_type="high",
                 amount=200,
-                total_bets_display="High: 200",
-                score=player_stats['score'],
+                result_message="High: 200",
+                username="Test User 1",
                 referral_points=global_user_data['referral_points'],
                 bonus_points=global_user_data['bonus_points']
             )
@@ -508,7 +508,7 @@ class ComprehensiveSecurityTester:
                 
         print(f"\n📄 Report saved to: {report_filename}")
         
-    def run_all_tests(self):
+    async def run_all_tests(self):
         """Run all security and functionality tests"""
         print("🚀 Starting Comprehensive Security and Feature Tests...")
         
@@ -521,7 +521,7 @@ class ComprehensiveSecurityTester:
             self.test_wallet_display_formats()
             self.test_withdrawal_security()
             self.test_daily_cashback_system()
-            self.test_bet_confirmation_format()
+            await self.test_bet_confirmation_format()
             
         except Exception as e:
             print(f"❌ Test execution error: {e}")
@@ -531,10 +531,11 @@ class ComprehensiveSecurityTester:
             self.cleanup_test_environment()
             self.generate_report()
 
-def main():
+async def main():
     """Main function to run tests"""
     tester = ComprehensiveSecurityTester()
-    tester.run_all_tests()
+    await tester.run_all_tests()
 
 if __name__ == "__main__":
-    main()
+    import asyncio
+    asyncio.run(main())

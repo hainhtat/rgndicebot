@@ -2,9 +2,9 @@
 
 # Game result emojis
 GAME_EMOJIS = {
-    "big": "🔴",
-    "small": "⚫",
-    "lucky": "🍀"
+    "big": "🎲",
+"small": "🎯",
+"lucky": "🍀"
 }
 
 # Status emojis
@@ -33,8 +33,8 @@ FEATURE_EMOJIS = {
 
 # Betting emojis
 BET_EMOJIS = {
-    "big": "🔴",
-    "small": "⚫",
+    "big": "🎲",
+    "small": "🎯",
     "lucky": "🍀",
     "payout": "💰"
 }

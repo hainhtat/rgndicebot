@@ -14,8 +14,9 @@ SUPER_ADMIN_IDS = SUPER_ADMINS
 
 # Game states
 GAME_STATE_WAITING = "WAITING_FOR_BETS"
-GAME_STATE_CLOSED = "GAME_CLOSED"
+GAME_STATE_CLOSED = "BETTING_CLOSED"
 GAME_STATE_OVER = "GAME_OVER"
+GAME_STATE_INACTIVE = "INACTIVE"
 
 # Bet types
 BET_TYPE_BIG = "BIG"
@@ -41,7 +42,7 @@ DEFAULT_SMALL_MULTIPLIER = 1.95
 DEFAULT_LUCKY_MULTIPLIER = 4.5
 
 # User bonuses (can be overridden by config)
-DEFAULT_NEW_USER_BONUS = 500
+DEFAULT_NEW_USER_BONUS = 0
 DEFAULT_REFERRAL_BONUS = 500
 
 # Cashback settings (can be overridden by config)
@@ -73,9 +74,9 @@ DEFAULT_MAX_RETRY_DELAY_SECONDS = 30
 
 # Game result emojis
 RESULT_EMOJIS = {
-    "big": "🔴",
-    "small": "⚫",
-    "lucky": "🍀"
+    "big": "🎲",
+"small": "🎯",
+"lucky": "🍀"
 }
 
 # Global data structure
@@ -93,11 +94,12 @@ def get_chat_data_for_id(chat_id: int):
     """
     chat_id_str = str(chat_id)  # Convert to string to match JSON serialization
     if chat_id_str not in global_data["all_chat_data"]:
+        # Only initialize if data doesn't exist - don't overwrite loaded data
         global_data["all_chat_data"][chat_id_str] = {
             "player_stats": {},
             "match_counter": 1,
             "match_history": [],
-            "group_admins": [],  # Will store a list of admin user IDs for the chat
+            "group_admins": [],
             "consecutive_idle_matches": 0,  # Counter for idle matches
         }
     return global_data["all_chat_data"][chat_id_str]

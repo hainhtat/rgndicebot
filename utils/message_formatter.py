@@ -28,8 +28,8 @@ class MessageTemplates:
     # Betting instructions
     BETTING_INSTRUCTIONS = (
         "*လောင်းကြေးထပ်ရန်*\n"
-"🔴 *BIG (8-12):* *B 500* or *BIG 500* လို့ရိုက်ပါ\n"
-"⚫ *SMALL (2-6):* *S 500* or *SMALL 500* လို့ရိုက်ပါ\n"
+"🎲 *BIG (8-12):* *B 500* or *BIG 500* လို့ရိုက်ပါ\n"
+"🎯 *SMALL (2-6):* *S 500* or *SMALL 500* လို့ရိုက်ပါ\n"
 "🍀 *LUCKY (7):* *L 500* or *LUCKY 500* လို့ရိုက်ပါ\n\n"
 "💰 *လျော်မည့်ဆ:*\n"
         "- *BIG/SMALL:* *1.95x*\n"
@@ -38,8 +38,8 @@ class MessageTemplates:
     
     # Bet confirmation
     BET_CONFIRMATION = "✅ {display_name} *{bet_type}* ပေါ် *{amount}* လောင်းကြေးထပ်လိုက်ပါပြီ\n\n📊 *Total Bets:*\n{total_bets_display}\n\n💰 *Wallet* - *{score}* ကျပ်\n🎁 *Referral* - *{referral_points}* ကျပ်\n🎁 *Bonus* - *{bonus_points}* ကျပ်"
-    INSUFFICIENT_FUNDS = "❌ သင့်တွင် *လုံလောက်သော ငွေမရှိပါ*။ 💰*Wallet:* {score} + *{referral_points}* referral + *{bonus_points}* bonus ကျပ် = *{total}*"
-    INVALID_BET_AMOUNT = "❌ *ငွေပမာဏ အနည်းဆုံး 1 ဖြစ်ရပါမည်*။"
+    INSUFFICIENT_FUNDS = "💸 *ငွေမလုံလောက်ပါ*\n\n💰 *လက်ကျန်:* {total} ကျပ်\n🎯 *လိုအပ်သည်:* {amount} ကျပ်"
+    INVALID_BET_AMOUNT = "❌ *ငွေပမာဏ အနည်းဆုံး 100 ဖြစ်ရပါမည်*။"
     NO_ACTIVE_GAME = "❌ *No active game* is accepting bets right now."
     
     # Error messages
@@ -117,7 +117,7 @@ class MessageTemplates:
     NEW_MEMBER_WELCOME = "👋 Welcome to the group, {name}!\n\nUse /help to learn how to play the dice game."
     
     # Help message
-    HELP_MESSAGE = "🎲 *RGN Dice Bot Help* 🎲\n\n*Game rules :*\n• အံစာတုံး ၂ တုံးလှိမ့်ပါမယ်\n• ၂ခု ပေါင်းခြင်း 2-6: *SMALL* \n• ၂ခု ပေါင်းခြင်း 8-12: *BIG* \n• ၂ခု ပေါင်းခြင်း 7: *LUCKY*\n\n*ကစားနည်း :*\n• Big ပေါ်လောင်းရန် B 500, Big 5000 စသဖြင့်လောင်းလို့ရပါတယ်\n• Small ပေါ်လောင်းရန် S 500, Small 2000 စသဖြင့်လောင်းလို့ရပါတယ်\n• LUCKY ပေါ်လောင်းရန် L 5000, LUCKY 50000 စသဖြင့်လောင်းလို့ရပါတယ်\n\n*Rules :*\n• အနည်းဆုံး ၁၀၀ ကျပ်မှစတင်လောင်းလို့ရပါတယ်\n• လောင်းပြီးသားဟာကို cancel လို့မရပါဘူး\n• admin တွေကပဲ game ကိုစတင်လို့ရပါတယ်\n\n*ကျပ်:*\n• Big/Small ဆိုရင် 2 ဆရပါမယ်\n• LUCKY ဆိုရင် 5 ဆရပါမယ်\n• Share ခလုတ်လေးနှိပ်ပြီး သူငယ််ချင်းတွေကို ပို့ပေးလို့ရပါတယ် \n• Share ထားတယ့် link ကနေတစ်ဆင့်ဝင်လာရင် ၅၀၀ ကျပ်ရရှိမှာဖြစ်ပါတယ်"
+    HELP_MESSAGE = "🎲 *RGN Dice Bot Help* 🎲\n\n*Game rules :*\n• အံစာတုံး ၂ တုံးလှိမ့်ပါမယ်\n• ၂ခု ပေါင်းခြင်း 2-6: *SMALL* \n• ၂ခု ပေါင်းခြင်း 8-12: *BIG* \n• ၂ခု ပေါင်းခြင်း 7: *LUCKY*\n\n*ကစားနည်း :*\n• Big ပေါ်လောင်းရန် B 500, Big 5000 စသဖြင့်လောင်းလို့ရပါတယ်\n• Small ပေါ်လောင်းရန် S 500, Small 2000 စသဖြင့်လောင်းလို့ရပါတယ်\n• LUCKY ပေါ်လောင်းရန် L 5000, LUCKY 50000 စသဖြင့်လောင်းလို့ရပါတယ်\n\n*Rules :*\n• အနည်းဆုံး ၁၀၀ ကျပ်မှစတင်လောင်းလို့ရပါတယ်\n• လောင်းပြီးသားဟာကို cancel လို့မရပါဘူး\n• admin တွေကပဲ game ကိုစတင်လို့ရပါတယ်\n\n*ကျပ်:*\n• Big/Small ဆိုရင် 1.95 ဆရပါမယ်\n• LUCKY ဆိုရင် 4.5 ဆရပါမယ်\n• Share ခလုတ်လေးနှိပ်ပြီး သူငယ််ချင်းတွေကို ပို့ပေးလို့ရပါတယ် \n• Share ထားတယ့် link ကနေတစ်ဆင့်ဝင်လာရင် ၅၀၀ ကျပ်ရရှိမှာဖြစ်ပါတယ်"
     
     # Admin score adjustment messages
     SCORE_ADDED = "✅ *{display_name}* ကို *{amount}* ကျပ် ဖြည့်ပြီးပါပြီ .\nOld score: *{old_score}*\nNew score: *{new_score}*{reason_text}"
@@ -135,8 +135,8 @@ class MessageTemplates:
     
     # Admin wallet messages
     ADMIN_WALLETS_HEADER = "💰 *Admin Wallets*\n\n"
-    ADMIN_WALLET_ENTRY = "👤 *{username}* ({admin_id})\nPoints: {points}\nLast Refill: {last_refill}\n\n"
-    ADMIN_WALLET_SELF = "👤 *{username}* ({admin_id})\nPoints: {points}\nLast Refill: {last_refill}\n"
+    ADMIN_WALLET_ENTRY = "👤 *{username}* ({admin_id})\n*Points:* {points:,} ကျပ်\n*Last Refill:* {last_refill}\n\n"
+    ADMIN_WALLET_SELF = "👤 *{username}* ({admin_id})\n*Points:* {points:,} ကျပ်\n*Last Refill:* {last_refill}\n"
     NO_ADMIN_WALLET = "You don't have an admin wallet yet.\n"
     NO_ADMIN_WALLETS_FOUND = "No admin wallets found for current admins in this chat.\n"
     
@@ -170,9 +170,7 @@ class MessageTemplates:
     ERROR_PROCESSING_REFILL_AMOUNT = "❌ Error processing refill amount."
     ADMINS_CANNOT_REFILL_ADMINS = "❌ Admins cannot refill other admins' points. Only super admins can do this."
     
-    # Admin panel messages
-    ERROR_PROCESSING_ADMIN_PANEL = "❌ Error processing admin panel action."
-    ERROR_GO_BACK_GROUPS = "❌ Error: Unable to go back to groups list."
+    # Removed admin panel messages - using unified system
     
     # Game callback messages
     CHAT_NOT_AUTHORIZED = "This chat is not authorized to use this bot."
@@ -284,18 +282,18 @@ async def format_bet_confirmation(bet_type: str, amount: int, result_message: st
             if user_id in bets:
                 bet_amount = bets[user_id]
                 if bet_type_key == "BIG":
-                    user_bets.append(f"🔴 B {bet_amount} ကျပ်")
+                    user_bets.append(f"🎲 B {bet_amount} ကျပ်")
                 elif bet_type_key == "SMALL":
-                    user_bets.append(f"🔵 S {bet_amount} ကျပ်")
+                     user_bets.append(f"🎯 S {bet_amount} ကျပ်")
                 elif bet_type_key == "LUCKY":
                     user_bets.append(f"🍀 L {bet_amount} ကျပ်")
         
         if user_bets:
             total_bets_display = "\n".join(user_bets)
         else:
-            total_bets_display = f"🔴 {bet_type} {amount} ကျပ်"
+            total_bets_display = f"🎲 {bet_type} {amount} ကျပ်"
     else:
-        total_bets_display = f"🔴 {bet_type} {amount} ကျပ်"
+        total_bets_display = f"🎲 {bet_type} {amount} ကျပ်"
     
     # Use HTML formatting for consistency
     message = f"✅ {display_name} <b>{bet_type}</b> ပေါ် <b>{amount}</b> လောင်းကြေးထပ်လိုက်ပါပြီ\n\n"
@@ -312,10 +310,8 @@ def format_insufficient_funds(score: int, referral_points: int, bonus_points: in
     """
     total = score + referral_points + bonus_points
     return MessageTemplates.INSUFFICIENT_FUNDS.format(
-        score=score,
-        referral_points=referral_points,
-        bonus_points=bonus_points,
-        total=total
+        total=total,
+        amount=amount
     )
 
 
@@ -663,7 +659,7 @@ def format_game_history(history):
             status_emoji = "🎉"
         elif result < 0:
             result_str = f"{result:,}"
-            result_emoji = "🔴"
+            result_emoji = "🎲"
             status_emoji = "😤"
         else:
             result_str = "±0"

@@ -2,16 +2,19 @@ import asyncio
 import logging
 import telegram
 from typing import Optional, List, Dict, Any, Tuple, Union
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, Message, KeyboardButton
+from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardButton, InlineKeyboardMarkup, Message
 from telegram.ext import ContextTypes
 from telegram.error import TelegramError, BadRequest, TimedOut, NetworkError
+from config.settings import USE_DATABASE
+from database.adapter import db_adapter
 
 from config.constants import SUPER_ADMIN_IDS, ADMIN_WALLET_AMOUNT, HARDCODED_ADMINS, global_data, get_chat_data_for_id
 from config.settings import SUPER_ADMINS
 from utils.user_utils import get_user_display_name
-from data.file_manager import save_data
+from utils.logging_utils import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
+
 
 
 async def is_admin(chat_id: int, user_id: int, context: ContextTypes.DEFAULT_TYPE) -> bool:
@@ -43,7 +46,7 @@ async def update_group_admins(chat_id: int, context: ContextTypes.DEFAULT_TYPE) 
         chat_specific_data = get_chat_data_for_id(chat_id)
         chat_specific_data["group_admins"] = admin_ids  # Update chat-specific admin list
 
-        save_data(global_data)
+        save_data_unified(global_data)
 
         logger.info(f"update_group_admins: Updated admin list for chat {chat_id}: {admin_ids}")
         return True
@@ -70,7 +73,7 @@ async def get_admins_from_chat(chat_id: int, context: ContextTypes.DEFAULT_TYPE)
 
         # Cache the fetched admins
         chat_data["group_admins"] = admin_user_ids
-        save_data(global_data)  # Save global data after updating chat_data
+        save_data_unified(global_data)  # Save global data after updating chat_data
 
         logger.info(f"Fetched and cached admins for chat {chat_id}: {admin_user_ids}")
         return admin_user_ids
@@ -91,115 +94,129 @@ async def get_admins_from_chat(chat_id: int, context: ContextTypes.DEFAULT_TYPE)
             return HARDCODED_ADMINS
 
 
-def create_custom_keyboard(user_type: str = "user") -> ReplyKeyboardMarkup:
+
+
+def save_data_unified(global_data: Dict = None) -> None:
+    """Unified save function that works with both database and file storage"""
+    # Import the proper save function from main
+    from main import save_data_unified as main_save_data_unified
+    main_save_data_unified(global_data)
+        
+def load_data_unified() -> Dict:
+    """Unified load function that works with both database and file storage"""
+    # Import the proper load function from main
+    from main import load_data_unified as main_load_data_unified
+    return main_load_data_unified()
+
+def create_custom_keyboard():
     """
-    Creates a custom keyboard. Now we only use one type of keyboard for all users.
-    The user_type parameter is kept for backward compatibility but is ignored.
+    Create a custom keyboard for all users (both admins and regular users).
+    
+    Returns:
+        ReplyKeyboardMarkup: The keyboard markup
     """
-    # Standard keyboard for all users
+    # Standard user keyboard for everyone
     keyboard = [
-        [KeyboardButton("💵 ငွေထည့်မည်"), KeyboardButton("💸 ငွေထုတ်မည်")],
         [KeyboardButton("💰 My Wallet"), KeyboardButton("🏆 Leaderboard")],
+        [KeyboardButton("💵 ငွေထည့်မည်"), KeyboardButton("💸 ငွေထုတ်မည်")],
         [KeyboardButton("🔗 Share")]
     ]
     
-    # Admin actions will be handled based on permissions in the command handlers
-    # rather than by showing different keyboards
-    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=False)
 
 
-# send_keyboard_to_user function removed as requested
+# Removed create_admin_inline_keyboard function - using unified user keyboard for all users
+
+
+# Removed send_keyboard_to_user function - keyboards are now sent to group chat only
 
 
 # Dictionary to store admin IDs by chat ID
 ADMIN_IDS_BY_CHAT = {}
 
-async def initialize_group_keyboards(context, chat_id: int):
+async def initialize_group_keyboards(context: ContextTypes.DEFAULT_TYPE, chat_id: int) -> None:
     """
-    Initialize keyboards for a specific group.
-    Now sends the same keyboard to all users.
+    Initialize keyboards for a group by caching admin information.
+    Individual keyboards will be sent privately when users interact.
     """
     try:
-        logger.info(f"Initializing keyboards for group {chat_id}")
+        logger.info(f"Initializing keyboard system for group {chat_id}")
         
-        # Get all chat administrators to cache their IDs
+        # Get admin list for this chat and cache it
         try:
             chat_admins = await context.bot.get_chat_administrators(chat_id)
             admin_ids = [admin.user.id for admin in chat_admins if not admin.user.is_bot]
+            
+            # Add hardcoded admins
+            from config.constants import HARDCODED_ADMINS
+            admin_ids.extend(HARDCODED_ADMINS)
+            admin_ids = list(set(admin_ids))  # Remove duplicates
+            
             ADMIN_IDS_BY_CHAT[chat_id] = admin_ids
             logger.info(f"Cached {len(admin_ids)} admin IDs for chat {chat_id}: {admin_ids}")
+            
+            # Send simple greeting message to group
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text="🎲 Hello! I'm your Dice Game Bot. Ready to play and win big! 🎉"
+            )
+            
         except Exception as e:
             logger.error(f"Failed to get chat administrators for {chat_id}: {e}")
             ADMIN_IDS_BY_CHAT[chat_id] = []
+            
+            # Send greeting message even if admin fetch fails
+            try:
+                await context.bot.send_message(
+                    chat_id=chat_id,
+                    text="🎲 Hello! I'm your Dice Game Bot. Ready to play and win big! 🎉"
+                )
+            except Exception as msg_error:
+                logger.error(f"Failed to send greeting message to {chat_id}: {msg_error}")
+                # Don't raise error if message sending fails - just log it
         
-        # Send a welcome message with keyboard to the group
-        keyboard = create_custom_keyboard()
-        try:
-            await context.bot.send_message(
-                chat_id=chat_id,
-                text="🎲 ဂိမ်းစတင်ရန် အသင့်ဖြစ်ပါပြီ! အောက်ပါခလုတ်များကို အသုံးပြုပါ။",
-                reply_markup=keyboard
-            )
-            logger.info(f"Welcome keyboard sent to group {chat_id}")
-        except Exception as e:
-            logger.error(f"Failed to send welcome keyboard to group {chat_id}: {e}")
-        
-        logger.info(f"Keyboard initialization completed for group {chat_id}")
+        logger.info(f"Greeting sent and admin cache initialized for chat {chat_id}")
         
     except Exception as e:
-        logger.error(f"Failed to initialize keyboards for group {chat_id}: {e}")
+        logger.error(f"Failed to initialize greeting system for group {chat_id}: {e}")
 
 
-async def send_user_keyboard_on_interaction(context, chat_id: int, user_id: int):
+async def send_appropriate_keyboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
-    Send keyboard when a user interacts in the group.
-    This is called when users send messages in allowed groups.
+    Send keyboard to user after they interact.
+    All users (both admins and regular users) get the same keyboard.
+    Sends keyboard only within the group chat, targeted to the specific user.
     """
     try:
-        # Debug logging
-        logger.debug(f"Keyboard interaction for user {user_id} in group {chat_id}")
+        if not update.effective_chat or not update.effective_user:
+            return
+            
+        chat_id = update.effective_chat.id
+        user_id = update.effective_user.id
         
-        # Try to get the update object from context if available
-        update = getattr(context, 'update', None)
-        if update and hasattr(update, 'message'):
-            # Check if this is a command - if so, don't send the keyboard
-            message_text = update.message.text
-            if message_text and message_text.startswith('/'):
-                logger.debug(f"Command message from user {user_id}, no action needed")
-                return
-        
-        # Send keyboard to ensure user has access to bot functions
+        # Only send keyboards in group chats
+        if update.effective_chat.type not in ['group', 'supergroup']:
+            return
+            
+        # Send the same keyboard to all users
         keyboard = create_custom_keyboard()
-        await context.bot.send_message(
-            chat_id=chat_id,
-            text="🎮 Use the keyboard below to interact with the bot.",
+        
+        # Send keyboard to the group chat as a reply to the user's message
+        await update.message.reply_text(
+            f"🎮 Keyboard for @{update.effective_user.username or update.effective_user.first_name}",
             reply_markup=keyboard
         )
         
-        logger.debug(f"Keyboard sent to user {user_id} in group {chat_id}")
+        logger.debug(f"Keyboard sent to group {chat_id} for user {user_id}")
         
     except Exception as e:
-        logger.error(f"Failed to send keyboard to user {user_id} in group {chat_id}: {e}")
+        logger.error(f"Failed to send keyboard: {e}")
 
 
-async def send_keyboard_to_new_member(context: ContextTypes.DEFAULT_TYPE, chat_id: int, user_id: int) -> None:
-    """
-    Send keyboard to a new member who just joined the group.
-    """
-    try:
-        keyboard = create_custom_keyboard()
-        
-        # Send keyboard to the group chat where the user joined
-        await context.bot.send_message(
-            chat_id=chat_id,  # Send to the group chat
-            text=f"🎮 Welcome! Use the keyboard below to interact with the bot.",
-            reply_markup=keyboard
-        )
-        
-        logger.info(f"Welcome keyboard sent to group {chat_id} for new member {user_id}")
-        
-    except Exception as e:
-        logger.error(f"Failed to send keyboard to new member {user_id} in group {chat_id}: {e}")
+# Removed send_user_keyboard_on_interaction function - keyboards are now only sent within group chats
+
+
+# Removed send_keyboard_to_new_member function - keyboards are now only sent within group chats when users interact
 
 
 def create_inline_keyboard(buttons: List[List[Tuple[str, str]]]) -> InlineKeyboardMarkup:

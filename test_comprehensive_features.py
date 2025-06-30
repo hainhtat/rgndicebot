@@ -15,7 +15,8 @@ from typing import Dict, Any
 # Import bot modules
 from config.constants import global_data, SUPER_ADMINS
 from config.settings import REFERRAL_BONUS_POINTS, WELCOME_BONUS_POINTS
-from data.file_manager import load_data, save_data
+
+from main import load_data_unified, save_data_unified
 from utils.user_utils import (
     get_or_create_global_user_data, 
     process_welcome_bonus, 
@@ -61,7 +62,7 @@ class FeatureTester:
         logger.info("Setting up test environment...")
         
         # Load existing data
-        load_data(global_data)
+        global_data.update(load_data_unified())
         
         # Clean up any existing test data
         for user_id in self.test_users.values():
@@ -81,7 +82,7 @@ class FeatureTester:
                 'pending_referrals': {}
             }
         
-        save_data(global_data)
+        save_data_unified(global_data)
         logger.info("Test environment setup complete")
     
     def log_test_result(self, category: str, test_name: str, passed: bool, details: str):
@@ -383,7 +384,7 @@ class FeatureTester:
                 if user_id_str in global_data['all_chat_data'][chat_id_str].get('player_stats', {}):
                     del global_data['all_chat_data'][chat_id_str]['player_stats'][user_id_str]
         
-        save_data(global_data)
+        save_data_unified(global_data)
         logger.info("Test data cleanup complete")
     
     async def run_all_tests(self):

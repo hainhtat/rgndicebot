@@ -2,6 +2,8 @@ import logging
 import re
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple, Any
+from config.settings import USE_DATABASE
+from database.adapter import db_adapter
 
 import pytz
 import telegram
@@ -11,8 +13,8 @@ from telegram.ext import ContextTypes
 from config.constants import global_data, get_chat_data_for_id, get_admin_data, SUPER_ADMINS
 from config.constants import GAME_STATE_WAITING, GAME_STATE_CLOSED, GAME_STATE_OVER, ADMIN_WALLET_AMOUNT
 from config.settings import ADMIN_INITIAL_POINTS, TIMEZONE
-from data.file_manager import save_data
-from handlers.utils import check_admin_permission, get_current_game
+
+from handlers.utils import check_admin_permission, get_current_game, save_data_unified
 from utils.formatting import escape_markdown, escape_markdown_username, escape_html
 from utils.message_formatter import MessageTemplates, get_parse_mode_for_message
 from utils.telegram_utils import is_admin, update_group_admins, get_admins_from_chat
@@ -205,6 +207,14 @@ async def adjust_score(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         admin_wallet_data["points"] += abs(amount)
         wallet_action = f"added {abs(amount):,} ကျပ်"
     
+    # Sync admin wallet with database if using database
+    if USE_DATABASE:
+        try:
+            from database.adapter import db_adapter
+            db_adapter.update_admin_points(admin_id, chat_id, admin_wallet_data["points"])
+        except Exception as e:
+            logger.error(f"Error syncing admin wallet to database: {e}")
+    
     # Log the admin wallet transaction
     logger.info(f"Admin wallet transaction - Admin {admin_id} ({admin_username}) {wallet_action}. New balance: {admin_wallet_data['points']:,} ကျပ် in chat {chat_id}")
     
@@ -218,19 +228,30 @@ async def adjust_score(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         # Get user display name for error message
         error_display_name = await get_user_display_name(context, target_user_id, chat_id)
         await update.message.reply_text(
-            f"❌ *Cannot deduct {abs(amount):,} points!*\n\n"
+            f"❌ *Cannot deduct {abs(amount):,} ကျပ်!*\n\n"
             f"👤 User: {error_display_name}\n"
-            f"💰 Current balance: *{old_score:,}* points\n"
-            f"💸 Requested deduction: *{abs(amount):,}* points\n\n"
-            f"User would have a negative balance of *{new_score:,}* points.",
+            f"💰 Current balance: *{old_score:,}* ကျပ်\n"
+            f"💸 Requested deduction: *{abs(amount):,}* ကျပ်\n\n"
+            f"User would have a negative balance of *{new_score:,}* ကျပ်.",
             parse_mode="Markdown"
         )
         return
     
     player_stats["score"] = new_score
     
+    # Sync player score with database if using database
+    if USE_DATABASE:
+        try:
+            from database.adapter import db_adapter
+            # Calculate the score change for database update
+            score_change = amount
+            # Update player stats in database (not a win/loss, just an adjustment)
+            db_adapter.update_player_stats(target_user_id, chat_id, score_change, False, 0)
+        except Exception as e:
+            logger.error(f"Error syncing player score to database: {e}")
+    
     # Save the updated data
-    save_data(global_data)
+    save_data_unified(global_data)
     
     # Get user display name without escaping markdown characters
     display_name = await get_user_display_name(context, target_user_id, chat_id)
@@ -389,13 +410,13 @@ async def check_user_score(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     escaped_display_name = escape_html(display_name)
     message = "👤 <b>User Information</b>\n\n"
     message += f"🎮 <b>Player:</b> {escaped_display_name}\n\n"
-    message += f"💰 <b>Main Wallet:</b> {player_stats['score']} points\n"
-    message += f"🎁 <b>Referral Points:</b> {global_user_data.get('referral_points', 0)} points\n"
-    message += f"🎁 <b>Bonus Points:</b> {global_user_data.get('bonus_points', 0)} points\n"
+    message += f"💰 <b>Main Wallet:</b> {player_stats['score']} ကျပ်\n"
+    message += f"🎁 <b>Referral Points:</b> {global_user_data.get('referral_points', 0)} ကျပ်\n"
+    message += f"🎁 <b>Bonus Points:</b> {global_user_data.get('bonus_points', 0)} ကျပ်\n"
     
     # Calculate total balance
     total_balance = player_stats['score'] + global_user_data.get('referral_points', 0) + global_user_data.get('bonus_points', 0)
-    message += f"📊 <b>Total Balance:</b> {total_balance} points\n\n"
+    message += f"\n💎 <b>Total Balance:</b> {total_balance} ကျပ်\n\n"
     
     message += f"🏆 <b>Wins:</b> {wins}\n"
     message += f"💔 <b>Losses:</b> {losses}\n"
@@ -482,12 +503,15 @@ async def stop_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         # Clear the game
         chat_data["current_game"] = None
         
+        # Set game state to inactive
+        chat_data["game_state"] = "inactive"
+        
         # Set a cooldown flag to prevent auto_roll_dice from creating a new game immediately
         # This will be checked by auto_roll_dice
         chat_data["manual_stop_cooldown"] = datetime.now()
         
         # Save the updated data
-        save_data(global_data)
+        save_data_unified(global_data)
         
         await update.message.reply_text(MessageTemplates.GAME_STOPPED_WITH_REFUNDS, parse_mode="HTML")
         
@@ -496,12 +520,15 @@ async def stop_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         # No bets to refund
         chat_data["current_game"] = None
         
+        # Set game state to inactive
+        chat_data["game_state"] = "inactive"
+        
         # Set a cooldown flag to prevent auto_roll_dice from creating a new game immediately
         # This will be checked by auto_roll_dice
         chat_data["manual_stop_cooldown"] = datetime.now()
         
         # Save the updated data
-        save_data(global_data)
+        save_data_unified(global_data)
         await update.message.reply_text(MessageTemplates.GAME_STOPPED_BY_ADMIN, parse_mode="HTML")
         
         # Keyboard sending removed as requested
@@ -658,7 +685,7 @@ async def manual_refill(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         admin_data["chat_points"][chat_id_str]["last_refill"] = datetime.now()
         
         # Save the updated data
-        save_data(global_data)
+        save_data_unified(global_data)
         
         username = admin_data.get("username") or f"Admin {admin_id}"
         await update.message.reply_text(
@@ -681,7 +708,7 @@ async def manual_refill(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             refilled_count += 1
         
         # Save the updated data
-        save_data(global_data)
+        save_data_unified(global_data)
         
         await update.message.reply_text(
             MessageTemplates.ALL_ADMINS_REFILLED.format(count=refilled_count, points=ADMIN_WALLET_AMOUNT)
@@ -695,7 +722,20 @@ async def handle_admin_score_adjustment(update: Update, context: ContextTypes.DE
     and contain just +number or -number to adjust their score.
     """
     # Check if this is a reply to another message
-    if not update.message or not update.message.reply_to_message:
+    # Handle both regular messages and edited messages
+    reply_to_message = None
+    message_text = None
+    
+    if update.message:
+        reply_to_message = update.message.reply_to_message
+        if update.message.text:
+            message_text = update.message.text.strip()
+    elif update.edited_message:
+        reply_to_message = update.edited_message.reply_to_message
+        if update.edited_message.text:
+            message_text = update.edited_message.text.strip()
+    
+    if not reply_to_message or not message_text:
         return
     
     # Check if user is an admin
@@ -703,7 +743,6 @@ async def handle_admin_score_adjustment(update: Update, context: ContextTypes.DE
         return
     
     # Check if the message matches the pattern +number or -number
-    message_text = update.message.text.strip()
     adjustment_pattern = re.compile(r'^([+\-]\d+)$')
     match = adjustment_pattern.match(message_text)
     
@@ -768,8 +807,8 @@ async def handle_admin_score_adjustment(update: Update, context: ContextTypes.DE
     if amount > 0 and admin_wallet_data["points"] < amount:
         await update.message.reply_text(
             f"❌ *Insufficient admin wallet balance!*\n\n"
-            f"💰 Your current balance: *{admin_wallet_data['points']:,}* points\n"
-            f"💸 Required amount: *{amount:,}* points\n\n"
+            f"💰 Your current balance: *{admin_wallet_data['points']:,}* ကျပ်\n"
+            f"💸 Required amount: *{amount:,}* ကျပ်\n\n"
             f"⏰ Admin wallets are refilled daily at 6 AM Myanmar time.",
             parse_mode="Markdown"
         )
@@ -779,20 +818,37 @@ async def handle_admin_score_adjustment(update: Update, context: ContextTypes.DE
     if amount > 0:
         # Giving points to user - deduct from admin wallet
         admin_wallet_data["points"] -= amount
-        wallet_action = f"deducted {amount:,} points"
+        wallet_action = f"deducted {amount:,} ကျပ်"
     else:
         # Taking points from user - add to admin wallet
         admin_wallet_data["points"] += abs(amount)
-        wallet_action = f"added {abs(amount):,} points"
+        wallet_action = f"added {abs(amount):,} ကျပ်"
+
+    # Sync admin wallet with database if using database
+    if USE_DATABASE:
+        try:
+            from database.adapter import db_adapter
+            db_adapter.update_admin_points(admin_id, chat_id, admin_wallet_data["points"])
+        except Exception as e:
+            logger.error(f"Error syncing admin wallet to database: {e}")
 
     # Log the admin wallet transaction
-    logger.info(f"Admin wallet transaction (quick adjust) - Admin {admin_id} ({admin_username}) {wallet_action}. New balance: {admin_wallet_data['points']:,} points in chat {chat_id}")
+    logger.info(f"Admin wallet transaction (quick adjust) - Admin {admin_id} ({admin_username}) {wallet_action}. New balance: {admin_wallet_data['points']:,} ကျပ် in chat {chat_id}")
     
     # Adjust the score
     player_stats["score"] += amount
     
+    # Sync player score with database if using database
+    if USE_DATABASE:
+        try:
+            from database.adapter import db_adapter
+            # Update player stats in database (not a win/loss, just an adjustment)
+            db_adapter.update_player_stats(target_user_id, chat_id, amount, False, 0)
+        except Exception as e:
+            logger.error(f"Error syncing player score to database: {e}")
+    
     # Save the updated data
-    save_data(global_data)
+    save_data_unified(global_data)
     
     # Get user display name
     display_name = await get_user_display_name(context, target_user_id, chat_id)
