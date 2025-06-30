@@ -219,6 +219,34 @@ async def send_appropriate_keyboard(update: Update, context: ContextTypes.DEFAUL
 # Removed send_keyboard_to_new_member function - keyboards are now only sent within group chats when users interact
 
 
+async def send_keyboard_to_all_group_members(context: ContextTypes.DEFAULT_TYPE, chat_id: int, message_text: str = "🎮 Game controls are now available for everyone!") -> None:
+    """
+    Send keyboard to all group members by posting a message with keyboard in the group chat.
+    This makes the keyboard available to all members in the group.
+    """
+    try:
+        # Only send keyboards in group chats
+        chat = await context.bot.get_chat(chat_id)
+        if chat.type not in ['group', 'supergroup']:
+            logger.debug(f"Skipping keyboard send for non-group chat {chat_id}")
+            return
+            
+        # Create the keyboard
+        keyboard = create_custom_keyboard()
+        
+        # Send keyboard message to the group
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=message_text,
+            reply_markup=keyboard
+        )
+        
+        logger.info(f"Keyboard sent to all members in group {chat_id}")
+        
+    except Exception as e:
+        logger.error(f"Failed to send keyboard to all group members in {chat_id}: {e}")
+
+
 def create_inline_keyboard(buttons: List[List[Tuple[str, str]]]) -> InlineKeyboardMarkup:
     """
     Creates an inline keyboard from a list of button data.

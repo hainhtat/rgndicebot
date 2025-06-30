@@ -15,7 +15,7 @@ from handlers.utils import check_allowed_chat, save_data_unified, load_data_unif
 from utils.formatting import escape_markdown, escape_markdown_username
 from utils.message_formatter import format_wallet, MessageTemplates
 from utils.user_utils import get_or_create_global_user_data, get_user_display_name, process_referral, process_pending_referral
-from utils.telegram_utils import is_admin, get_admins_from_chat, create_custom_keyboard
+from utils.telegram_utils import is_admin, get_admins_from_chat, create_custom_keyboard, send_keyboard_to_all_group_members
 
 logger = logging.getLogger(__name__)
 
@@ -33,11 +33,17 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         
         # Check if this is an allowed group
         if chat_id in ALLOWED_GROUP_IDS:
-            # Send welcome message only - keyboards are persistent and managed separately
-            welcome_text = f"Welcome to the game, {escape_markdown_username(user.first_name)}! Your keyboard controls are already available."
+            # Send welcome message
+            welcome_text = f"Welcome to the game, {escape_markdown_username(user.first_name)}! Game controls are being initialized for everyone."
             await update.message.reply_text(
                 welcome_text,
                 parse_mode="Markdown"
+            )
+            
+            # Send keyboard to all group members
+            await send_keyboard_to_all_group_members(
+                context, 
+                chat_id
             )
         return
     
@@ -691,4 +697,12 @@ async def handle_new_chat_member(update: Update, context: ContextTypes.DEFAULT_T
             except Exception as e2:
                 logger.error(f"Failed to send welcome message without markdown: {e2}")
         
-        # Keyboard sending removed to avoid unwanted welcome message
+        # Send keyboard to all group members for the new member
+        try:
+            await send_keyboard_to_all_group_members(
+                context,
+                chat_id,
+                f"🎮 Welcome {escape_markdown_username(member.first_name)}! Game controls refreshed for everyone."
+            )
+        except Exception as e:
+            logger.error(f"Failed to send keyboard to all group members for new member {user_id}: {e}")
