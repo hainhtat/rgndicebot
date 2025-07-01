@@ -79,20 +79,35 @@ def init_database():
 
 @contextmanager
 def get_db_session():
-    """Get a database session with automatic cleanup."""
+    """Get a database session with automatic cleanup and retry logic."""
     if SessionLocal is None:
         raise RuntimeError("Database not initialized. Call init_database() first.")
     
-    session = SessionLocal()
-    try:
-        yield session
-        session.commit()
-    except Exception as e:
-        session.rollback()
-        logger.error(f"Database session error: {e}")
-        raise
-    finally:
-        session.close()
+    max_retries = 3
+    retry_count = 0
+    
+    while retry_count < max_retries:
+        session = SessionLocal()
+        try:
+            # Test connection
+            session.execute(text("SELECT 1"))
+            yield session
+            session.commit()
+            break
+        except Exception as e:
+            session.rollback()
+            retry_count += 1
+            logger.error(f"Database session error (attempt {retry_count}/{max_retries}): {e}")
+            
+            if retry_count >= max_retries:
+                logger.error(f"Database session failed after {max_retries} attempts")
+                raise
+            else:
+                # Wait before retry
+                import time
+                time.sleep(0.5 * retry_count)
+        finally:
+            session.close()
 
 def get_engine():
     """Get the database engine."""

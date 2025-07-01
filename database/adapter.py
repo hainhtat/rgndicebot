@@ -133,10 +133,14 @@ class DatabaseAdapter:
             return chat_data['player_stats'][str(user_id)]
     
     def update_player_stats(self, user_id: int, chat_id: int, score_change: int, 
-                           is_win: bool, bet_amount: int) -> bool:
+                           is_win: bool, bet_count: int = 0) -> bool:
         """Update player statistics."""
         if self.use_database:
-            return self.db_queries.update_player_stats(user_id, chat_id, score_change, is_win, bet_amount)
+            try:
+                return self.db_queries.update_player_stats(user_id, chat_id, score_change, is_win, bet_count)
+            except Exception as e:
+                logger.error(f"Database adapter error updating player stats: {e}")
+                return False
         else:
             data = self.load_data()
             

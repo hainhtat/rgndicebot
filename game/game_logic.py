@@ -130,9 +130,28 @@ def place_bet(game: DiceGame, user_id: int, username: str, bet_type: str, amount
     
     # Get or create player stats
     if USE_DATABASE:
-        current_player = db_adapter.get_or_create_player_stats(user_id, chat_id, username)
-        # Update the local player_stats dict for consistency
-        player_stats[str(user_id)] = current_player
+        try:
+            current_player = db_adapter.get_or_create_player_stats(user_id, chat_id, username)
+            # Update the local player_stats dict for consistency
+            if "player_stats" not in chat_data:
+                chat_data["player_stats"] = {}
+            chat_data["player_stats"][str(user_id)] = current_player
+            player_stats = chat_data["player_stats"]
+        except Exception as db_error:
+            logger.error(f"Database error getting player stats for user {user_id}: {db_error}")
+            # Fallback to local data
+            if str(user_id) not in player_stats:
+                new_player_data = {
+                    "username": username,
+                    "score": config.get('user', 'new_user_bonus', 0),
+                    "total_bets": 0,
+                    "total_wins": 0,
+                    "total_losses": 0,
+                    "last_active": datetime.now().isoformat()
+                }
+                chat_data["player_stats"][str(user_id)] = new_player_data
+                player_stats[str(user_id)] = new_player_data
+            current_player = player_stats[str(user_id)]
     else:
         # Create new player if doesn't exist
         if str(user_id) not in player_stats:
@@ -165,6 +184,13 @@ def place_bet(game: DiceGame, user_id: int, username: str, bet_type: str, amount
     # Get global user data for referral points and bonus points
     global_user_data = get_or_create_global_user_data(user_id, username=username)
     
+    # Calculate funds already committed to bets in this game
+    user_id_str = str(user_id)
+    committed_funds = 0
+    for bet_type_key, bets in game.bets.items():
+        if user_id_str in bets:
+            committed_funds += bets[user_id_str]
+    
     # Calculate available funds
     main_score = current_player["score"]
     referral_points = global_user_data.get("referral_points", 0)
@@ -173,7 +199,7 @@ def place_bet(game: DiceGame, user_id: int, username: str, bet_type: str, amount
     
     if total_available < amount:
         logger.warning(f"Insufficient funds: {total_available} < {amount} for user {user_id}")
-        insufficient_message = format_insufficient_funds(main_score, referral_points, bonus_points, amount)
+        insufficient_message = format_insufficient_funds(main_score, referral_points, bonus_points, amount, committed_funds)
         raise InvalidBetError(insufficient_message)
     
     # Initialize usage counters
@@ -207,7 +233,9 @@ def place_bet(game: DiceGame, user_id: int, username: str, bet_type: str, amount
             global_user_data["referral_points"] += referral_points_used
             raise InvalidBetError(f"Insufficient main score. Need {amount} more main score ကျပ်.")
         main_score_used = amount
-        current_player["score"] -= main_score_used
+        # Note: Score deduction will be handled by database update below if USE_DATABASE is True
+        if not USE_DATABASE:
+            current_player["score"] -= main_score_used
     
     # Restore original bet amount for logging
     original_amount = bonus_points_used + referral_points_used + main_score_used
@@ -242,6 +270,43 @@ def place_bet(game: DiceGame, user_id: int, username: str, bet_type: str, amount
         source_parts.append(f"{main_score_used} main")
     
     source_msg = f"(Used {', '.join(source_parts)} ကျပ်)" if source_parts else ""
+    
+    # Update database if using database mode
+    if USE_DATABASE:
+        try:
+            # Update player score in database (deduct bet amount)
+            db_adapter.update_player_stats(user_id, chat_id, -main_score_used, False, 0)
+            
+            # Get fresh player data from database to sync local data
+            updated_stats = db_adapter.get_or_create_player_stats(user_id, chat_id, username)
+            current_player.update({
+                "score": updated_stats["score"],
+                "total_wins": updated_stats["total_wins"],
+                "total_losses": updated_stats["total_losses"],
+                "total_bets": updated_stats["total_bets"]
+            })
+            
+            # Store bet record in database
+            from database.queries import create_bet, get_active_game, create_game
+            
+            # Get or create game record in database
+            db_game = get_active_game(chat_id)
+            if not db_game:
+                db_game = create_game(game.match_id, chat_id)
+            
+            # Create bet record
+            create_bet(db_game['id'], user_id, bet_type, original_amount, referral_points_used)
+            
+            logger.info(f"Database updated for bet: user={user_id}, game_id={db_game['id']}, amount={original_amount}")
+            
+        except Exception as db_error:
+            logger.error(f"Database error during bet placement for user {user_id}: {db_error}")
+            # Fallback: deduct from local data if database update failed
+            current_player["score"] -= main_score_used
+            logger.info(f"Fallback to local deduction: {main_score_used} for user {user_id}")
+    
+    # Save data to persist the changes
+    save_data_unified(global_data)
     
     return f"✅ Bet placed: {bet_type} {original_amount} {source_msg}\nYour balance: {current_player['score']} main, {global_user_data.get('referral_points', 0)} referral, {global_user_data.get('bonus_points', 0)} bonus ကျပ်"
 
@@ -284,120 +349,168 @@ def payout(game: DiceGame, chat_data: Dict, global_data: Dict, chat_id: int) -> 
     winners_list = []
     losers_list = []
     
-    # Process winners
-    for user_id_str, bet_amount in game.bets[winning_bet_type].items():
+    # Collect all participants and calculate their net result
+    participant_results = {}
+    
+    # Calculate net result for each participant
+    for user_id_str in game.participants:
         user_id = int(user_id_str)
-        # Calculate winnings
-        winnings = int(bet_amount * multiplier)
+        total_bet_amount = 0
+        total_winnings = 0
+        individual_bets = []
         
-        # Update player stats using database adapter
+        # Calculate total bets and winnings for this user
+        for bet_type, bets in game.bets.items():
+            if user_id_str in bets:
+                bet_amount = bets[user_id_str]
+                total_bet_amount += bet_amount
+                
+                # Calculate winnings/loss for this specific bet
+                if bet_type == winning_bet_type:
+                    bet_winnings = int(bet_amount * multiplier)
+                    total_winnings += bet_winnings
+                    individual_bets.append({
+                        "bet_type": bet_type,
+                        "amount": bet_amount,
+                        "result": "win",
+                        "payout": bet_winnings,
+                        "net": bet_winnings - bet_amount
+                    })
+                else:
+                    individual_bets.append({
+                        "bet_type": bet_type,
+                        "amount": bet_amount,
+                        "result": "loss",
+                        "payout": 0,
+                        "net": -bet_amount
+                    })
+        
+        # Calculate net result
+        # Since bet amounts were already deducted during bet placement,
+        # we only need to add winnings for winners
+        # For losers, net_result is 0 (they already lost their bet during placement)
+        net_result = total_winnings
+        
+        participant_results[user_id_str] = {
+            "user_id": user_id,
+            "total_bet_amount": total_bet_amount,
+            "total_winnings": total_winnings,
+            "net_result": net_result,
+            "individual_bets": individual_bets
+        }
+    
+    # Process each participant's result
+    for user_id_str, result in participant_results.items():
+        user_id = result["user_id"]
+        net_result = result["net_result"]
+        total_bet_amount = result["total_bet_amount"]
+        total_winnings = result["total_winnings"]
+        
         if USE_DATABASE:
             # Update player stats in database
-            db_adapter.update_player_stats(user_id, chat_id, winnings, True, bet_amount)
-            
-            # Get fresh player data from database and update global_data
-            updated_stats = db_adapter.get_or_create_player_stats(user_id, chat_id)
-            chat_data_db = get_chat_data_for_id(chat_id)
-            
-            # Sync global_data with database
-            chat_data_db["player_stats"][user_id_str] = {
-                "username": updated_stats["username"],
-                "score": updated_stats["score"],
-                "total_wins": updated_stats["total_wins"],
-                "total_losses": updated_stats["total_losses"],
-                "total_bets": updated_stats["total_bets"],
-                "last_active": updated_stats["last_active"]
-            }
-            
-            player = chat_data_db["player_stats"][user_id_str]
-            
-            # Add to winners list
+            is_winner = net_result > 0
+            try:
+                # Update database first
+                db_adapter.update_player_stats(user_id, chat_id, net_result, is_winner, 1)
+                
+                # Get fresh player data from database
+                updated_stats = db_adapter.get_or_create_player_stats(user_id, chat_id)
+                
+                # Update local chat_data to stay in sync
+                if "player_stats" not in chat_data:
+                    chat_data["player_stats"] = {}
+                
+                chat_data["player_stats"][user_id_str] = {
+                    "username": updated_stats["username"],
+                    "score": updated_stats["score"],
+                    "total_wins": updated_stats["total_wins"],
+                    "total_losses": updated_stats["total_losses"],
+                    "total_bets": updated_stats["total_bets"],
+                    "last_active": updated_stats["last_active"]
+                }
+                
+                player = chat_data["player_stats"][user_id_str]
+                
+                # Note: Bet records are already created during bet placement
+                # No need to create them again during payout
+                    
+            except Exception as db_error:
+                logger.error(f"Database error during payout for user {user_id}: {db_error}")
+                # Fallback to local data update
+                if user_id_str in chat_data.get("player_stats", {}):
+                    player = chat_data["player_stats"][user_id_str]
+                    player["score"] += net_result
+                    
+                    if net_result > 0:
+                        player["total_wins"] += 1
+                    else:
+                        player["total_losses"] += 1
+                else:
+                    # Create minimal player data if not exists
+                    player = {
+                        "username": "Unknown",
+                        "score": net_result,
+                        "total_wins": 1 if net_result > 0 else 0,
+                        "total_losses": 0 if net_result > 0 else 1,
+                        "total_bets": 1,
+                        "last_active": datetime.now().isoformat()
+                    }
+                    if "player_stats" not in chat_data:
+                        chat_data["player_stats"] = {}
+                    chat_data["player_stats"][user_id_str] = player
+        else:
+            if user_id_str in chat_data.get("player_stats", {}):
+                player = chat_data["player_stats"][user_id_str]
+                player["score"] += net_result
+                
+                if net_result > 0:
+                    player["total_wins"] += 1
+                else:
+                    player["total_losses"] += 1
+            else:
+                # Create minimal player data if not exists
+                player = {
+                    "username": "Unknown",
+                    "score": net_result,
+                    "total_wins": 1 if net_result > 0 else 0,
+                    "total_losses": 0 if net_result > 0 else 1,
+                    "total_bets": 1,
+                    "last_active": datetime.now().isoformat()
+                }
+                if "player_stats" not in chat_data:
+                    chat_data["player_stats"] = {}
+                chat_data["player_stats"][user_id_str] = player
+        
+        # Get user's full name from global data if available
+        user_global_data = global_data.get("users", {}).get(user_id_str, {})
+        full_name = user_global_data.get("full_name", "")
+        
+        # Add to appropriate list based on net result
+        individual_bets = result["individual_bets"]
+        if net_result > 0:
             winners_list.append({
                 "user_id": user_id_str,
                 "username": player["username"],
-                "bet_amount": bet_amount,
-                "winnings": winnings,
-                "wallet_balance": player["score"]  # Current wallet balance after winnings
+                "bet_amount": total_bet_amount,
+                "winnings": total_winnings,
+                "net_result": net_result,
+                "wallet_balance": player["score"],
+                "individual_bets": individual_bets
             })
-            
             total_winners += 1
-            total_payout += winnings
-        else:
-            if user_id_str in chat_data["player_stats"]:
-                player = chat_data["player_stats"][user_id_str]
-                player["score"] += winnings
-                player["total_wins"] += 1
-                
-                # Add to winners list
-                winners_list.append({
-                    "user_id": user_id_str,
-                    "username": player["username"],
-                    "bet_amount": bet_amount,
-                    "winnings": winnings,
-                    "wallet_balance": player["score"]  # Current wallet balance after winnings
-                })
-                
-                total_winners += 1
-                total_payout += winnings
-    
-    # Process losers (all bets that weren't on the winning type)
-    for bet_type, bets in game.bets.items():
-        if bet_type != winning_bet_type:
-            for user_id_str, bet_amount in bets.items():
-                user_id = int(user_id_str)
-                if USE_DATABASE:
-                    # Update player stats in database (loss with bet amount deducted)
-                    db_adapter.update_player_stats(user_id, chat_id, -bet_amount, False, bet_amount)
-                    
-                    # Get fresh player data from database and update global_data
-                    updated_stats = db_adapter.get_or_create_player_stats(user_id, chat_id)
-                    chat_data_db = get_chat_data_for_id(chat_id)
-                    
-                    # Sync global_data with database
-                    chat_data_db["player_stats"][user_id_str] = {
-                        "username": updated_stats["username"],
-                        "score": updated_stats["score"],
-                        "total_wins": updated_stats["total_wins"],
-                        "total_losses": updated_stats["total_losses"],
-                        "total_bets": updated_stats["total_bets"],
-                        "last_active": updated_stats["last_active"]
-                    }
-                    
-                    player = chat_data_db["player_stats"][user_id_str]
-                    
-                    # Get user's full name from global data if available
-                    user_global_data = global_data.get("users", {}).get(user_id_str, {})
-                    full_name = user_global_data.get("full_name", "")
-                    
-                    losers_list.append({
-                        "user_id": user_id_str,
-                        "username": player["username"],
-                        "display_name": full_name or player["username"],
-                        "bet_amount": bet_amount,
-                        "wallet_balance": player["score"]  # Current wallet balance after loss
-                    })
-                    
-                    total_losers += 1
-                else:
-                    if user_id_str in chat_data["player_stats"]:
-                        player = chat_data["player_stats"][user_id_str]
-                        player["score"] -= bet_amount  # Deduct bet amount from score
-                        player["total_losses"] += 1
-                    
-                        # Add to losers list
-                        # Get user's full name from global data if available
-                        user_global_data = global_data.get("users", {}).get(user_id_str, {})
-                        full_name = user_global_data.get("full_name", "")
-                        
-                        losers_list.append({
-                            "user_id": user_id_str,
-                            "username": player["username"],
-                            "display_name": full_name or player["username"],
-                            "bet_amount": bet_amount,
-                            "wallet_balance": player["score"]  # Current wallet balance after loss
-                        })
-                        
-                        total_losers += 1
+            total_payout += total_winnings
+        elif net_result < 0:
+            losers_list.append({
+                "user_id": user_id_str,
+                "username": player["username"],
+                "display_name": full_name or player["username"],
+                "bet_amount": total_bet_amount,
+                "net_result": net_result,
+                "wallet_balance": player["score"],
+                "individual_bets": individual_bets
+            })
+            total_losers += 1
+        # If net_result == 0, user breaks even and doesn't appear in winners or losers
     
     # Update game state to indicate game is completely finished
     game.state = GAME_STATE_OVER

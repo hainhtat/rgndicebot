@@ -135,15 +135,15 @@ class MessageTemplates:
     
     # Admin wallet messages
     ADMIN_WALLETS_HEADER = "💰 *Admin Wallets*\n\n"
-    ADMIN_WALLET_ENTRY = "👤 *{username}* ({admin_id})\n*Points:* {points:,} ကျပ်\n*Last Refill:* {last_refill}\n\n"
-    ADMIN_WALLET_SELF = "👤 *{username}* ({admin_id})\n*Points:* {points:,} ကျပ်\n*Last Refill:* {last_refill}\n"
+    ADMIN_WALLET_ENTRY = "👤 *{username}* ({admin_id})\n*Balance:* {points:,} ကျပ်\n*Last Refill:* {last_refill}\n\n"
+    ADMIN_WALLET_SELF = "👤 *{username}* ({admin_id})\n*Balance:* {points:,} ကျပ်\n*Last Refill:* {last_refill}\n"
     NO_ADMIN_WALLET = "You don't have an admin wallet yet.\n"
     NO_ADMIN_WALLETS_FOUND = "No admin wallets found for current admins in this chat.\n"
     
     # Admin refill messages
     ADMIN_NOT_FOUND = "❌ Admin {admin_id} not found."
-    ADMIN_REFILLED = "✅ Refilled {username}'s points to {points}."
-    ALL_ADMINS_REFILLED = "✅ Refilled {count} admin wallets to {points} points each."
+    ADMIN_REFILLED = "✅ Refilled {username}'s balance to {points} ကျပ်."
+    ALL_ADMINS_REFILLED = "✅ Refilled {count} admin wallets to {points} ကျပ် each."
     ADMIN_LIST_REFRESHED = "✅ Admin list refreshed. {count} admins found."
     
     # Score adjustment fallback messages
@@ -165,10 +165,10 @@ class MessageTemplates:
     NO_ACTIVE_REFILL_REQUEST = "❌ No active refill request. Please use /refill first."
     PROVIDE_AMOUNT_EXAMPLE = "❌ Please provide an amount. Example: /refill_amount 5000000"
     AMOUNT_MUST_BE_POSITIVE = "❌ Amount must be a positive number."
-    AMOUNT_EXCEEDS_LIMIT = "❌ Amount cannot exceed 50,000,000 points."
+    AMOUNT_EXCEEDS_LIMIT = "❌ Amount cannot exceed 50,000,000 ကျပ်."
     INVALID_AMOUNT_NUMBER = "❌ Invalid amount. Please enter a valid number."
     ERROR_PROCESSING_REFILL_AMOUNT = "❌ Error processing refill amount."
-    ADMINS_CANNOT_REFILL_ADMINS = "❌ Admins cannot refill other admins' points. Only super admins can do this."
+    ADMINS_CANNOT_REFILL_ADMINS = "❌ Admins cannot refill other admins' balance. Only super admins can do this."
     
     # Removed admin panel messages - using unified system
     
@@ -257,7 +257,9 @@ async def format_bet_confirmation(bet_type: str, amount: int, result_message: st
     score = 0
     if "Your balance:" in result_message:
         try:
-            score = int(result_message.split("Your balance:")[1].strip().split()[0])
+            # Extract the main score from "Your balance: {score} main, {referral} referral, {bonus} bonus ကျပ်"
+            balance_part = result_message.split("Your balance:")[1].strip()
+            score = int(balance_part.split(" main")[0])
         except (IndexError, ValueError):
             pass
     
@@ -304,15 +306,18 @@ async def format_bet_confirmation(bet_type: str, amount: int, result_message: st
     return message
 
 
-def format_insufficient_funds(score: int, referral_points: int, bonus_points: int, amount: int) -> str:
+def format_insufficient_funds(score: int, referral_points: int, bonus_points: int, amount: int, committed_funds: int = 0) -> str:
     """
     Formats an insufficient funds message.
     """
-    total = score + referral_points + bonus_points
-    return MessageTemplates.INSUFFICIENT_FUNDS.format(
+    total = score + referral_points + bonus_points - committed_funds
+    message = MessageTemplates.INSUFFICIENT_FUNDS.format(
         total=total,
         amount=amount
     )
+    if committed_funds > 0:
+        message += f"\n🎯 *Already committed:* {committed_funds} ကျပ်"
+    return message
 
 
 def format_bet_error(error_message: str) -> str:
@@ -427,12 +432,12 @@ def format_wallet(player_stats: Dict[str, Any], global_user_data: Dict[str, Any]
     bonus_points = global_user_data.get('bonus_points', 0)
     total = score + referral_points + bonus_points
     
-    # Use HTML formatting instead of Markdown
+    # Use HTML formatting instead of Markdown with emojis and ကျပ်
     message = f"💰 <b>{display_name}'s Wallet</b>\n\n"
-    message += f"<b>Wallet:</b> {score} points\n"
-    message += f"<b>Referral Points:</b> {referral_points} points\n"
-    message += f"<b>Bonus Points:</b> {bonus_points} points\n"
-    message += f"<b>Total:</b> {total} points"
+    message += f"💵 <b>Main Balance:</b> {score} ကျပ်\n"
+    message += f"🎁 <b>Referral Points:</b> {referral_points} ကျပ်\n"
+    message += f"🎉 <b>Bonus Points:</b> {bonus_points} ကျပ်\n"
+    message += f"📊 <b>Total Balance:</b> {total} ကျပ်"
     
     return message
 
@@ -460,74 +465,84 @@ async def format_game_result(result: Dict[str, Any], global_data: Dict[str, Any]
     
     message += "💰 <b>Payouts:</b>\n"
     
-    # Combine all participants and show their payouts
-    all_participants = []
-    
-    # Add winners with positive amounts
-    for winner in winners:
-        # Get proper display name using get_user_display_name
-        user_id = winner.get('user_id')
-        display_name = None
-        if user_id and context:
-            from utils.user_utils import get_user_display_name
-            display_name = await get_user_display_name(context, user_id)
-            # Skip fallback users (User {ID} format)
-            if display_name.startswith('User ') and display_name.endswith(str(user_id)):
-                display_name = None
-        
-        # Only add if we have a valid display name (skip non-existent users)
-        if display_name:
-            bet_amount = winner.get('bet_amount', 0)
-            winnings = winner.get('winnings', 0)
-            # Get wallet balance from winner data if available
-            wallet_balance = winner.get('wallet_balance', 'N/A')
-            all_participants.append({
-                'username': display_name,
-                'amount': f"+{winnings}",
-                'wallet': wallet_balance
-            })
-    
-    # Add losers with negative amounts
-    for loser in losers:
-        # Get proper display name using get_user_display_name
-        user_id = loser.get('user_id')
-        display_name = None
-        if user_id and context:
-            from utils.user_utils import get_user_display_name
-            display_name = await get_user_display_name(context, user_id)
-            # Skip fallback users (User {ID} format)
-            if display_name.startswith('User ') and display_name.endswith(str(user_id)):
-                display_name = None
-        
-        # Only add if we have a valid display name (skip non-existent users)
-        if display_name:
-            bet_amount = loser.get('bet_amount', 0)
-            # Get wallet balance from loser data if available
-            wallet_balance = loser.get('wallet_balance', 'N/A')
-            all_participants.append({
-                'username': display_name,
-                'amount': f"-{bet_amount}",
-                'wallet': wallet_balance
-            })
+    # Process participants and show their individual bet results
     
     # Check if there are any participants
-    if not all_participants:
+    if not winners and not losers:
         message += "<b>No participants</b> in this match\n"
     else:
-        # Show all participants in the new format
-        for participant in all_participants[:10]:  # Limit to 10 participants
-            username = participant['username']
-            amount = participant['amount']
-            wallet = participant['wallet']
-            message += f"<b>{username}:</b> {amount} (<b>wallet:</b> {wallet})\n"
+        # Show all participants with individual bet details
+        participant_count = 0
+        
+        # Process winners first
+        for winner in winners:
+            if participant_count >= 10:  # Limit to 10 participants
+                break
+                
+            user_id = winner.get('user_id')
+            display_name = None
+            if user_id and context:
+                from utils.user_utils import get_user_display_name
+                display_name = await get_user_display_name(context, user_id)
+                # Skip fallback users (User {ID} format)
+                if display_name.startswith('User ') and display_name.endswith(str(user_id)):
+                    display_name = None
+            
+            if display_name:
+                wallet_balance = winner.get('wallet_balance', 'N/A')
+                individual_bets = winner.get('individual_bets', [])
+                
+                # Show individual bet results
+                bet_details = []
+                for bet in individual_bets:
+                    bet_type = bet['bet_type']
+                    amount = bet['amount']
+                    if bet['result'] == 'win':
+                        bet_details.append(f"+{bet['payout']} ကျပ် ({bet_type.lower()})")
+                    else:
+                        bet_details.append(f"-{amount} ကျပ် ({bet_type.lower()})")
+                
+                bet_summary = ", ".join(bet_details)
+                message += f"🎉 <b>{display_name}:</b> {bet_summary} (<b>💰 Wallet:</b> {wallet_balance} ကျပ်)\n"
+                participant_count += 1
+        
+        # Process losers
+        for loser in losers:
+            if participant_count >= 10:  # Limit to 10 participants
+                break
+                
+            user_id = loser.get('user_id')
+            display_name = None
+            if user_id and context:
+                from utils.user_utils import get_user_display_name
+                display_name = await get_user_display_name(context, user_id)
+                # Skip fallback users (User {ID} format)
+                if display_name.startswith('User ') and display_name.endswith(str(user_id)):
+                    display_name = None
+            
+            if display_name:
+                wallet_balance = loser.get('wallet_balance', 'N/A')
+                individual_bets = loser.get('individual_bets', [])
+                
+                # Show individual bet results
+                bet_details = []
+                for bet in individual_bets:
+                    bet_type = bet['bet_type']
+                    amount = bet['amount']
+                    bet_details.append(f"-{amount} ကျပ် ({bet_type.lower()})")
+                
+                bet_summary = ", ".join(bet_details)
+                message += f"😞 <b>{display_name}:</b> {bet_summary} (<b>💰 Wallet:</b> {wallet_balance} ကျပ်)\n"
+                participant_count += 1
 
-        if len(all_participants) > 10:
-            message += f"...and <b>{len(all_participants) - 10} more participants</b>\n"
+        total_participants = len(winners) + len(losers)
+        if total_participants > 10:
+            message += f"...and <b>{total_participants - 10} more participants</b>\n"
 
         # Show totals
         total_payout = result.get('total_payout', 0)
         total_bets = result.get('total_bets', 0)
-        message += f"\n💵 Total: {total_bets} bet, {total_payout} paid out\n"
+        message += f"\n💵 <b>Total:</b> {total_bets} ကျပ် bet, {total_payout} ကျပ် paid out\n"
     
     return message
 
@@ -591,7 +606,16 @@ async def format_leaderboard(chat_data: Dict[str, Any], context: Any, title: str
         return f"<b>{title}</b>\n\nNo valid players found."
     
     for i, player in enumerate(valid_players, 1):
-        message += f"<b>{i}.</b> <b>{player['display_name']}:</b> <b>{player['score']}</b> points\n"
+        # Add ranking emojis
+        if i == 1:
+            rank_emoji = "🥇"
+        elif i == 2:
+            rank_emoji = "🥈"
+        elif i == 3:
+            rank_emoji = "🥉"
+        else:
+            rank_emoji = "🏅"
+        message += f"{rank_emoji} <b>{i}.</b> <b>{player['display_name']}:</b> <b>{player['score']}</b> ကျပ်\n"
     
     return message
 
@@ -684,7 +708,7 @@ def format_game_history(history):
         match_id = game.get('match_id', total_games - len(latest_games) + len(latest_games) - i + 1)
         message += f"{status_emoji} *Round #{match_id}*\n"
         message += f"┣ {dice_display} → {type_emoji} *{winning_type}*\n"
-        message += f"┣ {result_emoji} *{result_str}* points\n"
+        message += f"┣ {result_emoji} *{result_str}* ကျပ်\n"
         message += f"┗ 🕐 {time_str} • {today}\n\n"
     
     if total_games > 5:

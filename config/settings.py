@@ -71,7 +71,7 @@ if env_super_admins:
 
 # Allowed group IDs
 ALLOWED_GROUP_IDS = [
-    # -1002780424700, #test group
+    -1002780424700, #test group
     -1002689980361, #main gp
 ]  # Add allowed group IDs here
 
