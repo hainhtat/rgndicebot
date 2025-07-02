@@ -65,6 +65,64 @@ class DatabaseAdapter:
             self.save_data(data)
             return True
     
+    def get_user_bonus_points(self, user_id: int) -> int:
+        """Get user's bonus points."""
+        if self.use_database:
+            return self.db_queries.get_user_bonus_points(user_id)
+        else:
+            data = self.load_data()
+            user_data = data.get('global_user_data', {}).get(str(user_id), {})
+            return user_data.get('bonus_points', 0)
+    
+    def update_user_bonus_points(self, user_id: int, points: int) -> bool:
+        """Update user's bonus points."""
+        if self.use_database:
+            return self.db_queries.update_user_bonus_points(user_id, points)
+        else:
+            data = self.load_data()
+            if 'global_user_data' not in data:
+                data['global_user_data'] = {}
+            if str(user_id) not in data['global_user_data']:
+                data['global_user_data'][str(user_id)] = {}
+            data['global_user_data'][str(user_id)]['bonus_points'] = points
+            self.save_data(data)
+            return True
+    
+    def get_user_welcome_bonuses(self, user_id: int) -> dict:
+        """Get user's welcome bonuses received per chat."""
+        if self.use_database:
+            return self.db_queries.get_user_welcome_bonuses(user_id)
+        else:
+            data = self.load_data()
+            user_data = data.get('global_user_data', {}).get(str(user_id), {})
+            return user_data.get('welcome_bonuses_received', {})
+    
+    def mark_welcome_bonus_received(self, user_id: int, chat_id: int) -> bool:
+        """Mark that user has received welcome bonus for a specific chat."""
+        if self.use_database:
+            return self.db_queries.mark_welcome_bonus_received(user_id, chat_id)
+        else:
+            data = self.load_data()
+            if 'global_user_data' not in data:
+                data['global_user_data'] = {}
+            if str(user_id) not in data['global_user_data']:
+                data['global_user_data'][str(user_id)] = {}
+            if 'welcome_bonuses_received' not in data['global_user_data'][str(user_id)]:
+                data['global_user_data'][str(user_id)]['welcome_bonuses_received'] = {}
+            data['global_user_data'][str(user_id)]['welcome_bonuses_received'][str(chat_id)] = True
+            self.save_data(data)
+            return True
+    
+    def has_received_welcome_bonus(self, user_id: int, chat_id: int) -> bool:
+        """Check if user has already received welcome bonus for a specific chat."""
+        if self.use_database:
+            return self.db_queries.has_received_welcome_bonus(user_id, chat_id)
+        else:
+            data = self.load_data()
+            user_data = data.get('global_user_data', {}).get(str(user_id), {})
+            welcome_bonuses = user_data.get('welcome_bonuses_received', {})
+            return welcome_bonuses.get(str(chat_id), False)
+    
     # Player stats operations
     def get_player_score(self, user_id: int, chat_id: int) -> int:
         """Get player's current score."""

@@ -308,66 +308,82 @@ def process_welcome_bonus(user_id: int, chat_id: int, first_name: Optional[str] 
     """
     Process welcome bonus for a new group member.
     Returns (success, message) tuple.
-    Prevents duplicate welcome bonuses per chat.
+    Prevents duplicate welcome bonuses per chat using database persistence.
     """
     from config.settings import WELCOME_BONUS_POINTS
+    from config.messages import SUCCESS_WELCOME_BONUS, INFO_WELCOME_BONUS_ALREADY_RECEIVED
+    from database.adapter import DatabaseAdapter
     
-    # Get or create global user data
-    user_data = get_or_create_global_user_data(user_id, first_name, last_name, username)
-    
-    # Initialize welcome_bonuses_received as a dict if it doesn't exist
-    if "welcome_bonuses_received" not in user_data:
-        user_data["welcome_bonuses_received"] = {}
+    try:
+        db_adapter = DatabaseAdapter()
         
-        # Handle migration from old format to new format
-        if user_data.get("welcome_bonus_received", False):
-            # If user had already received a welcome bonus in the old system,
-            # mark it as received for all chats to prevent abuse during migration
-            logger.info(f"Migrating user {user_id} from old welcome bonus system to new per-chat system")
-            for allowed_chat_id in ALLOWED_GROUP_IDS:
-                user_data["welcome_bonuses_received"][str(allowed_chat_id)] = True
-    
-    # Check if user has already received welcome bonus for this specific chat
-    chat_id_str = str(chat_id)
-    if user_data["welcome_bonuses_received"].get(chat_id_str, False):
-        logger.info(f"User {user_id} has already received welcome bonus for chat {chat_id}, skipping")
-        return False, INFO_WELCOME_BONUS_ALREADY_RECEIVED
-    
-    # Get or create player stats for this chat
-    chat_id_str = str(chat_id)
-    if chat_id_str not in global_data["all_chat_data"]:
-        global_data["all_chat_data"][chat_id_str] = {
-            "player_stats": {},
-            "match_counter": 1,
-            "match_history": [],
-            "group_admins": [],
-            "consecutive_idle_matches": 0
-        }
-    
-    user_id_str = str(user_id)
-    if user_id_str not in global_data["all_chat_data"][chat_id_str]["player_stats"]:
-        global_data["all_chat_data"][chat_id_str]["player_stats"][user_id_str] = {
-            "username": username or first_name or FALLBACK_USER_NAME.format(user_id=user_id),
-            "score": 0,
-            "total_bets": 0,
-            "total_wins": 0,
-            "total_losses": 0,
-            "last_active": datetime.now().isoformat()
-        }
-    
-    # Add welcome bonus to bonus points
-    user_data["bonus_points"] = user_data.get("bonus_points", 0) + WELCOME_BONUS_POINTS
-    
-    # Update player stats
-    player_stats = global_data["all_chat_data"][chat_id_str]["player_stats"][user_id_str]
-    player_stats["last_active"] = datetime.now().isoformat()
-    
-    # Mark welcome bonus as received for this specific chat
-    user_data["welcome_bonuses_received"][chat_id_str] = True
-    
-    # Save the updated data
-    save_data_unified(global_data)
-    
-    logger.info(f"Welcome bonus of {WELCOME_BONUS_POINTS} ကျပ် awarded to user {user_id} in chat {chat_id}")
-    
-    return True, SUCCESS_WELCOME_BONUS.format(bonus_points=WELCOME_BONUS_POINTS)
+        # Check if user already received welcome bonus for this chat
+        if db_adapter.has_received_welcome_bonus(user_id, chat_id):
+            logger.info(f"User {user_id} has already received welcome bonus for chat {chat_id}, skipping")
+            return False, INFO_WELCOME_BONUS_ALREADY_RECEIVED
+        
+        # Get or create global user data
+        user_data = get_or_create_global_user_data(user_id, first_name, last_name, username)
+        
+        # Migration: Check old system for existing bonus in user_data
+        if 'welcome_bonus_received' in user_data and user_data['welcome_bonus_received']:
+            # Mark as received for this chat in new system
+            db_adapter.mark_welcome_bonus_received(user_id, chat_id)
+            logger.info(f"Migrated user {user_id} from old welcome bonus system")
+            return False, INFO_WELCOME_BONUS_ALREADY_RECEIVED
+        
+        # Migration: Check old system in welcome_bonuses_received dict
+        if 'welcome_bonuses_received' in user_data and str(chat_id) in user_data['welcome_bonuses_received']:
+            # Mark as received in database
+            db_adapter.mark_welcome_bonus_received(user_id, chat_id)
+            logger.info(f"Migrated user {user_id} welcome bonus for chat {chat_id} to database")
+            return False, INFO_WELCOME_BONUS_ALREADY_RECEIVED
+        
+        # Get or create player stats for this chat
+        chat_id_str = str(chat_id)
+        if chat_id_str not in global_data["all_chat_data"]:
+            global_data["all_chat_data"][chat_id_str] = {
+                "player_stats": {},
+                "match_counter": 1,
+                "match_history": [],
+                "group_admins": [],
+                "consecutive_idle_matches": 0
+            }
+        
+        user_id_str = str(user_id)
+        if user_id_str not in global_data["all_chat_data"][chat_id_str]["player_stats"]:
+            global_data["all_chat_data"][chat_id_str]["player_stats"][user_id_str] = {
+                "username": username or first_name or FALLBACK_USER_NAME.format(user_id=user_id),
+                "score": 0,
+                "total_bets": 0,
+                "total_wins": 0,
+                "total_losses": 0,
+                "last_active": datetime.now().isoformat()
+            }
+        
+        # Add welcome bonus to bonus points
+        user_data["bonus_points"] = user_data.get("bonus_points", 0) + WELCOME_BONUS_POINTS
+        
+        # Update player stats
+        player_stats = global_data["all_chat_data"][chat_id_str]["player_stats"][user_id_str]
+        player_stats["last_active"] = datetime.now().isoformat()
+        
+        # Mark welcome bonus as received for this specific chat in database
+        db_adapter.mark_welcome_bonus_received(user_id, chat_id)
+        
+        # Clean up old data from user_data
+        if 'welcome_bonus_received' in user_data:
+            del user_data['welcome_bonus_received']
+        if 'welcome_bonuses_received' in user_data:
+            del user_data['welcome_bonuses_received']
+        
+        # Save the updated data
+        save_data_unified(global_data)
+        
+        logger.info(f"Welcome bonus of {WELCOME_BONUS_POINTS} ကျပ် awarded to user {user_id} in chat {chat_id}")
+        
+        return True, SUCCESS_WELCOME_BONUS.format(bonus_points=WELCOME_BONUS_POINTS)
+        
+    except Exception as e:
+        logger.error(f"Error processing welcome bonus: {e}")
+        return False, "Error processing welcome bonus"

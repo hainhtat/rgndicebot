@@ -13,6 +13,8 @@ class User(Base):
     full_name = Column(String(255), nullable=False)
     username = Column(String(255), nullable=True)
     referral_points = Column(Integer, default=0)
+    bonus_points = Column(Integer, default=0)
+    welcome_bonuses_received = Column(JSON, default=dict)  # Track welcome bonuses per chat
     referred_by = Column(BigInteger, ForeignKey('users.user_id'), nullable=True)
     pending_referrer_id = Column(BigInteger, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)

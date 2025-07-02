@@ -59,6 +59,64 @@ def update_user_referral_points(user_id: int, points: int) -> bool:
             return True
         return False
 
+
+def get_user_bonus_points(user_id: int) -> int:
+    """Get user's bonus points."""
+    with get_db_session() as session:
+        user = session.query(User).filter(User.user_id == user_id).first()
+        return user.bonus_points if user else 0
+
+
+def update_user_bonus_points(user_id: int, points: int) -> bool:
+    """Update user's bonus points."""
+    with get_db_session() as session:
+        user = session.query(User).filter(User.user_id == user_id).first()
+        if user:
+            user.bonus_points = points
+            user.updated_at = datetime.utcnow()
+            return True
+        return False
+
+
+def get_user_welcome_bonuses(user_id: int) -> dict:
+    """Get user's welcome bonuses received per chat."""
+    with get_db_session() as session:
+        user = session.query(User).filter(User.user_id == user_id).first()
+        return user.welcome_bonuses_received if user and user.welcome_bonuses_received else {}
+
+
+def update_user_welcome_bonuses(user_id: int, welcome_bonuses: dict) -> bool:
+    """Update user's welcome bonuses received."""
+    with get_db_session() as session:
+        user = session.query(User).filter(User.user_id == user_id).first()
+        if user:
+            user.welcome_bonuses_received = welcome_bonuses
+            user.updated_at = datetime.utcnow()
+            return True
+        return False
+
+
+def mark_welcome_bonus_received(user_id: int, chat_id: int) -> bool:
+    """Mark that user has received welcome bonus for a specific chat."""
+    with get_db_session() as session:
+        user = session.query(User).filter(User.user_id == user_id).first()
+        if user:
+            if not user.welcome_bonuses_received:
+                user.welcome_bonuses_received = {}
+            user.welcome_bonuses_received[str(chat_id)] = True
+            user.updated_at = datetime.utcnow()
+            return True
+        return False
+
+
+def has_received_welcome_bonus(user_id: int, chat_id: int) -> bool:
+    """Check if user has already received welcome bonus for a specific chat."""
+    with get_db_session() as session:
+        user = session.query(User).filter(User.user_id == user_id).first()
+        if user and user.welcome_bonuses_received:
+            return user.welcome_bonuses_received.get(str(chat_id), False)
+        return False
+
 def set_user_referrer(user_id: int, referrer_id: int) -> bool:
     """Set user's referrer."""
     with get_db_session() as session:
