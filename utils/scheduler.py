@@ -94,8 +94,17 @@ async def send_refill_notification_to_super_admins(refill_details, total_refills
         from telegram import Bot
         from config.settings import BOT_TOKEN
         from utils.formatting import escape_markdown, escape_markdown_username
+        from utils.user_utils import get_user_display_name
+        from telegram.ext import ContextTypes
         
         bot = Bot(token=BOT_TOKEN)
+        
+        # Create a context for get_user_display_name
+        class MockContext:
+            def __init__(self, bot):
+                self.bot = bot
+        
+        context = MockContext(bot)
         
         # Create notification message
         message = f"🔄 *Daily Admin Wallet Refill Report*\n\n"
@@ -104,9 +113,20 @@ async def send_refill_notification_to_super_admins(refill_details, total_refills
         message += f"*Refilled Admins:*\n"
         
         for detail in refill_details:
-            username = escape_markdown_username(detail["username"])
-            admin_id = detail["admin_id"]
-            message += f"\n👤 *{username}* ({admin_id})\n"
+            admin_id = int(detail["admin_id"])
+            
+            # Get display name with both name and username
+            try:
+                display_name = await get_user_display_name(context, admin_id)
+                # Escape markdown for the display name
+                display_name = escape_markdown(display_name)
+            except Exception as e:
+                logger.error(f"Failed to get display name for admin {admin_id}: {e}")
+                # Fallback to username only
+                username = escape_markdown_username(detail["username"])
+                display_name = f"{username}"
+            
+            message += f"\n👤 *{display_name}* (ID: {admin_id})\n"
             
             for refill in detail["refills"]:
                 chat_id = refill["chat_id"]
