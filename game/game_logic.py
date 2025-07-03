@@ -207,8 +207,8 @@ def place_bet(game: DiceGame, user_id: int, username: str, bet_type: str, amount
     bonus_points_used = 0
     main_score_used = 0
     
-    # Check if user can use referral points (minimum main score requirement)
-    can_use_referral = main_score >= MIN_MAIN_SCORE_REQUIRED
+    # Check if user can use referral points (use main wallet if less than required referral points)
+    can_use_referral = main_score >= MIN_MAIN_SCORE_REQUIRED or main_score < referral_points
     
     # Calculate maximum referral points that can be used (50% of bet amount)
     max_referral_for_bet = int(amount * REFERRAL_POINTS_BET_RATIO)
@@ -221,10 +221,21 @@ def place_bet(game: DiceGame, user_id: int, username: str, bet_type: str, amount
     
     # Use referral points if allowed and needed
     if amount > 0 and can_use_referral and referral_points > 0:
-        referral_points_used = min(referral_points, max_referral_for_bet, amount)
-        global_user_data["referral_points"] -= referral_points_used
-        amount -= referral_points_used
-    
+        # If main wallet is less than referral points, only use main wallet
+        if main_score < referral_points:
+            # Use only main score when it's less than referral points
+            if current_player["score"] < amount:
+                 # Rollback changes if insufficient funds
+                 global_user_data["bonus_points"] += bonus_points_used
+                 raise InvalidBetError(format_insufficient_funds(current_player["score"], referral_points, bonus_points, original_amount))
+            main_score_used = amount
+            amount = 0
+        else:
+            # Normal referral points usage when main score >= referral points
+            referral_points_used = min(referral_points, max_referral_for_bet, amount)
+            global_user_data["referral_points"] -= referral_points_used
+            amount -= referral_points_used
+        
     # Use main score for remaining amount
     if amount > 0:
         if main_score < amount:
