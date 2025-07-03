@@ -111,8 +111,8 @@ def check_and_add_columns():
         logger.error(f"❌ Error during migration: {e}")
         raise
 
-def main():
-    """Main migration function."""
+def run_migration():
+    """Run the database migration - function for import by other modules."""
     logger.info("=== Render Database Migration Started ===")
     logger.info(f"Database URL: {get_database_url().split('@')[1] if '@' in get_database_url() else 'local'}")
     
@@ -123,6 +123,10 @@ def main():
     except Exception as e:
         logger.error(f"=== Migration Failed: {e} ===")
         return False
+
+def main():
+    """Main migration function for direct script execution."""
+    return run_migration()
 
 if __name__ == "__main__":
     success = main()
