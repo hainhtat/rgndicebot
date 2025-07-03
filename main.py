@@ -285,6 +285,16 @@ def main() -> None:
         from database.connection import init_database
         if init_database():
             logger.info("Database initialized successfully.")
+            
+            # Run migration check to ensure required columns exist
+            try:
+                from render_migration import run_migration
+                logger.info("Checking for required database columns...")
+                run_migration()
+                logger.info("Database migration check completed.")
+            except Exception as e:
+                logger.error(f"Migration check failed: {e}")
+                # Continue anyway - the bot might still work with existing functionality
         else:
             logger.error("Failed to initialize database. Exiting.")
             return
