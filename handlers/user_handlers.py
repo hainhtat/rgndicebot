@@ -257,46 +257,18 @@ async def deposit_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         )
         return
     
-    # Get admin list for this chat
-    admin_list = await get_admins_from_chat(chat_id, context)
+    # Create inline keyboard with button to contact @rgndiceagent
+    keyboard = [
+        [InlineKeyboardButton("💬 Contact Agent", url="https://t.me/rgndiceagent")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
     
-    # Get admin usernames
-    admin_usernames = []
-    for admin_id in admin_list:
-        try:
-            # Try to get admin info from chat member
-            chat_member = await context.bot.get_chat_member(chat_id, admin_id)
-            username = chat_member.user.username
-            if username:
-                # Escape special Markdown characters in username
-                escaped_username = username.replace('_', '\_').replace('*', '\*').replace('[', '\[').replace(']', '\]').replace('(', '\(').replace(')', '\)').replace('~', '\~').replace('`', '\`').replace('>', '\>').replace('#', '\#').replace('+', '\+').replace('-', '\-').replace('=', '\=').replace('|', '\|').replace('{', '\{').replace('}', '\}').replace('.', '\.').replace('!', '\\!')
-                admin_usernames.append(f"@{escaped_username}")
-        except Exception as e:
-            logger.error(f"Error getting admin info: {e}")
-    
-    # If no admin usernames found, use hardcoded admins
-    if not admin_usernames:
-        admin_usernames = ["@admin1", "@admin2", "@admin3"]
-    
-    # Format admin list
-    admin_list_text = "\n".join(admin_usernames)
-    
-    deposit_message = MessageTemplates.DEPOSIT_MESSAGE.format(
-        admin_list=admin_list_text
+    # Send the deposit message with inline button
+    await update.message.reply_text(
+        MessageTemplates.DEPOSIT_MESSAGE,
+        parse_mode="Markdown",
+        reply_markup=reply_markup
     )
-    
-    try:
-        await update.message.reply_text(
-            deposit_message,
-            parse_mode="Markdown"
-        )
-    except Exception as e:
-        logger.error(f"Error sending deposit message: {e}")
-        # Try without markdown parsing
-        await update.message.reply_text(
-            deposit_message.replace('*', ''),
-            parse_mode=None
-        )
 
 
 async def withdrawal_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -351,29 +323,11 @@ async def withdrawal_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         )
         return
     
-    # Get admin list for this chat
-    admin_list = await get_admins_from_chat(chat_id, context)
-    
-    # Get admin usernames
-    admin_usernames = []
-    for admin_id in admin_list:
-        try:
-            # Try to get admin info from chat member
-            chat_member = await context.bot.get_chat_member(chat_id, admin_id)
-            username = chat_member.user.username
-            if username:
-                # Escape special Markdown characters in username
-                escaped_username = username.replace('_', '\_').replace('*', '\*').replace('[', '\[').replace(']', '\]').replace('(', '\(').replace(')', '\)').replace('~', '\~').replace('`', '\`').replace('>', '\>').replace('#', '\#').replace('+', '\+').replace('-', '\-').replace('=', '\=').replace('|', '\|').replace('{', '\{').replace('}', '\}').replace('.', '\.').replace('!', '\\!')
-                admin_usernames.append(f"@{escaped_username}")
-        except Exception as e:
-            logger.error(f"Error getting admin info: {e}")
-    
-    # If no admin usernames found, use hardcoded admins
-    if not admin_usernames:
-        admin_usernames = ["@admin1", "@admin2", "@admin3"]
-    
-    # Format admin list
-    admin_list_text = "\n".join(admin_usernames)
+    # Create inline keyboard with button to contact @rgndiceagent
+    keyboard = [
+        [InlineKeyboardButton("💬 Contact Agent", url="https://t.me/rgndiceagent")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
     
     # Get user balance information
     main_wallet = player_stats.get('score', 0)
@@ -385,22 +339,14 @@ async def withdrawal_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         main_wallet=main_wallet,
         referral_points=referral_points,
         bonus_points=bonus_points,
-        total_balance=total_balance,
-        admin_list=admin_list_text
+        total_balance=total_balance
     )
     
-    try:
-        await update.message.reply_text(
-            withdrawal_message,
-            parse_mode="Markdown"
-        )
-    except Exception as e:
-        logger.error(f"Error sending withdrawal message: {e}")
-        # Try without markdown parsing
-        await update.message.reply_text(
-            withdrawal_message.replace('*', ''),
-            parse_mode=None
-        )
+    await update.message.reply_text(
+        withdrawal_message,
+        parse_mode="Markdown",
+        reply_markup=reply_markup
+    )
 
 
 async def handle_share_referral_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

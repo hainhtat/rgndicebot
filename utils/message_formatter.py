@@ -84,8 +84,8 @@ class MessageTemplates:
     WELCOME_WITH_REFERRAL_LINK = "👋 *Welcome to RGN Dice Bot, {name}!*\n\nGroup ထဲဝင်ဖို့ အောက်ကခလုတ်လေးကို နှိပ်ပြီး စဆော့လို့ရပါပြီနော်\n\n🎁 *Invite Friends & Earn Rewards*\nShare your referral link to earn *{bonus} ကျပ်* for each new player who joins!\n\n📱 *Your Referral Link:*\n`{referral_link}`"
     
     # Deposit and withdrawal messages
-    DEPOSIT_MESSAGE = "*ငွေထည့်ရန်*\n\nငွေထည့်ရန် အောက်ပါ Admin များထံ ဆက်သွယ်ပါ။\n\n{admin_list}"
-    WITHDRAWAL_MESSAGE = "*ငွေထုတ်ရန်*\n\n💰 *Main Wallet:* {main_wallet} ကျပ်\n🎁 *Referral Points:* {referral_points} ကျပ်\n🎉 *Bonus Points:* {bonus_points} ကျပ်\n📊 *Total Balance:* {total_balance} ကျပ်\n\n⚠️ *Note:* Only Main Wallet balance can be withdrawn (Minimum: 5,000 ကျပ်)\n\nငွေထုတ်ရန် အောက်ပါ Admin များထံ ဆက်သွယ်ပါ။\n\n{admin_list}"
+    DEPOSIT_MESSAGE = "*ငွေထည့်ရန်*\n\nငွေထည့်ရန် အောက်ပါ Agent ထံ ဆက်သွယ်ပါ။"
+    WITHDRAWAL_MESSAGE = "*ငွေထုတ်ရန်*\n\n💰 *Main Wallet:* {main_wallet} ကျပ်\n🎁 *Referral Points:* {referral_points} ကျပ်\n🎉 *Bonus Points:* {bonus_points} ကျပ်\n📊 *Total Balance:* {total_balance} ကျပ်\n\n⚠️ *Note:* Only Main Wallet balance can be withdrawn (Minimum: 5,000 ကျပ်)\n\n✅ *Withdrawal request submitted successfully!*\n\nငွေထုတ်ရန် အောက်ပါ Agent ထံ ဆက်သွယ်ပါ။"
     
     # Error messages
     INVALID_COMMAND_FORMAT = "❌ *Invalid command format*\nUsage: {usage}"
