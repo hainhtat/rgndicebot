@@ -101,10 +101,13 @@ def mark_welcome_bonus_received(user_id: int, chat_id: int) -> bool:
     with get_db_session() as session:
         user = session.query(User).filter(User.user_id == user_id).first()
         if user:
-            if not user.welcome_bonuses_received:
-                user.welcome_bonuses_received = {}
-            user.welcome_bonuses_received[str(chat_id)] = True
+            # Handle JSON field update properly
+            welcome_bonuses = user.welcome_bonuses_received or {}
+            welcome_bonuses[str(chat_id)] = True
+            user.welcome_bonuses_received = welcome_bonuses
             user.updated_at = datetime.utcnow()
+            # Force the session to recognize the change
+            session.merge(user)
             return True
         return False
 

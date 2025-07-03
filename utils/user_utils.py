@@ -262,12 +262,12 @@ def adjust_user_score(user_id: int, chat_id: int, amount: int, is_admin: bool = 
     Returns a tuple of (success, message).
     """
     from config.settings import USE_DATABASE
-    from database.adapter import db_adapter
     
     user_id_str = str(user_id)
+    chat_id_str = str(chat_id)
     
     # Get chat data
-    chat_data = global_data["all_chat_data"].get(chat_id)
+    chat_data = global_data["all_chat_data"].get(chat_id_str)
     if not chat_data:
         return False, ERROR_CHAT_DATA_NOT_FOUND
     
@@ -287,10 +287,14 @@ def adjust_user_score(user_id: int, chat_id: int, amount: int, is_admin: bool = 
     # Sync with database if enabled
     if USE_DATABASE:
         try:
-            # Update player stats in database
-            db_adapter.update_player_stats(user_id, chat_id, amount, amount > 0, 0)
+            # Use direct database queries to avoid session conflicts
+            from database.queries import update_player_stats
+            update_player_stats(user_id, chat_id, amount, amount > 0, 0)
         except Exception as e:
             logger.error(f"Failed to sync user score adjustment to database: {e}")
+            # Rollback the local change if database sync fails
+            player_stats["score"] = old_score
+            return False, f"Failed to update score: {e}"
     
     # Save the updated data
     save_data_unified(global_data)
@@ -310,32 +314,33 @@ def process_welcome_bonus(user_id: int, chat_id: int, first_name: Optional[str] 
     Returns (success, message) tuple.
     Prevents duplicate welcome bonuses per chat using database persistence.
     """
-    from config.settings import WELCOME_BONUS_POINTS
+    from config.settings import WELCOME_BONUS_POINTS, USE_DATABASE
     from config.messages import SUCCESS_WELCOME_BONUS, INFO_WELCOME_BONUS_ALREADY_RECEIVED
-    from database.adapter import DatabaseAdapter
     
     try:
-        db_adapter = DatabaseAdapter()
-        
-        # Check if user already received welcome bonus for this chat
-        if db_adapter.has_received_welcome_bonus(user_id, chat_id):
-            logger.info(f"User {user_id} has already received welcome bonus for chat {chat_id}, skipping")
-            return False, INFO_WELCOME_BONUS_ALREADY_RECEIVED
+        # Use direct database queries to avoid adapter session conflicts
+        if USE_DATABASE:
+            from database.queries import has_received_welcome_bonus, mark_welcome_bonus_received
+            
+            # Check if user already received welcome bonus for this chat
+            if has_received_welcome_bonus(user_id, chat_id):
+                logger.info(f"User {user_id} has already received welcome bonus for chat {chat_id}, skipping")
+                return False, INFO_WELCOME_BONUS_ALREADY_RECEIVED
         
         # Get or create global user data
         user_data = get_or_create_global_user_data(user_id, first_name, last_name, username)
         
         # Migration: Check old system for existing bonus in user_data
         if 'welcome_bonus_received' in user_data and user_data['welcome_bonus_received']:
-            # Mark as received for this chat in new system
-            db_adapter.mark_welcome_bonus_received(user_id, chat_id)
+            if USE_DATABASE:
+                mark_welcome_bonus_received(user_id, chat_id)
             logger.info(f"Migrated user {user_id} from old welcome bonus system")
             return False, INFO_WELCOME_BONUS_ALREADY_RECEIVED
         
         # Migration: Check old system in welcome_bonuses_received dict
         if 'welcome_bonuses_received' in user_data and str(chat_id) in user_data['welcome_bonuses_received']:
-            # Mark as received in database
-            db_adapter.mark_welcome_bonus_received(user_id, chat_id)
+            if USE_DATABASE:
+                mark_welcome_bonus_received(user_id, chat_id)
             logger.info(f"Migrated user {user_id} welcome bonus for chat {chat_id} to database")
             return False, INFO_WELCOME_BONUS_ALREADY_RECEIVED
         
@@ -369,7 +374,8 @@ def process_welcome_bonus(user_id: int, chat_id: int, first_name: Optional[str] 
         player_stats["last_active"] = datetime.now().isoformat()
         
         # Mark welcome bonus as received for this specific chat in database
-        db_adapter.mark_welcome_bonus_received(user_id, chat_id)
+        if USE_DATABASE:
+            mark_welcome_bonus_received(user_id, chat_id)
         
         # Clean up old data from user_data
         if 'welcome_bonus_received' in user_data:
