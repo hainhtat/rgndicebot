@@ -1,3 +1,4 @@
+import html
 import logging
 from datetime import datetime
 from typing import Dict, List, Optional
@@ -12,7 +13,7 @@ from config.constants import global_data, get_admin_data, SUPER_ADMINS, ADMIN_WA
 
 from utils.telegram_utils import is_admin
 from utils.message_formatter import MessageTemplates
-from utils.formatting import escape_markdown, escape_markdown_username
+from utils.formatting import escape_markdown, escape_markdown_username, escape_html
 from handlers.utils import save_data_unified
 
 logger = logging.getLogger(__name__)
@@ -65,9 +66,9 @@ async def refill_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     await update.message.reply_text(
-        "🔄 *Admin Wallet Refill*\n\nSelect a group to refill admin wallets:",
+        "🔄 <b>Admin Wallet Refill</b>\n\nSelect a group to refill admin wallets:",
         reply_markup=reply_markup,
-        parse_mode="Markdown"
+        parse_mode="HTML"
     )
 
 
@@ -160,9 +161,9 @@ async def handle_refill_group_selection(update: Update, context: ContextTypes.DE
         group_title = chat_info.title or f"Group {group_id}"
         
         await query.edit_message_text(
-            f"🔄 *Refill Admin Wallets*\n\n*Group:* {escape_markdown(group_title)}\n\nSelect admins to refill:",
+            f"🔄 <b>Refill Admin Wallets</b>\n\n<b>Group:</b> {escape_html(group_title)}\n\nSelect admins to refill:",
             reply_markup=reply_markup,
-            parse_mode="Markdown"
+            parse_mode="HTML"
         )
         
     except Exception as e:
@@ -245,8 +246,8 @@ async def handle_refill_action(update: Update, context: ContextTypes.DEFAULT_TYP
             group_title = chat_info.title or f"Group {group_id}"
             
             await query.edit_message_text(
-                f"✅ *Refill Complete*\n\n*Group:* {escape_markdown(group_title)}\n*Refilled:* {refilled_count} admins\n*Amount:* {ADMIN_WALLET_AMOUNT:,} points each",
-                parse_mode="Markdown"
+                f"✅ <b>Refill Complete</b>\n\n<b>Group:</b> {escape_html(group_title)}\n<b>Refilled:</b> {refilled_count} admins\n<b>Amount:</b> {ADMIN_WALLET_AMOUNT:,} points each",
+                parse_mode="HTML"
             )
             
             # Keyboard sending removed as requested
@@ -285,8 +286,8 @@ async def handle_refill_action(update: Update, context: ContextTypes.DEFAULT_TYP
             group_title = chat_info.title or f"Group {group_id}"
             
             await query.edit_message_text(
-                f"✅ *Refill Complete*\n\n*Group:* {escape_markdown(group_title)}\n*Admin:* {escape_markdown(admin_username)}\n*Amount:* {ADMIN_WALLET_AMOUNT:,} points",
-                parse_mode="Markdown"
+                f"✅ <b>Refill Complete</b>\n\n<b>Group:</b> {escape_html(group_title)}\n<b>Admin:</b> {escape_html(admin_username)}\n<b>Amount:</b> {ADMIN_WALLET_AMOUNT:,} points",
+                parse_mode="HTML"
             )
             
             # Keyboard sending removed as requested
@@ -307,7 +308,7 @@ async def handle_custom_amount_request(update: Update, context: ContextTypes.DEF
         group_title = chat_info.title or f"Group {group_id}"
         
         if refill_type == "all":
-            message = f"💰 *Custom Refill - All Admins*\n\n*Group:* {escape_markdown(group_title)}\n\nPlease enter the amount to refill for all admins:\n\n*Format: /refill_amount <amount>*\n*Example: /refill_amount 5000000*"
+            message = f"💰 <b>Custom Refill - All Admins</b>\n\n<b>Group:</b> {escape_html(group_title)}\n\nPlease enter the amount to refill for all admins:\n\n<b>Format: /refill_amount &lt;amount&gt;</b>\n<b>Example: /refill_amount 5000000</b>"
             # Store context for the amount input
             context.user_data['refill_context'] = {
                 'type': 'custom_all',
@@ -320,7 +321,7 @@ async def handle_custom_amount_request(update: Update, context: ContextTypes.DEF
             admin_username = admin_info.get('username') or f'Admin {admin_id}'
             current_points = admin_info.get('chat_points', {}).get(str(group_id), {}).get('points', 0)
             
-            message = f"💰 *Custom Refill - Single Admin*\n\n*Group:* {escape_markdown(group_title)}\n*Admin:* {escape_markdown(admin_username)}\n*Current:* {current_points:,} points\n\nPlease enter the amount to refill:\n\n*Format: /refill_amount <amount>*\n*Example: /refill_amount 5000000*"
+            message = f"💰 <b>Custom Refill - Single Admin</b>\n\n<b>Group:</b> {escape_html(group_title)}\n<b>Admin:</b> {escape_html(admin_username)}\n<b>Current:</b> {current_points:,} points\n\nPlease enter the amount to refill:\n\n<b>Format: /refill_amount &lt;amount&gt;</b>\n<b>Example: /refill_amount 5000000</b>"
             # Store context for the amount input
             context.user_data['refill_context'] = {
                 'type': 'custom_admin',
@@ -332,7 +333,7 @@ async def handle_custom_amount_request(update: Update, context: ContextTypes.DEF
         
         await query.edit_message_text(
             message,
-            parse_mode="Markdown"
+            parse_mode="HTML"
         )
         
     except Exception as e:
@@ -417,8 +418,8 @@ async def handle_refill_amount_command(update: Update, context: ContextTypes.DEF
             save_data_unified(global_data)
             
             await update.message.reply_text(
-                f"✅ *Custom Refill Complete*\n\n*Group:* {escape_markdown(refill_context['group_title'])}\n*Refilled:* {refilled_count} admins\n*Amount:* {amount:,} points each",
-                parse_mode="Markdown"
+                f"✅ <b>Custom Refill Complete</b>\n\n<b>Group:</b> {html.escape(refill_context['group_title'])}\n<b>Refilled:</b> {refilled_count} admins\n<b>Amount:</b> {amount:,} points each",
+                parse_mode="HTML"
             )
             
         elif refill_type == 'custom_admin':
@@ -447,8 +448,8 @@ async def handle_refill_amount_command(update: Update, context: ContextTypes.DEF
             save_data_unified(global_data)
             
             await update.message.reply_text(
-                f"✅ *Custom Refill Complete*\n\n*Group:* {escape_markdown(refill_context['group_title'])}\n*Admin:* {escape_markdown_username(refill_context['admin_username'])}\n*Amount:* {amount:,} points",
-                parse_mode="Markdown"
+                f"✅ <b>Custom Refill Complete</b>\n\n<b>Group:</b> {html.escape(refill_context['group_title'])}\n<b>Admin:</b> {html.escape(refill_context['admin_username'])}\n<b>Amount:</b> {amount:,} points",
+                parse_mode="HTML"
             )
         
         # Clear the refill context
@@ -508,9 +509,9 @@ async def handle_back_to_groups(update: Update, context: ContextTypes.DEFAULT_TY
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     await query.edit_message_text(
-        "🔄 *Admin Wallet Refill*\n\nSelect a group to refill admin wallets:",
+        "🔄 <b>Admin Wallet Refill</b>\n\nSelect a group to refill admin wallets:",
         reply_markup=reply_markup,
-        parse_mode="Markdown"
+        parse_mode="HTML"
     )
 
 

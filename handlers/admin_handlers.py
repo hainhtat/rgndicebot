@@ -158,27 +158,27 @@ async def adjust_score(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     # Validate target user - cannot be bot or admin
     if target_user.is_bot:
         await update.message.reply_text(
-            "❌ *Invalid target!*\n\nYou cannot adjust the score of a bot.",
-            parse_mode="Markdown"
+            "❌ <b>Invalid target!</b>\n\nYou cannot adjust the score of a bot.",
+            parse_mode="HTML"
         )
         return
     
     # Check if target is an admin (prevent adjusting admin scores)
     if await is_admin(chat_id, target_user_id, context):
         await update.message.reply_text(
-            "❌ *Invalid target!*\n\nYou cannot adjust the score of another admin.",
-            parse_mode="Markdown"
+            "❌ <b>Invalid target!</b>\n\nYou cannot adjust the score of another admin.",
+            parse_mode="HTML"
         )
         return
     
     # Check if admin has enough points for positive adjustments (giving points to users)
     if amount > 0 and admin_wallet_data["points"] < amount:
         await update.message.reply_text(
-            f"❌ *Insufficient admin wallet balance!*\n\n"
-            f"💰 Your current balance: *{admin_wallet_data['points']:,}* ကျပ်\n"
-            f"💸 Required amount: *{amount:,}* ကျပ်\n\n"
+            f"❌ <b>Insufficient admin wallet balance!</b>\n\n"
+            f"💰 Your current balance: <b>{admin_wallet_data['points']:,}</b> ကျပ်\n"
+            f"💸 Required amount: <b>{amount:,}</b> ကျပ်\n\n"
             f"⏰ Admin wallets are refilled daily at 6 AM Myanmar time.",
-            parse_mode="Markdown"
+            parse_mode="HTML"
         )
         return
     
@@ -188,12 +188,12 @@ async def adjust_score(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         required_amount = abs(amount)
         if current_user_score < required_amount:
             await update.message.reply_text(
-                f"❌ *Insufficient user balance!*\n\n"
+                f"❌ <b>Insufficient user balance!</b>\n\n"
                 f"👤 User: {display_name}\n"
-                f"💰 Current balance: *{current_user_score:,}* ကျပ်\n"
-                f"💸 Required amount: *{required_amount:,}* ကျပ်\n\n"
+                f"💰 Current balance: <b>{current_user_score:,}</b> ကျပ်\n"
+                f"💸 Required amount: <b>{required_amount:,}</b> ကျပ်\n\n"
                 f"Cannot deduct more ကျပ် than the user has.",
-                parse_mode="Markdown"
+                parse_mode="HTML"
             )
             return
     
@@ -228,12 +228,12 @@ async def adjust_score(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         # Get user display name for error message
         error_display_name = await get_user_display_name(context, target_user_id, chat_id)
         await update.message.reply_text(
-            f"❌ *Cannot deduct {abs(amount):,} ကျပ်!*\n\n"
+            f"❌ <b>Cannot deduct {abs(amount):,} ကျပ်!</b>\n\n"
             f"👤 User: {error_display_name}\n"
-            f"💰 Current balance: *{old_score:,}* ကျပ်\n"
-            f"💸 Requested deduction: *{abs(amount):,}* ကျပ်\n\n"
-            f"User would have a negative balance of *{new_score:,}* ကျပ်.",
-            parse_mode="Markdown"
+            f"💰 Current balance: <b>{old_score:,}</b> ကျပ်\n"
+            f"💸 Requested deduction: <b>{abs(amount):,}</b> ကျပ်\n\n"
+            f"User would have a negative balance of <b>{new_score:,}</b> ကျပ်.",
+            parse_mode="HTML"
         )
         return
     
@@ -281,7 +281,7 @@ async def adjust_score(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         try:
             await update.message.reply_text(
                 message_text,
-                parse_mode="Markdown"
+                parse_mode="HTML"
             )
         except telegram.error.BadRequest as e:
             if "can't parse entities" in str(e).lower():
@@ -624,7 +624,7 @@ async def admin_wallets(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     
     # Send the message
     try:
-        await update.message.reply_text(message, parse_mode="Markdown")
+        await update.message.reply_text(message, parse_mode="HTML")
     except telegram.error.BadRequest as e:
         # Fallback to plain text if Markdown parsing fails
         if "can't parse entities" in str(e):
@@ -793,24 +793,24 @@ async def handle_admin_score_adjustment(update: Update, context: ContextTypes.DE
     if amount < 0 and old_score + amount < 0:
         display_name = await get_user_display_name(context, target_user_id, chat_id)
         await update.message.reply_text(
-            f"❌ *Cannot deduct points!*\n\n"
+            f"❌ <b>Cannot deduct points!</b>\n\n"
             f"👤 User: {display_name}\n"
-            f"💰 Current balance: *{old_score:,}* points\n"
-            f"💸 Attempted deduction: *{abs(amount):,}* points\n\n"
-            f"⚠️ This would result in a negative balance of *{old_score + amount:,}* points.\n"
-            f"Maximum deduction allowed: *{old_score:,}* points",
-            parse_mode="Markdown"
+            f"💰 Current balance: <b>{old_score:,}</b> points\n"
+            f"💸 Attempted deduction: <b>{abs(amount):,}</b> points\n\n"
+            f"⚠️ This would result in a negative balance of <b>{old_score + amount:,}</b> points.\n"
+            f"Maximum deduction allowed: <b>{old_score:,}</b> points",
+            parse_mode="HTML"
         )
         return
 
     # Check if admin has enough points for positive adjustments (giving points to users)
     if amount > 0 and admin_wallet_data["points"] < amount:
         await update.message.reply_text(
-            f"❌ *Insufficient admin wallet balance!*\n\n"
-            f"💰 Your current balance: *{admin_wallet_data['points']:,}* ကျပ်\n"
-            f"💸 Required amount: *{amount:,}* ကျပ်\n\n"
+            f"❌ <b>Insufficient admin wallet balance!</b>\n\n"
+            f"💰 Your current balance: <b>{admin_wallet_data['points']:,}</b> ကျပ်\n"
+            f"💸 Required amount: <b>{amount:,}</b> ကျပ်\n\n"
             f"⏰ Admin wallets are refilled daily at 6 AM Myanmar time.",
-            parse_mode="Markdown"
+            parse_mode="HTML"
         )
         return
 
@@ -877,7 +877,7 @@ async def handle_admin_score_adjustment(update: Update, context: ContextTypes.DE
         try:
             await update.message.reply_text(
                 message_text,
-                parse_mode="Markdown"
+                parse_mode="HTML"
             )
         except telegram.error.BadRequest as e:
             if "can't parse entities" in str(e).lower():

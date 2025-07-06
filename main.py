@@ -75,25 +75,29 @@ async def initialize_keyboards(application):
 async def send_startup_greeting(application):
     """
     Send a greeting message to all allowed groups when the bot restarts.
+    Made non-blocking to prevent startup delays.
     """
-    logger.info("Sending startup greeting to all allowed groups...")
+    logger.info("Startup greeting disabled to prevent connection timeouts")
     
-    greeting_message = "🎲 *Bot Restarted Successfully!*\n\n" \
-                      "I'm back online and ready to serve! 🎉\n" \
-                      "All systems are operational. Let's play and win big! 💰"
+    # Temporarily disabled to prevent timeout issues that block bot startup
+    # The greeting functionality can be re-enabled once network connectivity is stable
     
-    for chat_id in ALLOWED_GROUP_IDS:
-        try:
-            await application.bot.send_message(
-                chat_id=chat_id,
-                text=greeting_message,
-                parse_mode="Markdown"
-            )
-            logger.info(f"Sent startup greeting to chat {chat_id}")
-        except Exception as e:
-            logger.error(f"Failed to send startup greeting to chat {chat_id}: {e}")
+    # greeting_message = "🎲 *Bot Restarted Successfully!*\n\n" \
+    #                   "I'm back online and ready to serve! 🎉\n" \
+    #                   "All systems are operational. Let's play and win big! 💰"
+    # 
+    # for chat_id in ALLOWED_GROUP_IDS:
+    #     try:
+    #         await application.bot.send_message(
+    #             chat_id=chat_id,
+    #             text=greeting_message,
+    #             parse_mode="Markdown"
+    #         )
+    #         logger.info(f"Sent startup greeting to chat {chat_id}")
+    #     except Exception as e:
+    #         logger.error(f"Failed to send startup greeting to chat {chat_id}: {e}")
     
-    logger.info("Startup greeting process completed")
+    logger.info("Startup greeting process completed (disabled)")
 
 # Handler for unhandled text messages
 async def unhandled_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -190,15 +194,13 @@ async def add_scheduled_jobs(application: Application) -> None:
 def save_data_unified(global_data: Dict = None) -> None:
     """Unified data saving function that uses database when enabled."""
     if USE_DATABASE:
-        # Database handles saving automatically
-        pass
+        # Database handles saving automatically - no action needed
+        logger.debug("Data saving skipped - using database mode")
     else:
         # File manager was removed during migration
         # This fallback should not be used in production
         logger.warning("File manager fallback called but file_manager was removed")
-        if global_data is None:
-            from config.config_manager import global_data
-        save_data_unified(global_data)
+        logger.warning("Data saving skipped - no file manager available")
 
 def load_data_unified() -> Dict:
     """Unified data loading function that uses database when enabled."""
@@ -435,21 +437,28 @@ def main() -> None:
             bootstrap_retries=5  # Add retry mechanism
         )
     except KeyboardInterrupt:
-        logger.info("Bot stopped by user")
+        logger.info("Bot stopped by user (Ctrl+C)")
     except Exception as e:
         logger.error(f"Bot crashed with error: {e}")
-        # Attempt to restart after a brief delay
-        import time
-        time.sleep(5)
-        logger.info("Attempting to restart bot...")
-        main()  # Recursive restart
+        # Log the error but don't attempt recursive restart
+        logger.error("Bot will exit. Please restart manually if needed.")
     finally:
         # Stop the scheduler when bot shuts down
-        stop_scheduler()
-
-    # Save data on graceful shutdown
-    logger.info("Bot is shutting down. Attempting to save data to JSON file.")
-    save_data_unified(global_data)
+        try:
+            stop_scheduler()
+        except Exception as e:
+            # Ignore event loop closed errors during shutdown
+            if "Event loop is closed" not in str(e) and "no running event loop" not in str(e):
+                logger.error(f"Error stopping scheduler: {e}")
+        
+        # Save data on graceful shutdown
+        try:
+            logger.info("Bot is shutting down. Attempting to save data.")
+            save_data_unified(global_data)
+        except Exception as e:
+            # Ignore event loop closed errors during shutdown
+            if "Event loop is closed" not in str(e) and "no running event loop" not in str(e):
+                logger.error(f"Error saving data on shutdown: {e}")
 
 if __name__ == "__main__":
     # Call main function

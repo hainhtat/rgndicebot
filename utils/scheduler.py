@@ -140,7 +140,7 @@ async def send_refill_notification_to_super_admins(refill_details, total_refills
                 await bot.send_message(
                     chat_id=super_admin_id,
                     text=message,
-                    parse_mode="Markdown"
+                    parse_mode="HTML"
                 )
                 logger.info(f"Sent refill notification to super admin {super_admin_id}")
             except Exception as e:

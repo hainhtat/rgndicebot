@@ -16,6 +16,7 @@ from utils.formatting import escape_markdown, escape_markdown_username
 from utils.message_formatter import format_wallet, MessageTemplates
 from utils.user_utils import get_or_create_global_user_data, get_user_display_name, process_referral, process_pending_referral
 from utils.telegram_utils import is_admin, get_admins_from_chat, create_custom_keyboard, send_keyboard_to_all_group_members
+from utils.formatting import escape_html
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +38,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             welcome_text = f"Welcome to the game, {escape_markdown_username(user.first_name)}! Game controls are being initialized for everyone."
             await update.message.reply_text(
                 welcome_text,
-                parse_mode="Markdown"
+                parse_mode="HTML"
             )
             
             # Send keyboard to all group members
@@ -83,7 +84,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             # Send the welcome message
             await update.message.reply_text(
                 welcome_message,
-                parse_mode="Markdown",
+                parse_mode="HTML",
                 reply_markup=reply_markup
             )
             
@@ -96,7 +97,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                         await context.bot.send_message(
                             chat_id=referrer_id,
                             text=notification_message,
-                            parse_mode="Markdown"
+                            parse_mode="HTML"
                         )
                         logger.info(f"Sent referral notification to user {referrer_id} for new member {user_id}")
                     except Exception as e:
@@ -114,7 +115,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             # Send the welcome message
             await update.message.reply_text(
                 welcome_message,
-                parse_mode="Markdown",
+                parse_mode="HTML",
                 reply_markup=reply_markup
             )
             return
@@ -141,7 +142,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     # For private chats, don't show keyboards - only superadmins can use commands
     await update.message.reply_text(
         welcome_message,
-        parse_mode="Markdown",
+        parse_mode="HTML",
         reply_markup=reply_markup
     )
     
@@ -186,7 +187,7 @@ async def check_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             last_refill_str = "Not available"
         
         # Format the admin wallet message
-        wallet_message = "💰 *Admin Wallet*\n\n"
+        wallet_message = "💰 <b>Admin Wallet</b>\n\n"
         
         # Handle username carefully to avoid markdown parsing issues
         safe_username = username
@@ -252,8 +253,8 @@ async def deposit_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     # Check if user is an admin and restrict access
     if await is_admin(chat_id, user_id, context):
         await update.message.reply_text(
-            "❌ *Admins cannot use the deposit system.*\n\nAs an admin, you have access to admin wallets that are managed separately.",
-            parse_mode="Markdown"
+            "❌ <b>Admins cannot use the deposit system.</b>\n\nAs an admin, you have access to admin wallets that are managed separately.",
+            parse_mode="HTML"
         )
         return
     
@@ -266,7 +267,7 @@ async def deposit_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     # Send the deposit message with inline button
     await update.message.reply_text(
         MessageTemplates.DEPOSIT_MESSAGE,
-        parse_mode="Markdown",
+        parse_mode="HTML",
         reply_markup=reply_markup
     )
 
@@ -304,12 +305,9 @@ async def withdrawal_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await update.message.reply_text(
                 f"❌ <b>ထုတ်ရန် လက်ကျန်ငွေမလုံလောက်ပါ!</b>\n\n"
                 f"👤 User: {user_display_name}\n"
-                f"💰 <b>Main Wallet:</b> <b>{user_score:,}</b> ကျပ်\n"
-                f"🎁 <b>Referral Points:</b> <b>{referral_points:,}</b> ကျပ်\n"
-                f"🎁 <b>Bonus Points:</b> <b>{bonus_points:,}</b> ကျပ်\n"
-                f"📊 <b>Total Balance:</b> <b>{total_balance:,}</b> ကျပ်\n\n"
+                f"💰 <b>Main Wallet:</b> <b>{user_score:,}</b> ကျပ်\n\n"
                 f"💸 <b>ငွေထုတ်ရန် :</b> <b>5,000</b> ကျပ်မှစတင်ထုတ်လို့ရပါတယ်နော်\n\n"
-                f"<i>Note: Main wallet ထဲကငွေကိုပဲထုတ်လို့ရပါတယ်။ referral နဲ့ bonus တွေကိုထုတ်လို့မရပါဘူး 🙅‍♂️.</i>\n\n",
+                f"<i>Note: Main wallet ထဲကငွေကိုပဲထုတ်လို့ရပါတယ်။</i>",
                 parse_mode="HTML"
             )
             return
@@ -331,20 +329,14 @@ async def withdrawal_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     
     # Get user balance information
     main_wallet = player_stats.get('score', 0)
-    referral_points = global_user_data.get('referral_points', 0)
-    bonus_points = global_user_data.get('bonus_points', 0)
-    total_balance = main_wallet + referral_points + bonus_points
     
     withdrawal_message = MessageTemplates.WITHDRAWAL_MESSAGE.format(
-        main_wallet=main_wallet,
-        referral_points=referral_points,
-        bonus_points=bonus_points,
-        total_balance=total_balance
+        main_wallet=main_wallet
     )
     
     await update.message.reply_text(
         withdrawal_message,
-        parse_mode="Markdown",
+        parse_mode="HTML",
         reply_markup=reply_markup
     )
 
@@ -404,15 +396,15 @@ async def handle_share_referral_callback(update: Update, context: ContextTypes.D
         
         # Confirm to user that message was sent privately
         await query.edit_message_text(
-            text="📤 *Referral link sent to your private chat!*",
-            parse_mode="Markdown"
+            text="📤 <b>Referral link sent to your private chat!</b>",
+            parse_mode="HTML"
         )
         
     except Exception as e:
         logger.error(f"Error sending private share message: {e}")
         await query.edit_message_text(
-            text="❌ *Error sending private message.*\n\nPlease make sure you have started a private chat with the bot first by clicking /start in a private message.",
-            parse_mode="Markdown"
+            text="❌ <b>Error sending private message.</b>\n\nPlease make sure you have started a private chat with the bot first by clicking /start in a private message.",
+            parse_mode="HTML"
         )
 
 
@@ -449,7 +441,7 @@ async def refer_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     # Send the result message
     await update.message.reply_text(
         message,
-        parse_mode="Markdown"
+        parse_mode="HTML"
     )
 
 
@@ -464,8 +456,8 @@ async def get_referral_link(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     # Check if user is an admin and restrict access
     if await is_admin(chat_id, user_id, context):
         await update.message.reply_text(
-            "❌ *Admins cannot use the referral system.*\n\nAs an admin, you have access to admin wallets instead of the regular referral system.",
-            parse_mode="Markdown"
+            "❌ <b>Admins cannot use the referral system.</b>\n\nAs an admin, you have access to admin wallets instead of the regular referral system.",
+            parse_mode="HTML"
         )
         return
     
@@ -519,19 +511,19 @@ async def get_referral_link(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         
         # Send short confirmation in the group
         await update.message.reply_text(
-            "📤 *Referral link sent to your private chat!*",
-            parse_mode="Markdown"
+            "📤 <b>Referral link sent to your private chat!</b>",
+            parse_mode="HTML"
         )
         
     except Exception as e:
         logger.error(f"Error sending private referral message: {e}")
         # Fallback to group message if private message fails
         referral_message = (
-            f"🎮 *Join Rangoon Dice Official group!* 🎮\n\n"
-            f"🚀 *Your Rewards:* User တစ်ယောက် join ရင်500ကျပ်ရပါမယ်!\n"
-            f"🎁 *Their Welcome Gift:* Join တာနဲ့ 500ကျပ်ရပါမယ်!\n\n"
+            f"🎮 <b>Join Rangoon Dice Official group!</b> 🎮\n\n"
+            f"🚀 <b>Your Rewards:</b> User တစ်ယောက် join ရင်500ကျပ်ရပါမယ်!\n"
+            f"🎁 <b>Their Welcome Gift:</b> Join တာနဲ့ 500ကျပ်ရပါမယ်!\n\n"
             f"{referral_link}\n\n"
-            f"🏆 *Your Referral Empire:* {referral_points:,} ကျပ် earned so far"
+            f"🏆 <b>Your Referral Empire:</b> {referral_points:,} ကျပ် earned so far"
         )
         
         keyboard = [
@@ -540,8 +532,8 @@ async def get_referral_link(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         reply_markup = InlineKeyboardMarkup(keyboard)
         
         await update.message.reply_text(
-            f"❌ *Could not send private message.*\n\nPlease start a private chat with the bot first by clicking /start in a private message.\n\n{referral_message}",
-            parse_mode="Markdown",
+            f"❌ <b>Could not send private message.</b>\n\nPlease start a private chat with the bot first by clicking /start in a private message.\n\n{referral_message}",
+            parse_mode="HTML",
             reply_markup=reply_markup
         )
 
@@ -574,7 +566,7 @@ async def handle_new_chat_member(update: Update, context: ContextTypes.DEFAULT_T
                 await context.bot.send_message(
                     chat_id=referrer_id,
                     text=notification_message,
-                    parse_mode="Markdown"
+                    parse_mode="HTML"
                 )
                 logger.info(f"Sent referral notification to user {referrer_id} for new member {user_id}")
                 
@@ -584,10 +576,10 @@ async def handle_new_chat_member(update: Update, context: ContextTypes.DEFAULT_T
                     referrer_name = await get_user_display_name(context, referrer_id, chat_id)
                     new_user_name = await get_user_display_name(context, user_id, chat_id)
                     
-                    superadmin_message = f"🎯 *New Referral Join*\n\n" \
-                             f"👤 *New User:* {new_user_name} ({user_id})\n" \
-                             f"👥 *Invited by:* {referrer_name} ({referrer_id})\n" \
-                             f"💰 *Bonus Awarded:* {REFERRAL_BONUS} ကျပ်"
+                    superadmin_message = f"🎯 <b>New Referral Join</b>\n\n" \
+                             f"👤 <b>New User:</b> {escape_html(new_user_name)} ({user_id})\n" \
+                             f"👥 <b>Invited by:</b> {escape_html(referrer_name)} ({referrer_id})\n" \
+                             f"💰 <b>Bonus Awarded:</b> {REFERRAL_BONUS} ကျပ်"
                     
                     # Send to all superadmins
                     for superadmin_id in SUPER_ADMINS:
@@ -595,7 +587,7 @@ async def handle_new_chat_member(update: Update, context: ContextTypes.DEFAULT_T
                             await context.bot.send_message(
                                 chat_id=superadmin_id,
                                 text=superadmin_message,
-                                parse_mode="Markdown"
+                                parse_mode="HTML"
                             )
                         except Exception as e:
                             logger.error(f"Failed to send referral notification to superadmin {superadmin_id}: {e}")
@@ -630,7 +622,7 @@ async def handle_new_chat_member(update: Update, context: ContextTypes.DEFAULT_T
         try:
             await update.message.reply_text(
                 welcome_message,
-                parse_mode="Markdown"
+                parse_mode="HTML"
             )
         except Exception as e:
             logger.error(f"Failed to send welcome message: {e}")

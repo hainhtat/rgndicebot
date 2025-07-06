@@ -19,49 +19,49 @@ def format_markdown(text):
 # Message templates
 class MessageTemplates:
     # Game status messages
-    GAME_STARTED = "🎲*ပွဲစဉ်#{match_id} - လောင်းကြေးဖွင့်ပါပြီ*🎲"
+    GAME_STARTED = "🎲<b>ပွဲစဉ်#{match_id} - လောင်းကြေးဖွင့်ပါပြီ</b>🎲"
     BETTING_CLOSED = "🎲  လောင်းကြေးပိတ်ပါပြီ  🎲"
-    GAME_OVER = "🏁 *Game over*\nResult: {result}"
-    TIME_REMAINING = "⏱️ *စတင်မည့်အချိန်:* {seconds}s"
-    CLOSING_SOON = "⏱️ *Closing soon...*"
+    GAME_OVER = "🏁 <b>Game over</b>\nResult: {result}"
+    TIME_REMAINING = "⏱️ <b>စတင်မည့်အချိန်:</b> {seconds}s"
+    CLOSING_SOON = "⏱️ <b>Closing soon...</b>"
     
     # Betting instructions
     BETTING_INSTRUCTIONS = (
-        "*လောင်းကြေးထပ်ရန်*\n"
-"🎲 *BIG (8-12):* *B 500* or *BIG 500* လို့ရိုက်ပါ\n"
-"🎯 *SMALL (2-6):* *S 500* or *SMALL 500* လို့ရိုက်ပါ\n"
-"🍀 *LUCKY (7):* *L 500* or *LUCKY 500* လို့ရိုက်ပါ\n\n"
-"💰 *လျော်မည့်ဆ:*\n"
-        "- *BIG/SMALL:* *1.95x*\n"
-        "- *LUCKY:* *4.5x*"
+        "<b>လောင်းကြေးထပ်ရန်</b>\n"
+"🎲 <b>BIG (8-12):</b> <b>B 500</b> or <b>BIG 500</b> လို့ရိုက်ပါ\n"
+"🎯 <b>SMALL (2-6):</b> <b>S 500</b> or <b>SMALL 500</b> လို့ရိုက်ပါ\n"
+"🍀 <b>LUCKY (7):</b> <b>L 500</b> or <b>LUCKY 500</b> လို့ရိုက်ပါ\n\n"
+"💰 <b>လျော်မည့်ဆ:</b>\n"
+        "- <b>BIG/SMALL:</b> <b>1.95x</b>\n"
+        "- <b>LUCKY:</b> <b>4.5x</b>"
     )
     
     # Bet confirmation
-    BET_CONFIRMATION = "✅ {display_name} *{bet_type}* ပေါ် *{amount}* လောင်းကြေးထပ်လိုက်ပါပြီ\n\n📊 *Total Bets:*\n{total_bets_display}\n\n💰 *Wallet* - *{score}* ကျပ်\n🎁 *Referral* - *{referral_points}* ကျပ်\n🎁 *Bonus* - *{bonus_points}* ကျပ်"
-    INSUFFICIENT_FUNDS = "💸 *ငွေမလုံလောက်ပါ*\n\n💰 *လက်ကျန်:* {total} ကျပ်\n🎯 *လိုအပ်သည်:* {amount} ကျပ်"
-    INVALID_BET_AMOUNT = "❌ *ငွေပမာဏ အနည်းဆုံး 100 ဖြစ်ရပါမည်*။"
-    NO_ACTIVE_GAME = "❌ *No active game* is accepting bets right now."
+    BET_CONFIRMATION = "✅ {display_name} <b>{bet_type}</b> ပေါ် <b>{amount}</b> လောင်းကြေးထပ်လိုက်ပါပြီ\n\n📊 <b>Total Bets:</b>\n{total_bets_display}\n\n💰 <b>Wallet</b> - <b>{score}</b> ကျပ်\n🎁 <b>Referral</b> - <b>{referral_points}</b> ကျပ်\n🎉 <b>Bonus</b> - <b>{bonus_points}</b> ကျပ်"
+    INSUFFICIENT_FUNDS = "💸 <b>ငွေမလုံလောက်ပါ</b>\n\n💰 <b>လက်ကျန်:</b> {total} ကျပ်\n🎯 <b>လိုအပ်သည်:</b> {amount} ကျပ်"
+    INVALID_BET_AMOUNT = "❌ <b>ငွေပမာဏ အနည်းဆုံး 100 ဖြစ်ရပါမည်</b>။"
+    NO_ACTIVE_GAME = "❌ <b>No active game</b> is accepting bets right now."
     
     # Error messages
-    GENERAL_ERROR = "❌ *Error:* {message}"
-    CHAT_NOT_ALLOWED = "⚠️ This bot is only available in *authorized groups*.\nPlease join our *official group:* {group_link}"
-    ADMIN_ONLY = "⚠️ This command is only available to *admins*."
+    GENERAL_ERROR = "❌ <b>Error:</b> {message}"
+    CHAT_NOT_ALLOWED = "⚠️ This bot is only available in <b>authorized groups</b>.\nPlease join our <b>official group:</b> {group_link}"
+    ADMIN_ONLY = "⚠️ This command is only available to <b>admins</b>."
     
     # User messages
-    WALLET_HEADER = "💰 *{name}'s Wallet*\n\n"
-    WALLET_MAIN_BALANCE = "*💵 Main Balance:* {score} ကျပ်\n"
-    WALLET_REFERRAL_BONUS = "*🎁 Referral Bonus:* {referral_points} ကျပ်\n"
-    WALLET_BONUS_POINTS = "*🎁 Bonus Points:* {bonus_points} ကျပ်\n"
-    WALLET_TOTAL_BALANCE = "*📊 Total Balance:* {total} ကျပ်"
+    WALLET_HEADER = "💰 <b>{name}'s Wallet</b>\n\n"
+    WALLET_MAIN_BALANCE = "<b>💵 Main Balance:</b> {score} ကျပ်\n"
+    WALLET_REFERRAL_BONUS = "<b>🎁 Referral Bonus:</b> {referral_points} ကျပ်\n"
+    WALLET_BONUS_POINTS = "<b>🎉 Bonus Points:</b> {bonus_points} ကျပ်\n"
+    WALLET_TOTAL_BALANCE = "<b>📊 Total Balance:</b> {total} ကျပ်"
     
     # Game result
-    GAME_RESULT_HEADER = "🎲 *Game Result*\n"
-    GAME_RESULT_ROLL = "Roll: *{dice_result}* | Winner: {emoji} *{winning_type}*\n"
-    WINNERS_HEADER = "*Winners:*\n"
-    NO_WINNERS = "*No winners this round*\n"
-    WINNER_ENTRY = "- {username}: Bet *{bet_amount}*, Won *{winnings}*\n"
+    GAME_RESULT_HEADER = "🎲 <b>Game Result</b>\n"
+    GAME_RESULT_ROLL = "Roll: <b>{dice_result}</b> | Winner: {emoji} <b>{winning_type}</b>\n"
+    WINNERS_HEADER = "<b>Winners:</b>\n"
+    NO_WINNERS = "<b>No winners this round</b>\n"
+    WINNER_ENTRY = "- {username}: Bet <b>{bet_amount}</b>, Won <b>{winnings}</b>\n"
     MORE_WINNERS = "...and {count} more\n"
-    TOTAL_SUMMARY = "Total: Won *{total_won}* | Lost *{total_lost}*"
+    TOTAL_SUMMARY = "Total: Won <b>{total_won}</b> | Lost <b>{total_lost}</b>"
     
     # Game management messages
     GAME_STOPPED_INACTIVITY = "🛑 <b>3 ပွဲဆက်တိုက်ဆော့မယ့်သူမရှိလို့ ရပ်လိုက်ပါပြီ.</b>\n\n<b>Contact admins</b> to start new game:\n{admin_list}"
@@ -78,19 +78,19 @@ class MessageTemplates:
     STARTING_NEW_GAME = "🎲 <b>Starting a new dice game</b>..."
     FAILED_GAME_CREATION = "❌ Error: Failed to create a new game. Please try again."
     
-    # User welcome messages
-    WELCOME_WITH_REFERRAL = "👋 *Welcome to Rangoon Dice Bot, {name}!*\n\n{message}\n\n!"
-    WELCOME_STANDARD = "👋 *Welcome to RGN Dice Bot, {name}!*\n\nGroup ထဲဝင်ဖို့ အောက်ကခလုတ်လေးကို နှိပ်ပြီး စဆော့လို့ရပါပြီနော်!"
-    WELCOME_WITH_REFERRAL_LINK = "👋 *Welcome to RGN Dice Bot, {name}!*\n\nGroup ထဲဝင်ဖို့ အောက်ကခလုတ်လေးကို နှိပ်ပြီး စဆော့လို့ရပါပြီနော်\n\n🎁 *Invite Friends & Earn Rewards*\nShare your referral link to earn *{bonus} ကျပ်* for each new player who joins!\n\n📱 *Your Referral Link:*\n`{referral_link}`"
+    # Welcome messages
+    WELCOME_WITH_REFERRAL = "👋 <b>Welcome to Rangoon Dice Bot, {name}!</b>\n\n{message}\n\n!"
+    WELCOME_STANDARD = "👋 <b>Welcome to RGN Dice Bot, {name}!</b>\n\nGroup ထဲဝင်ဖို့ အောက်ကခလုတ်လေးကို နှိပ်ပြီး စဆော့လို့ရပါပြီနော်!"
+    WELCOME_WITH_REFERRAL_LINK = "👋 <b>Welcome to RGN Dice Bot, {name}!</b>\n\nGroup ထဲဝင်ဖို့ အောက်ကခလုတ်လေးကို နှိပ်ပြီး စဆော့လို့ရပါပြီနော်\n\n🎁 <b>Invite Friends & Earn Rewards</b>\nShare your referral link to earn <b>{bonus} ကျပ်</b> for each new player who joins!\n\n📱 <b>Your Referral Link:</b>\n<code>{referral_link}</code>"
     
     # Deposit and withdrawal messages
-    DEPOSIT_MESSAGE = "*ငွေထည့်ရန်*\n\nငွေထည့်ရန် အောက်ပါ Agent ထံ ဆက်သွယ်ပါ။"
-    WITHDRAWAL_MESSAGE = "*ငွေထုတ်ရန်*\n\n💰 *Main Wallet:* {main_wallet} ကျပ်\n🎁 *Referral Points:* {referral_points} ကျပ်\n🎉 *Bonus Points:* {bonus_points} ကျပ်\n📊 *Total Balance:* {total_balance} ကျပ်\n\n⚠️ *Note:* Only Main Wallet balance can be withdrawn (Minimum: 5,000 ကျပ်)\n\n✅ *Withdrawal request submitted successfully!*\n\nငွေထုတ်ရန် အောက်ပါ Agent ထံ ဆက်သွယ်ပါ။"
+    DEPOSIT_MESSAGE = "<b>ငွေထည့်ရန်</b>\n\nငွေထည့်ရန် အောက်ကခလုတ်ကိုနှိပ်ပါ"
+    WITHDRAWAL_MESSAGE = "<b>ငွေထုတ်ရန်</b>\n\n💰 <b>Main Wallet:</b> {main_wallet} ကျပ်\n\n⚠️ <b>Note:</b> Only Main Wallet balance can be withdrawn (Minimum: 5,000 ကျပ်)\n\n✅ <b>Withdrawal request submitted successfully!</b>\n\nငွေထုတ်ရန် အောက်ပါ Agent ထံ ဆက်သွယ်ပါ။"
     
     # Error messages
-    INVALID_COMMAND_FORMAT = "❌ *Invalid command format*\nUsage: {usage}"
-    USER_ID_MUST_BE_NUMBER = "❌ *User ID must be a number*"
-    AMOUNT_MUST_BE_NUMBER = "❌ Amount must be a number."
+    INVALID_COMMAND_FORMAT = "❌ <b>Invalid command format</b>\nUsage: {usage}"
+    USER_ID_MUST_BE_NUMBER = "❌ <b>User ID must be a number</b>"
+    AMOUNT_MUST_BE_NUMBER = "❌ <b>Amount must be a number.</b>"
     USER_NOT_FOUND_BY_ID = "❌ User with ID {user_id} not found in this chat."
     USER_NOT_FOUND_BY_USERNAME = "❌ User with username {username} not found in this chat."
     INVALID_USER_IDENTIFIER = "❌ Invalid user identifier. Use a user ID or @username."
@@ -100,51 +100,51 @@ class MessageTemplates:
     
     # Admin command usage messages
     ADJUSTSCORE_USAGE_REPLY = "❌ Please specify an amount when replying to a user.\nUsage: /adjustscore <amount> [reason]"
-    ADJUSTSCORE_USAGE_FULL = "❌ Invalid command format.\nUsage:\n1. Reply to user: /adjustscore <amount> [reason]\n2. Specify user: /adjustscore <user_id or @username> <amount> [reason]"
-    CHECKSCORE_USAGE = "❌ Invalid command format.\nUsage:\n1. Reply to user: /checkscore\n2. Specify user: /checkscore <user_id or @username>"
+    ADJUSTSCORE_USAGE_FULL = "❌ <b>Invalid command format.</b>\nUsage:\n1. Reply to user: /adjustscore <amount> [reason]\n2. Specify user: /adjustscore <user_id or @username> <amount> [reason]"
+    CHECKSCORE_USAGE = "❌ <b>Invalid command format.</b>\nUsage:\n1. Reply to user: /checkscore\n2. Specify user: /checkscore <user_id or @username>"
     
     # Admin-related messages
     FAILED_REFRESH_ADMIN_LIST = "❌ Failed to refresh admin list. Please try again later."
-    SUPER_ADMIN_ONLY = "⚠️ This command is only available to super admins."
-    ADMIN_ID_MUST_BE_NUMBER = "❌ Admin ID must be a number."
-    ADMIN_ONLY_COMMAND = "⚠️ This command is only available to admins."
-    ONLY_ADMINS_CAN_USE = "❌ Only admins can use this command."
-    NO_ACTIVE_GAME = "❌ No active game found."
-    STARTING_NEW_GAME = "🎲 Starting a new dice game..."
+    SUPER_ADMIN_ONLY = "⚠️ This command is only available to <b>super admins</b>."
+    ADMIN_ID_MUST_BE_NUMBER = "❌ <b>Admin ID must be a number.</b>"
+    ADMIN_ONLY_COMMAND = "⚠️ This command is only available to <b>admins</b>."
+    ONLY_ADMINS_CAN_USE = "❌ Only <b>admins</b> can use this command."
+    NO_ACTIVE_GAME = "❌ <b>No active game found.</b>"
+    STARTING_NEW_GAME = "🎲 <b>Starting a new dice game...</b>"
     
     # Referral messages
-    REFERRAL_LINK_MESSAGE = "🎮 *Join Rangoon Dice Official group!* 🎮\n\n🚀  *Your Rewards:* User တစ်ယောက် join ရင်{bonus}ကျပ်ရပါမယ်!\n🎁 *Their Welcome Gift:* Join တာနဲ့ 500ကျပ်ရပါမယ်!\n\n{referral_link}\n\n🏆 *Your Referral Empire:* {points} ကျပ် earned so far"
+    REFERRAL_LINK_MESSAGE = "🎮 <b>Join Rangoon Dice Official group!</b> 🎮\n\n🚀  <b>Your Rewards:</b> User တစ်ယောက် join ရင်{bonus}ကျပ်ရပါမယ်!\n🎁 <b>Their Welcome Gift:</b> Join တာနဲ့ 500ကျပ်ရပါမယ်!\n\n{referral_link}\n\n🏆 <b>Your Referral Empire:</b> {points} ကျပ် earned so far"
     NEW_MEMBER_WELCOME = "👋 Welcome to the group, {name}!\n\nUse /help to learn how to play the dice game."
     
     # Help message
-    HELP_MESSAGE = "🎲 *RGN Dice Bot Help* 🎲\n\n*Game rules :*\n• အံစာတုံး ၂ တုံးလှိမ့်ပါမယ်\n• ၂ခု ပေါင်းခြင်း 2-6: *SMALL* \n• ၂ခု ပေါင်းခြင်း 8-12: *BIG* \n• ၂ခု ပေါင်းခြင်း 7: *LUCKY*\n\n*ကစားနည်း :*\n• Big ပေါ်လောင်းရန် B 500, Big 5000 စသဖြင့်လောင်းလို့ရပါတယ်\n• Small ပေါ်လောင်းရန် S 500, Small 2000 စသဖြင့်လောင်းလို့ရပါတယ်\n• LUCKY ပေါ်လောင်းရန် L 5000, LUCKY 50000 စသဖြင့်လောင်းလို့ရပါတယ်\n\n*Rules :*\n• အနည်းဆုံး ၁၀၀ ကျပ်မှစတင်လောင်းလို့ရပါတယ်\n• လောင်းပြီးသားဟာကို cancel လို့မရပါဘူး\n• admin တွေကပဲ game ကိုစတင်လို့ရပါတယ်\n\n*ကျပ်:*\n• Big/Small ဆိုရင် 1.95 ဆရပါမယ်\n• LUCKY ဆိုရင် 4.5 ဆရပါမယ်\n• Share ခလုတ်လေးနှိပ်ပြီး သူငယ််ချင်းတွေကို ပို့ပေးလို့ရပါတယ် \n• Share ထားတယ့် link ကနေတစ်ဆင့်ဝင်လာရင် ၅၀၀ ကျပ်ရရှိမှာဖြစ်ပါတယ်"
+    HELP_MESSAGE = "🎲 <b>RGN Dice Bot Help</b> 🎲\n\n<b>Game rules :</b>\n• အံစာတုံး ၂ တုံးလှိမ့်ပါမယ်\n• ၂ခု ပေါင်းခြင်း 2-6: <b>SMALL</b> \n• ၂ခု ပေါင်းခြင်း 8-12: <b>BIG</b> \n• ၂ခု ပေါင်းခြင်း 7: <b>LUCKY</b>\n\n<b>ကစားနည်း :</b>\n• Big ပေါ်လောင်းရန် B 500, Big 5000 စသဖြင့်လောင်းလို့ရပါတယ်\n• Small ပေါ်လောင်းရန် S 500, Small 2000 စသဖြင့်လောင်းလို့ရပါတယ်\n• LUCKY ပေါ်လောင်းရန် L 5000, LUCKY 50000 စသဖြင့်လောင်းလို့ရပါတယ်\n\n<b>Rules :</b>\n• အနည်းဆုံး ၁၀၀ ကျပ်မှစတင်လောင်းလို့ရပါတယ်\n• လောင်းပြီးသားဟာကို cancel လို့မရပါဘူး\n• admin တွေကပဲ game ကိုစတင်လို့ရပါတယ်\n\n<b>ကျပ်:</b>\n• Big/Small ဆိုရင် 1.95 ဆရပါမယ်\n• LUCKY ဆိုရင် 4.5 ဆရပါမယ်\n• Share ခလုတ်လေးနှိပ်ပြီး သူငယ််ချင်းတွေကို ပို့ပေးလို့ရပါတယ် \n• Share ထားတယ့် link ကနေတစ်ဆင့်ဝင်လာရင် ၅၀၀ ကျပ်ရရှိမှာဖြစ်ပါတယ်"
     
     # Admin score adjustment messages
-    SCORE_ADDED = "✅ *{display_name}* ကို *{amount}* ကျပ် ဖြည့်ပြီးပါပြီ .\nOld score: *{old_score}*\nNew score: *{new_score}*{reason_text}"
-    SCORE_DEDUCTED = "✅ *{display_name}* ကို *{amount}* ကျပ် နှုတ်ပြီးပါပြီ .\nOld score: *{old_score}*\nNew score: *{new_score}*{reason_text}"
+    SCORE_ADDED = "✅ <b>{display_name}</b> ကို <b>{amount}</b> ကျပ် ဖြည့်ပြီးပါပြီ .\nOld score: <b>{old_score}</b>\nNew score: <b>{new_score}</b>{reason_text}"
+    SCORE_DEDUCTED = "✅ <b>{display_name}</b> ကို <b>{amount}</b> ကျပ် နှုတ်ပြီးပါပြီ .\nOld score: <b>{old_score}</b>\nNew score: <b>{new_score}</b>{reason_text}"
     
     # User information display
-    USER_INFO_HEADER = "👤 *User Information*\n\n"
-    USER_INFO_USER = "*User:* {display_name}\n"
-    USER_INFO_USER_ID = "*User ID:* {user_id}\n\n"
-    USER_INFO_CHAT_SCORE = "*Wallet:* {score} ကျပ်\n"
-    USER_INFO_WINS = "*Wins:* {wins}\n"
-    USER_INFO_LOSSES = "*Losses:* {losses}\n"
-    USER_INFO_REFERRAL_POINTS = "🎁 *Referral ကျပ်:* {referral_points} ကျပ်\n"
-    USER_INFO_REFERRED_BY = "👤 *Referred By:* {referrer_name} ({referrer_id})\n"
+    USER_INFO_HEADER = "👤 <b>User Information</b>\n\n"
+    USER_INFO_USER = "<b>User:</b> {display_name}\n"
+    USER_INFO_USER_ID = "<b>User ID:</b> {user_id}\n\n"
+    USER_INFO_CHAT_SCORE = "<b>Wallet:</b> {score} ကျပ်\n"
+    USER_INFO_WINS = "<b>Wins:</b> {wins}\n"
+    USER_INFO_LOSSES = "<b>Losses:</b> {losses}\n"
+    USER_INFO_REFERRAL_POINTS = "🎁 <b>Referral ကျပ်:</b> {referral_points} ကျပ်\n"
+    USER_INFO_REFERRED_BY = "👤 <b>Referred By:</b> {referrer_name} ({referrer_id})\n"
     
     # Admin wallet messages
-    ADMIN_WALLETS_HEADER = "💰 *Admin Wallets*\n\n"
-    ADMIN_WALLET_ENTRY = "👤 *{username}* ({admin_id})\n*Balance:* {points:,} ကျပ်\n*Last Refill:* {last_refill}\n\n"
-    ADMIN_WALLET_SELF = "👤 *{username}* ({admin_id})\n*Balance:* {points:,} ကျပ်\n*Last Refill:* {last_refill}\n"
+    ADMIN_WALLETS_HEADER = "💰 <b>Admin Wallets</b>\n\n"
+    ADMIN_WALLET_ENTRY = "👤 <b>{username}</b> ({admin_id})\n<b>Balance:</b> {points:,} ကျပ်\n<b>Last Refill:</b> {last_refill}\n\n"
+    ADMIN_WALLET_SELF = "👤 <b>{username}</b> ({admin_id})\n<b>Balance:</b> {points:,} ကျပ်\n<b>Last Refill:</b> {last_refill}\n"
     NO_ADMIN_WALLET = "You don't have an admin wallet yet.\n"
     NO_ADMIN_WALLETS_FOUND = "No admin wallets found for current admins in this chat.\n"
     
     # Admin refill messages
     ADMIN_NOT_FOUND = "❌ Admin {admin_id} not found."
-    ADMIN_REFILLED = "✅ Refilled {username}'s balance to {points} ကျပ်."
-    ALL_ADMINS_REFILLED = "✅ Refilled {count} admin wallets to {points} ကျပ် each."
-    ADMIN_LIST_REFRESHED = "✅ Admin list refreshed. {count} admins found."
+    ADMIN_REFILLED = "✅ Refilled <b>{username}</b>'s balance to <b>{points}</b> ကျပ်."
+    ALL_ADMINS_REFILLED = "✅ Refilled <b>{count}</b> admin wallets to <b>{points}</b> ကျပ် each."
+    ADMIN_LIST_REFRESHED = "✅ Admin list refreshed. <b>{count}</b> admins found."
     
     # Score adjustment fallback messages
     SCORE_ADJUSTMENT_FALLBACK = "Score adjusted: {old_score} → {new_score}"
@@ -197,7 +197,7 @@ class MessageTemplates:
     ERROR_LOADING_ADMIN_LIST = "❌ Error loading admin list. Please try again."
     
     # Admin refill messages
-    ADMIN_REFILL_SUCCESS = "✅ *Admin Wallet Refilled!*\n\n💰 *Amount:* {amount} ကျပ်\n👤 *Admin:* {admin_name}\n🆔 *Admin ID:* {admin_id}\n\n*New Balance:* {new_balance} ကျပ်"
+    ADMIN_REFILL_SUCCESS = "✅ <b>Admin Wallet Refilled!</b>\n\n💰 <b>Amount:</b> {amount} ကျပ်\n👤 <b>Admin:</b> {admin_name}\n🆔 <b>Admin ID:</b> {admin_id}\n\n<b>New Balance:</b> {new_balance} ကျပ်"
 
 
 def format_game_status(game_status: Dict[str, Any], time_remaining: Optional[int] = None) -> str:
@@ -469,7 +469,9 @@ async def format_game_result(result: Dict[str, Any], global_data: Dict[str, Any]
     
     # Check if there are any participants
     if not winners and not losers:
-        message += "<b>No participants</b> in this match\n"
+        total_bets = result.get('total_bets', 0)
+        message += "<b>No winner in this match</b>\n"
+        message += f"\n💵 <b>Total:</b> {total_bets} ကျပ် bet, 0 ကျပ် paid out\n"
     else:
         # Show all participants with individual bet details
         participant_count = 0

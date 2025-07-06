@@ -123,7 +123,7 @@ async def process_daily_cashback(context):
                             await context.bot.send_message(
                                 chat_id=int(user_id),
                                 text=cashback_message,
-                                parse_mode="Markdown"
+                                parse_mode="HTML"
                             )
                             logger.info(f"✅ Successfully sent cashback notification to user {user_id}")
                         except Exception as e:
@@ -202,7 +202,7 @@ async def send_daily_cashback_notification_to_super_admins(total_users, total_am
                 await context.bot.send_message(
                     chat_id=super_admin_id,
                     text=message,
-                    parse_mode="Markdown"
+                    parse_mode="HTML"
                 )
                 logger.info(f"✅ Successfully sent daily cashback report to super admin {super_admin_id}")
             except Exception as e:

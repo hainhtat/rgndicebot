@@ -13,6 +13,7 @@ from utils.telegram_utils import create_inline_keyboard, is_admin
 from utils.error_handler import error_handler
 
 from utils.message_formatter import MessageTemplates
+from utils.formatting import escape_html, escape_markdown
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +31,7 @@ async def my_groups_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         # Using simple markdown instead of HTML conversion
         await update.message.reply_text(
             MessageTemplates.NO_PERMISSION_COMMAND,
-            parse_mode="Markdown"
+            parse_mode="HTML"
         )
         return
     
@@ -38,7 +39,7 @@ async def my_groups_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     if update.effective_chat.type != "private":
         await update.message.reply_text(
             MessageTemplates.PRIVATE_CHAT_ONLY,
-            parse_mode="Markdown"
+            parse_mode="HTML"
         )
         return
     
@@ -46,7 +47,7 @@ async def my_groups_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     if not ALLOWED_GROUP_IDS:
         await update.message.reply_text(
             MessageTemplates.NO_GROUPS_CONFIGURED,
-            parse_mode="Markdown"
+            parse_mode="HTML"
         )
         return
     
@@ -78,10 +79,10 @@ async def my_groups_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     await update.message.reply_text(
-        "*🎮 My Groups*\n\n"
+        "<b>🎮 My Groups</b>\n\n"
         "Select a group to manage refills and admin wallets:",
         reply_markup=reply_markup,
-        parse_mode="Markdown"
+        parse_mode="HTML"
     )
 
 
@@ -91,34 +92,47 @@ async def show_groups_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     """
     query = update.callback_query
     
-    # Get configured groups
-    configured_groups = get_configured_groups()
-    
-    if not configured_groups:
+    # Get allowed groups
+    if not ALLOWED_GROUP_IDS:
         await query.edit_message_text(
             MessageTemplates.NO_GROUPS_CONFIGURED + "\n\n"
             "No groups have been configured yet. Please add groups to the configuration first.",
-            parse_mode="Markdown"
+            parse_mode="HTML"
         )
         return
     
     # Create keyboard with group options
     keyboard = []
-    for group_id, group_name in configured_groups.items():
+    for group_id in ALLOWED_GROUP_IDS:
+        try:
+            # Get group info
+            chat = await context.bot.get_chat(group_id)
+            group_name = chat.title or f"Group {group_id}"
+        except Exception as e:
+            logger.error(f"Error getting info for group {group_id}: {e}")
+            group_name = f"Group {group_id}"
+            
         keyboard.append([
             InlineKeyboardButton(
-                f"🏢 {group_name}",
-                callback_data=f"group_{group_id}"
+                f"🎮 {group_name}",
+                callback_data=f"mygroups_select_{group_id}"
             )
         ])
     
     reply_markup = InlineKeyboardMarkup(keyboard)
     
+    # Check if the message content would be the same to avoid the error
+    new_text = "<b>🎮 My Groups</b>\n\n" + "Select a group to manage refills and admin wallets:"
+    current_text = query.message.text
+    
+    if current_text and current_text.replace('*', '').replace('_', '') == new_text.replace('<b>', '').replace('</b>', '').replace('\n', ' ').strip():
+        # Message content is the same, just answer the callback
+        return
+    
     await query.edit_message_text(
-        "*🎮 My Groups*\n\n"
-        "Select a group to manage refills and admin wallets:",
+        new_text,
         reply_markup=reply_markup,
-        parse_mode="Markdown"
+        parse_mode="HTML"
     )
 
 
@@ -136,7 +150,7 @@ async def handle_mygroups_callback(update: Update, context: ContextTypes.DEFAULT
     if user_id not in SUPER_ADMIN_IDS:
         await query.edit_message_text(
             MessageTemplates.NO_PERMISSION_FEATURE,
-            parse_mode="Markdown"
+            parse_mode="HTML"
         )
         return
     
@@ -191,11 +205,11 @@ async def handle_mygroups_callback(update: Update, context: ContextTypes.DEFAULT
         reply_markup = InlineKeyboardMarkup(keyboard)
         
         await query.edit_message_text(
-            f"*🎮 {group_name}*\n\n"
-            f"Group ID: `{group_id}`\n\n"
+            f"<b>🎮 {group_name}</b>\n\n"
+            f"Group ID: <code>{group_id}</code>\n\n"
             "Choose an action:",
             reply_markup=reply_markup,
-            parse_mode="Markdown"
+            parse_mode="HTML"
         )
     
     elif data == "mygroups_back":
@@ -309,14 +323,14 @@ async def refill_all_players(update: Update, context: ContextTypes.DEFAULT_TYPE,
         save_data_unified(global_data)
         
         # Send confirmation message
-        message = f"✅ *Refill All Players Completed!*\n\n"
-        message += f"🏢 *Group:* {group_name}\n"
-        message += f"👥 *Players Refilled:* {refilled_count}\n"
-        message += f"🎁 *Bonus Points per Player:* 500 points\n"
-        message += f"🎁 *Welcome Bonus:* Marked as received\n\n"
-        message += f"*Total Bonus Points Distributed:* {refilled_count * 500:,} points"
+        message = f"✅ <b>Refill All Players Completed!</b>\n\n"
+        message += f"🏢 <b>Group:</b> {escape_html(group_name)}\n"
+        message += f"👥 <b>Players Refilled:</b> {refilled_count}\n"
+        message += f"🎁 <b>Bonus Points per Player:</b> 500 points\n"
+        message += f"🎁 <b>Welcome Bonus:</b> Marked as received\n\n"
+        message += f"<b>Total Bonus Points Distributed:</b> {refilled_count * 500:,} points"
         
-        await query.edit_message_text(message, parse_mode='Markdown')
+        await query.edit_message_text(message, parse_mode='HTML')
         
     except Exception as e:
         logger.error(f"Error in refill_all_players: {e}")
@@ -340,9 +354,9 @@ async def show_specific_admin_refill(update: Update, context: ContextTypes.DEFAU
         if not admins:
             await query.edit_message_text(
                 MessageTemplates.NO_ADMINS_FOUND +
-                f"*Group:* {escape_markdown(group_name)}\n\n"
+                f"<b>Group:</b> {escape_html(group_name)}\n\n"
                 f"No admins found in this group.",
-                parse_mode="Markdown"
+                parse_mode="HTML"
             )
             return
         
@@ -384,11 +398,11 @@ async def show_specific_admin_refill(update: Update, context: ContextTypes.DEFAU
         reply_markup = InlineKeyboardMarkup(keyboard)
         
         await query.edit_message_text(
-            f"👤 *Refill Specific Admin*\n\n"
-            f"*Group:* {escape_markdown(group_name)}\n\n"
+            f"👤 <b>Refill Specific Admin</b>\n\n"
+            f"<b>Group:</b> {escape_html(group_name)}\n\n"
             f"Select an admin to refill:",
             reply_markup=reply_markup,
-            parse_mode="Markdown"
+            parse_mode="HTML"
         )
         
     except Exception as e:
@@ -425,7 +439,7 @@ async def show_group_admin_wallets(update: Update, context: ContextTypes.DEFAULT
         current_admins = []
     
     # Format the message
-    message = f"*👑 Admin Wallets - {group_name}*\n\n"
+    message = f"<b>👑 Admin Wallets - {escape_html(group_name)}</b>\n\n"
     
     admin_count = 0
     for admin_id in current_admins:
@@ -454,22 +468,26 @@ async def show_group_admin_wallets(update: Update, context: ContextTypes.DEFAULT
             chat_points = 0
             last_refill = None
         
+        # Clean username and escape for HTML
+        clean_username = username.replace('@', '') if username.startswith('@') else username
+        escaped_username = escape_html(clean_username)
+        
         if last_refill:
             # Format the last refill time
             if isinstance(last_refill, datetime):
                 last_refill_str = last_refill.strftime("%Y-%m-%d %H:%M")
             else:
                 last_refill_str = str(last_refill)
-            message += f"👤 *@{username}*\n"
-            message += f"   💰 Points: `{chat_points:,}`\n"
-            message += f"   🕒 Last Refill: {last_refill_str}\n\n"
+            message += f"👤 <b>{escaped_username}</b>\n"
+            message += f"   💰 Points: <code>{chat_points:,}</code>\n"
+            message += f"   🕒 Last Refill: {escape_html(last_refill_str)}\n\n"
         else:
-            message += f"👤 *@{username}*\n"
-            message += f"   💰 Points: `{chat_points:,}`\n"
+            message += f"👤 <b>{escaped_username}</b>\n"
+            message += f"   💰 Points: <code>{chat_points:,}</code>\n"
             message += f"   🕒 Last Refill: Never\n\n"
     
     if admin_count == 0:
-        message += "No admin wallets found for this group."
+        message += MessageTemplates.NO_ADMIN_WALLETS_FOUND
     
     # Add back button
     keyboard = [[
@@ -484,5 +502,5 @@ async def show_group_admin_wallets(update: Update, context: ContextTypes.DEFAULT
     await query.edit_message_text(
         message,
         reply_markup=reply_markup,
-        parse_mode="Markdown"
+        parse_mode="HTML"
     )

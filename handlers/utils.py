@@ -149,21 +149,21 @@ async def create_game_status_message(game: DiceGame, context: ContextTypes.DEFAU
             
             if time_remaining.total_seconds() > 0:
                 seconds_left = int(time_remaining.total_seconds())
-                message += f"⏱️ *Time remaining:* {seconds_left}s\n\n"
+                message += f"⏱️ <b>Time remaining:</b> {seconds_left}s\n\n"
             else:
-                message += "⏱️ *Closing soon...*\n\n"
+                message += "⏱️ <b>Closing soon...</b>\n\n"
         elif status['state'] == GAME_STATE_CLOSED:
             message += "🔒 *လောင်းကြေးပိတ်ပါပြီ*\n\n"
         elif status['state'] == GAME_STATE_OVER:
-            message += f"🏁 *Game over*\nResult: {status['result']}\n\n"
+            message += f"🏁 <b>Game over</b>\nResult: {status['result']}\n\n"
         
         # Add game instructions for text betting
-        message += "*လောင်းကြေးထပ်ရန်*\n"
-        message += "🎲 *BIG (8-12):* B 500 or BIG 500 လို့ရိုက်ပါ\n"
-        message += "🎯 *SMALL (2-6):* S 500 or SMALL 500 လို့ရိုက်ပါ\n"
-        message += "🍀 *LUCKY (7):* L 500 or LUCKY 500 လို့ရိုက်ပါ\n\n"
+        message += "<b>လောင်းကြေးထပ်ရန်</b>\n"
+        message += "🎲 <b>BIG (8-12):</b> B 500 or BIG 500 လို့ရိုက်ပါ\n"
+        message += "🎯 <b>SMALL (2-6):</b> S 500 or SMALL 500 လို့ရိုက်ပါ\n"
+        message += "🍀 <b>LUCKY (7):</b> L 500 or LUCKY 500 လို့ရိုက်ပါ\n\n"
         
-        message += "💰 *လျော်မည့်ဆ:*\n"
+        message += "💰 <b>လျော်မည့်ဆ:</b>\n"
         message += "- BIG/SMALL: 1.95x\n"
         message += "- LUCKY: 4.5x\n"
         

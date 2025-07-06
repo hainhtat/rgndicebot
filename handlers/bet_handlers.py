@@ -99,11 +99,11 @@ async def place_bet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     game_state = chat_data.get("game_state", "active")
     
     if game_state == "inactive":
-        error_message = "🛑 *Game is currently inactive*\n\nNo games are running. Contact an admin to start a new game."
+        error_message = "🛑 <b>Game is currently inactive</b>\n\nNo games are running. Contact an admin to start a new game."
         if is_callback:
             await update.callback_query.answer(error_message)
         else:
-            await update.message.reply_text(error_message, parse_mode="Markdown")
+            await update.message.reply_text(error_message, parse_mode="HTML")
         return
     
     # Get the current game or create a new one if needed
@@ -115,11 +115,11 @@ async def place_bet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         idle_game_limit = config.get('game', 'idle_game_limit', 3)
         
         if consecutive_idle >= idle_game_limit:
-            error_message = "🛑 *Game stopped due to inactivity*\n\nNo bets were placed for 3 consecutive matches.\nUse /roll to start a new game."
+            error_message = "🛑 <b>Game stopped due to inactivity</b>\n\nNo bets were placed for 3 consecutive matches.\nUse /roll to start a new game."
             if is_callback:
                 await update.callback_query.answer(error_message)
             else:
-                await update.message.reply_text(error_message, parse_mode="Markdown")
+                await update.message.reply_text(error_message, parse_mode="HTML")
             return
         else:
             game = create_new_game(chat_id)
@@ -243,7 +243,7 @@ async def place_bet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         else:
             await update.message.reply_text(
                 text=format_bet_error(error_message),
-                parse_mode="Markdown"
+                parse_mode="HTML"
             )
         
         logger.warning(f"Bet error: user={user_id}, type={bet_type}, amount={amount}, error={error_message}")
@@ -296,7 +296,7 @@ async def roll_dice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         # Send result message
         await update.callback_query.edit_message_text(
             text=format_dice_result(dice1, dice2, dice_sum),
-            parse_mode="Markdown"
+            parse_mode="HTML"
         )
         
         # Send game summary
@@ -312,11 +312,11 @@ async def roll_dice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         
         # Send new game status message with proper time remaining
         await send_message_with_retry(
-            context,
-            chat_id,
-            format_game_status(new_game.get_status(), 60),
-            parse_mode="Markdown"
-        )
+                context,
+                chat_id,
+                format_game_status(new_game.get_status(), 60),
+                parse_mode="HTML"
+            )
         
         logger.info(f"Dice rolled manually: chat={chat_id}, user={user_id}, result={dice1},{dice2}")
         
@@ -329,8 +329,8 @@ async def roll_dice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             
             # Send fallback result message
             await update.callback_query.edit_message_text(
-                text=f"⚠️ *Dice animation failed, using manual roll*\n\n{format_dice_result(dice1, dice2, dice1 + dice2)}",
-                parse_mode="Markdown"
+                text=f"⚠️ <b>Dice animation failed, using manual roll</b>\n\n{format_dice_result(dice1, dice2, dice1 + dice2)}",
+                parse_mode="HTML"
             )
             
             # Send game summary
@@ -349,7 +349,7 @@ async def roll_dice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 context,
                 chat_id,
                 format_game_status(new_game.get_status(), 60),
-                parse_mode="Markdown"
+                parse_mode="HTML"
             )
             
         except Exception as fallback_error:
@@ -522,8 +522,8 @@ async def auto_roll_dice(update, context) -> None:
                             await send_message_with_retry(
                                 context,
                                 chat_id,
-                                "🛑 *Game stopped due to inactivity*\n\nNo bets were placed for 3 consecutive matches.\nContact an admin to start a new game.",
-                                parse_mode="Markdown"
+                                "🛑 <b>Game stopped due to inactivity</b>\n\nNo bets were placed for 3 consecutive matches.\nContact an admin to start a new game.",
+                                parse_mode="HTML"
                             )
                         
                         continue
@@ -625,7 +625,7 @@ async def auto_roll_dice(update, context) -> None:
                                 context,
                                 chat_id,
                                 format_game_status(new_game.get_status(), 60),
-                                parse_mode="Markdown"
+                                parse_mode="HTML"
                             )
                     
                     # Log successful game processing

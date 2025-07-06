@@ -87,7 +87,7 @@ async def start_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     await update.message.reply_text(
         status_message,
         reply_markup=reply_markup,
-        parse_mode="Markdown"
+        parse_mode="HTML"
     )
 
 
@@ -144,8 +144,8 @@ async def roll_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     if game_state == "inactive":
         chat_data["game_state"] = "active"
         await update.message.reply_text(
-            "✅ *Games activated!*\n\nStarting a new dice game...",
-            parse_mode="Markdown"
+            "✅ <b>Games activated!</b>\n\nStarting a new dice game...",
+            parse_mode="HTML"
         )
     
     # Get chat data
@@ -186,7 +186,7 @@ async def roll_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     await update.message.reply_text(
         status_message,
         reply_markup=reply_markup,
-        parse_mode="Markdown"
+        parse_mode="HTML"
     )
     
     # Keyboard sending removed as requested
@@ -363,7 +363,7 @@ async def game_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     await update.message.reply_text(
         status_message,
         reply_markup=reply_markup,
-        parse_mode="Markdown"
+        parse_mode="HTML"
     )
 
 
@@ -411,7 +411,7 @@ async def show_history(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     # Send the history message
     await update.message.reply_text(
         history_message,
-        parse_mode="Markdown"
+        parse_mode="HTML"
     )
 
 
@@ -425,13 +425,13 @@ async def show_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
         await update.message.reply_text(
             help_message,
-            parse_mode="Markdown"
+            parse_mode="HTML"
         )
     except Exception as e:
         logger.error(f"Error sending help message: {e}")
-        # Try without markdown parsing
+        # Try without HTML parsing
         await update.message.reply_text(
-            help_message.replace('*', ''),
+            help_message.replace('<b>', '').replace('</b>', '').replace('<i>', '').replace('</i>', ''),
             parse_mode=None
         )
 
@@ -442,18 +442,18 @@ async def bot_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     Usage: /about
     """
     about_message = (
-        "🎲 *RGN Dice Bot* 🎲\n\n"
+        "🎲 <b>RGN Dice Bot</b> 🎲\n\n"
         "A fun dice betting game for Telegram groups!\n\n"
-        "*Features:*\n"
+        "<b>Features:</b>\n"
         "• Real-time dice rolling\n"
         "• Betting system with ကျပ်\n"
         "• Leaderboards and statistics\n"
         "• Referral system\n\n"
-        "*Version:* 3.3\n"
-        "*Created by:* RGN Team\n"
+        "<b>Version:</b> 3.3\n"
+        "<b>Created by:</b> RGN Team\n"
     )
     
     await update.message.reply_text(
         about_message,
-        parse_mode="Markdown"
+        parse_mode="HTML"
     )
