@@ -11,6 +11,8 @@ import logging
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from contextlib import contextmanager
+from alembic.config import Config
+from alembic import command
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -111,12 +113,22 @@ def check_and_add_columns():
         logger.error(f"❌ Error during migration: {e}")
         raise
 
+def run_alembic_migrations():
+    try:
+        logger.info("Running Alembic migrations...")
+        alembic_cfg = Config("alembic.ini")
+        command.upgrade(alembic_cfg, "head")
+        logger.info("✅ Alembic migrations completed successfully")
+    except Exception as e:
+        logger.error(f"❌ Error running Alembic migrations: {e}")
+        raise
 def run_migration():
     """Run the database migration - function for import by other modules."""
     logger.info("=== Render Database Migration Started ===")
     logger.info(f"Database URL: {get_database_url().split('@')[1] if '@' in get_database_url() else 'local'}")
     
     try:
+        run_alembic_migrations()
         check_and_add_columns()
         logger.info("=== Migration Completed Successfully ===")
         return True
