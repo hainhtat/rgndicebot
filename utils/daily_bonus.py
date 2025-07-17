@@ -111,11 +111,11 @@ async def process_daily_cashback(context):
                         # Try to notify the user about their cashback with an engaging message
                         try:
                             cashback_message = (
-                                f"🎁 *Daily Cashback Reward!* 🎁\n\n"
+                                f"🎁 <b>Daily Cashback Reward!</b> 🎁\n\n"
                                 f"🌟 Great news! You've received your daily cashback bonus!\n\n"
-                                f"💰 *Cashback Amount:* {cashback:,} ကျပ်\n"
-                                f"📊 *Yesterday's Activity:* {total_loss:,} ကျပ်\n"
-                                f"🎯 *Cashback Rate:* {int(DAILY_CASHBACK_PERCENTAGE * 100)}%\n\n"
+                                f"💰 <b>Cashback Amount:</b> {cashback:,} ကျပ်\n"
+                                f"📊 <b>Yesterday's Activity:</b> {total_loss:,} ကျပ်\n"
+                                f"🎯 <b>Cashback Rate:</b> {int(DAILY_CASHBACK_PERCENTAGE * 100)}%\n\n"
                                 f"🚀 Your ကျပ် have been automatically added to your wallet!\n"
                                 f"🎲 Ready for another exciting day of gaming?"
                             )
@@ -180,19 +180,19 @@ async def send_daily_cashback_notification_to_super_admins(total_users, total_am
         
         if total_users == 0:
             message = (
-                f"🎁 *Daily Cashback Report*\n\n"
-                f"📊 *Status:* No cashback processed today\n"
-                f"👥 *Users:* 0 users received cashback\n"
-                f"💰 *Total Amount:* 0 ကျပ်\n\n"
+                f"🎁 <b>Daily Cashback Report</b>\n\n"
+                f"📊 <b>Status:</b> No cashback processed today\n"
+                f"👥 <b>Users:</b> 0 users received cashback\n"
+                f"💰 <b>Total Amount:</b> 0 ကျပ်\n\n"
                 f"ℹ️ No users had losses yesterday to qualify for cashback."
             )
         else:
             message = (
-                f"🎁 *Daily Cashback Report*\n\n"
-                f"📊 *Status:* Successfully processed\n"
-                f"👥 *Users:* {total_users:,} users received cashback\n"
-                f"💰 *Total Amount:* {total_amount:,} ကျပ်\n"
-                f"📈 *Cashback Rate:* 10%\n\n"
+                f"🎁 <b>Daily Cashback Report</b>\n\n"
+                f"📊 <b>Status:</b> Successfully processed\n"
+                f"👥 <b>Users:</b> {total_users:,} users received cashback\n"
+                f"💰 <b>Total Amount:</b> {total_amount:,} ကျပ်\n"
+                f"📈 <b>Cashback Rate:</b> 10%\n\n"
                 f"✅ All eligible users have been notified via private message."
             )
         

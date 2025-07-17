@@ -10,18 +10,18 @@ ERROR_PLAYER_NOT_FOUND = "❌ Player not found in this chat."
 
 # Success messages
 SUCCESS_REFERRAL_WELCOME = (
-    "🎉 *Welcome to RGN Dice Bot!* 🎉\n\n"
-    "✨ You've been invited by *{referrer_name}* to join the fun!\n\n"
-    "🎮 *Next Step:* Join our main gaming group to start playing\n"
-    "🎁 *Bonus:* Both you and your friend will earn rewards!\n"
-    "🚀 *Ready to roll the dice and win big?*"
+    "🎉 <b>Welcome to RGN Dice Bot!</b> 🎉\n\n"
+    "✨ You've been invited by <b>{referrer_name}</b> to join the fun!\n\n"
+    "🎮 <b>Next Step:</b> Join our main gaming group to start playing\n"
+    "🎁 <b>Bonus:</b> Both you and your friend will earn rewards!\n"
+    "🚀 <b>Ready to roll the dice and win big?</b>"
 )
 
 SUCCESS_REFERRAL_BONUS = (
-    "🎉 *Referral Bonus Received!*\n\n"
-    "👤 *{user_name}* has joined the main group!\n"
-    "💰 You've received a *{bonus_points} ကျပ်* bonus for this referral.\n"
-    "💵 Your total referral ကျပ်: *{total_points}*"
+    "🎉 <b>Referral Bonus Received!</b>\n\n"
+    "👤 <b>{user_name}</b> has joined the main group!\n"
+    "💰 You've received a <b>{bonus_points} ကျပ်</b> bonus for this referral.\n"
+    "💵 Your total referral ကျပ်: <b>{total_points}</b>"
 )
 
 SUCCESS_POINTS_ADDED = "✅ Added {amount} ကျပ် to {username}. New score: {score}"

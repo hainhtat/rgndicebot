@@ -1,5 +1,5 @@
 import logging
-import pytz
+
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple, Any
 from config.settings import USE_DATABASE
@@ -35,7 +35,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         # Check if this is an allowed group
         if chat_id in ALLOWED_GROUP_IDS:
             # Send welcome message
-            welcome_text = f"Welcome to the game, {escape_markdown_username(user.first_name)}! Game controls are being initialized for everyone."
+            welcome_text = MessageTemplates.NEW_MEMBER_WELCOME.format(name=escape_markdown_username(user.first_name))
             await update.message.reply_text(
                 welcome_text,
                 parse_mode="HTML"

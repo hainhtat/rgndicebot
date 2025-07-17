@@ -18,6 +18,7 @@ class User(Base):
     referred_by = Column(BigInteger, ForeignKey('users.user_id'), nullable=True)
     pending_referrer_id = Column(BigInteger, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    last_cashback_date = Column(DateTime, nullable=True)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships

@@ -130,6 +130,23 @@ def set_user_referrer(user_id: int, referrer_id: int) -> bool:
             return True
         return False
 
+def get_all_users() -> List[Dict[str, Any]]:
+    """Get all users from the database."""
+    with get_db_session() as session:
+        users = session.query(User).all()
+        return [{
+            'user_id': user.user_id,
+            'full_name': user.full_name,
+            'username': user.username,
+            'referral_points': user.referral_points,
+            'bonus_points': user.bonus_points,
+            'referred_by': user.referred_by,
+            'welcome_bonus_received': user.welcome_bonuses_received or {},
+            'last_cashback_date': user.last_cashback_date,
+            'created_at': user.created_at,
+            'updated_at': user.updated_at
+        } for user in users]
+
 # Chat operations
 def get_or_create_chat(chat_id: int) -> Dict[str, Any]:
     """Get existing chat or create new one."""
@@ -263,6 +280,29 @@ def get_player_score(user_id: int, chat_id: int) -> int:
             PlayerStats.chat_id == chat_id
         ).first()
         return stats.score if stats else 0
+
+def get_daily_house_stats(start_date: datetime, end_date: datetime) -> Dict[str, int]:
+    """Calculate daily house statistics: total bets, total payouts, house profit."""
+    with get_db_session() as session:
+        # Total bets: sum of all bet amounts for games completed in the period
+        total_bets = session.query(func.sum(Bet.amount)).join(Game).filter(
+            Game.completed_at >= start_date,
+            Game.completed_at < end_date
+        ).scalar() or 0
+        
+        # Total payouts: sum of all bet payouts for games completed in the period
+        total_payouts = session.query(func.sum(Bet.payout)).join(Game).filter(
+            Game.completed_at >= start_date,
+            Game.completed_at < end_date
+        ).scalar() or 0
+        
+        house_profit = total_bets - total_payouts
+        
+        return {
+            'total_bets': total_bets,
+            'total_payouts': total_payouts,
+            'house_profit': house_profit
+        }
 
 def get_chat_leaderboard(chat_id: int, limit: int = 10) -> List[Dict[str, Any]]:
     """Get top players in a chat by score."""

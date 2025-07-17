@@ -216,38 +216,66 @@ def load_data_unified() -> Dict:
             
             # Load chat data for all allowed groups
             for chat_id in ALLOWED_GROUP_IDS:
-                chat_id_str = str(chat_id)
-                
-                # Initialize chat data structure
-                if chat_id_str not in global_data["all_chat_data"]:
-                    global_data["all_chat_data"][chat_id_str] = {
-                        "player_stats": {},
-                        "match_counter": 1,
-                        "match_history": [],
-                        "group_admins": [],
-                        "consecutive_idle_matches": 0,
-                    }
-                
-                # Load match counter
-                match_counter = db_adapter.get_chat_match_counter(chat_id)
-                global_data["all_chat_data"][chat_id_str]["match_counter"] = match_counter
-                
-                # Load recent matches for history
-                recent_matches = db_adapter.get_recent_matches(chat_id, 50)
-                global_data["all_chat_data"][chat_id_str]["match_history"] = recent_matches
-                
-                # Load leaderboard to get player stats
-                leaderboard = db_adapter.get_chat_leaderboard(chat_id, 1000)  # Get all players
-                for player in leaderboard:
-                    user_id_str = str(player["user_id"])
-                    global_data["all_chat_data"][chat_id_str]["player_stats"][user_id_str] = {
-                        "username": player["username"],
-                        "score": player["score"],
-                        "total_wins": player["total_wins"],
-                        "total_losses": player["total_losses"],
-                        "total_bets": player["total_bets"],
-                        "last_active": player["last_active"]
-                    }
+                try:
+                    chat_id_str = str(chat_id)
+                    
+                    # Initialize chat data structure
+                    if chat_id_str not in global_data["all_chat_data"]:
+                        global_data["all_chat_data"][chat_id_str] = {
+                            "player_stats": {},
+                            "match_counter": 1,
+                            "match_history": [],
+                            "group_admins": [],
+                            "consecutive_idle_matches": 0,
+                        }
+                    
+                    # Load match counter
+                    match_counter = db_adapter.get_chat_match_counter(chat_id)
+                    global_data["all_chat_data"][chat_id_str]["match_counter"] = match_counter
+                    
+                    # Load recent matches for history
+                    recent_matches = db_adapter.get_recent_matches(chat_id, 50)
+                    global_data["all_chat_data"][chat_id_str]["match_history"] = recent_matches
+                    
+                    # Load leaderboard to get player stats
+                    leaderboard = db_adapter.get_chat_leaderboard(chat_id, 1000)  # Get all players
+                    for player in leaderboard:
+                        user_id_str = str(player["user_id"])
+                        global_data["all_chat_data"][chat_id_str]["player_stats"][user_id_str] = {
+                            "username": player["username"],
+                            "score": player["score"],
+                            "total_wins": player["total_wins"],
+                            "total_losses": player["total_losses"],
+                            "total_bets": player["total_bets"],
+                            "last_active": player["last_active"]
+                        }
+                except Exception as e:
+                    logger.error(f"Error loading data for chat {chat_id}: {e}")
+                    # Fallback to default empty structures
+                    chat_id_str = str(chat_id)
+                    if chat_id_str not in global_data["all_chat_data"]:
+                        global_data["all_chat_data"][chat_id_str] = {
+                            "player_stats": {},
+                            "match_counter": 1,
+                            "match_history": [],
+                            "group_admins": [],
+                            "consecutive_idle_matches": 0,
+                        }
+            
+            # Load global user data from database
+            logger.info("Loading global user data from database...")
+            all_users = db_adapter.db_queries.get_all_users()
+            for user_data in all_users:
+                user_id_str = str(user_data['user_id'])
+                global_data["global_user_data"][user_id_str] = {
+                    "full_name": user_data.get('full_name', 'Unknown'),
+                    "username": user_data.get('username'),
+                    "referral_points": user_data.get('referral_points', 0),
+                    "bonus_points": user_data.get('bonus_points', 0),
+                    "referred_by": user_data.get('referred_by'),
+                    "welcome_bonus_received": user_data.get('welcome_bonus_received', False),
+                    "last_cashback_date": user_data.get('last_cashback_date')
+                }
             
             # Load admin data from database
             logger.info("Loading admin data from database...")
@@ -269,7 +297,7 @@ def load_data_unified() -> Dict:
                     "last_refill": admin_data.get('last_refill')
                 }
             
-            logger.info(f"Loaded data for {len(ALLOWED_GROUP_IDS)} groups and {len(admin_data_list)} admin wallets from database")
+            logger.info(f"Loaded data for {len(ALLOWED_GROUP_IDS)} groups, {len(all_users)} users, and {len(admin_data_list)} admin wallets from database")
             
         except Exception as e:
             logger.error(f"Error loading data from database: {e}")

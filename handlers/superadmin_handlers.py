@@ -307,11 +307,17 @@ async def refill_all_players(update: Update, context: ContextTypes.DEFAULT_TYPE,
                     }
                 
                 # Add 500 bonus points
-                global_user_data[user_id_str]["bonus_points"] = global_user_data[user_id_str].get("bonus_points", 0) + 500
+                current_bonus = global_user_data[user_id_str].get("bonus_points", 0)
+                new_bonus = current_bonus + 500
+                global_user_data[user_id_str]["bonus_points"] = new_bonus
+                if USE_DATABASE:
+                    db_adapter.update_user_bonus_points(uid, new_bonus)
                 
                 # Mark as having received welcome bonus
                 if "welcome_bonus_received" not in player_stats[user_id_str]:
                     player_stats[user_id_str]["welcome_bonus_received"] = True
+                    if USE_DATABASE:
+                        db_adapter.mark_welcome_bonus_received(uid, group_id)
                 
                 refilled_count += 1
                 

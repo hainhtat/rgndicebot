@@ -31,7 +31,9 @@ class DatabaseAdapter:
     def get_user_referral_points(self, user_id: int) -> int:
         """Get user's referral points."""
         if self.use_database:
-            return self.db_queries.get_user_referral_points(user_id)
+            points = self.db_queries.get_user_referral_points(user_id)
+            logger.debug(f"Retrieved referral points for user {user_id}: {points}")
+            return points
         else:
             data = self.load_data()
             user_data = data.get('global_user_data', {}).get(str(user_id), {})
@@ -39,8 +41,19 @@ class DatabaseAdapter:
     
     def update_user_referral_points(self, user_id: int, points: int) -> bool:
         """Update user's referral points."""
+        if not isinstance(user_id, int) or user_id <= 0:
+            logger.error(f"Invalid user_id: {user_id}")
+            return False
+        if not isinstance(points, int) or points < 0:
+            logger.error(f"Invalid points: {points}")
+            return False
         if self.use_database:
-            return self.db_queries.update_user_referral_points(user_id, points)
+            success = self.db_queries.update_user_referral_points(user_id, points)
+            if success:
+                logger.info(f"Updated referral points for user {user_id} to {points}")
+            else:
+                logger.error(f"Failed to update referral points for user {user_id}")
+            return success
         else:
             data = self.load_data()
             if 'global_user_data' not in data:
@@ -76,8 +89,19 @@ class DatabaseAdapter:
     
     def update_user_bonus_points(self, user_id: int, points: int) -> bool:
         """Update user's bonus points."""
+        if not isinstance(user_id, int) or user_id <= 0:
+            logger.error(f"Invalid user_id: {user_id}")
+            return False
+        if not isinstance(points, int) or points < 0:
+            logger.error(f"Invalid points: {points}")
+            return False
         if self.use_database:
-            return self.db_queries.update_user_bonus_points(user_id, points)
+            success = self.db_queries.update_user_bonus_points(user_id, points)
+            if success:
+                logger.info(f"Updated bonus points for user {user_id} to {points}")
+            else:
+                logger.error(f"Failed to update bonus points for user {user_id}")
+            return success
         else:
             data = self.load_data()
             if 'global_user_data' not in data:
@@ -193,9 +217,29 @@ class DatabaseAdapter:
     def update_player_stats(self, user_id: int, chat_id: int, score_change: int, 
                            is_win: bool, bet_count: int = 0) -> bool:
         """Update player statistics."""
+        if not isinstance(user_id, int) or user_id <= 0:
+            logger.error(f"Invalid user_id: {user_id}")
+            return False
+        if not isinstance(chat_id, int):
+            logger.error(f"Invalid chat_id: {chat_id}")
+            return False
+        if not isinstance(score_change, int):
+            logger.error(f"Invalid score_change: {score_change}")
+            return False
+        if not isinstance(is_win, bool):
+            logger.error(f"Invalid is_win: {is_win}")
+            return False
+        if not isinstance(bet_count, int) or bet_count < 0:
+            logger.error(f"Invalid bet_count: {bet_count}")
+            return False
         if self.use_database:
             try:
-                return self.db_queries.update_player_stats(user_id, chat_id, score_change, is_win, bet_count)
+                success = self.db_queries.update_player_stats(user_id, chat_id, score_change, is_win, bet_count)
+                if success:
+                    logger.info(f"Updated player stats for user {user_id} in chat {chat_id}")
+                else:
+                    logger.error(f"Failed to update player stats for user {user_id} in chat {chat_id}")
+                return success
             except Exception as e:
                 logger.error(f"Database adapter error updating player stats: {e}")
                 return False

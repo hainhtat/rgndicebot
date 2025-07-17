@@ -158,7 +158,7 @@ async def adjust_score(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     # Validate target user - cannot be bot or admin
     if target_user.is_bot:
         await update.message.reply_text(
-            "❌ <b>Invalid target!</b>\n\nYou cannot adjust the score of a bot.",
+            MessageTemplates.INVALID_TARGET_BOT,
             parse_mode="HTML"
         )
         return
@@ -166,7 +166,7 @@ async def adjust_score(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     # Check if target is an admin (prevent adjusting admin scores)
     if await is_admin(chat_id, target_user_id, context):
         await update.message.reply_text(
-            "❌ <b>Invalid target!</b>\n\nYou cannot adjust the score of another admin.",
+            MessageTemplates.INVALID_TARGET_ADMIN,
             parse_mode="HTML"
         )
         return
@@ -174,10 +174,7 @@ async def adjust_score(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     # Check if admin has enough points for positive adjustments (giving points to users)
     if amount > 0 and admin_wallet_data["points"] < amount:
         await update.message.reply_text(
-            f"❌ <b>Insufficient admin wallet balance!</b>\n\n"
-            f"💰 Your current balance: <b>{admin_wallet_data['points']:,}</b> ကျပ်\n"
-            f"💸 Required amount: <b>{amount:,}</b> ကျပ်\n\n"
-            f"⏰ Admin wallets are refilled daily at 6 AM Myanmar time.",
+            MessageTemplates.INSUFFICIENT_ADMIN_BALANCE.format(balance=admin_wallet_data['points'], amount=amount),
             parse_mode="HTML"
         )
         return
@@ -188,11 +185,7 @@ async def adjust_score(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         required_amount = abs(amount)
         if current_user_score < required_amount:
             await update.message.reply_text(
-                f"❌ <b>Insufficient user balance!</b>\n\n"
-                f"👤 User: {display_name}\n"
-                f"💰 Current balance: <b>{current_user_score:,}</b> ကျပ်\n"
-                f"💸 Required amount: <b>{required_amount:,}</b> ကျပ်\n\n"
-                f"Cannot deduct more ကျပ် than the user has.",
+                MessageTemplates.INSUFFICIENT_USER_BALANCE.format(display_name=display_name, balance=current_user_score, amount=required_amount),
                 parse_mode="HTML"
             )
             return
@@ -228,11 +221,7 @@ async def adjust_score(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         # Get user display name for error message
         error_display_name = await get_user_display_name(context, target_user_id, chat_id)
         await update.message.reply_text(
-            f"❌ <b>Cannot deduct {abs(amount):,} ကျပ်!</b>\n\n"
-            f"👤 User: {error_display_name}\n"
-            f"💰 Current balance: <b>{old_score:,}</b> ကျပ်\n"
-            f"💸 Requested deduction: <b>{abs(amount):,}</b> ကျပ်\n\n"
-            f"User would have a negative balance of <b>{new_score:,}</b> ကျပ်.",
+            MessageTemplates.CANNOT_DEDUCT_NEGATIVE.format(amount=abs(amount), display_name=error_display_name, old_score=old_score, deduct_amount=abs(amount), new_score=new_score),
             parse_mode="HTML"
         )
         return
@@ -498,7 +487,19 @@ async def stop_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         for bet_type, bets in current_game.bets.items():
             for user_id_str, amount in bets.items():
                 if user_id_str in chat_data["player_stats"]:
+                    # Refund to local player stats
                     chat_data["player_stats"][user_id_str]["score"] += amount
+                    
+                    # Sync refund with database if using database
+                    if USE_DATABASE:
+                        try:
+                            from database.adapter import db_adapter
+                            user_id = int(user_id_str)
+                            # Update player score in database (refund is a positive score change)
+                            db_adapter.update_player_stats(user_id, chat_id, amount, False, 0)
+                            logger.info(f"Database refund: {amount} points to user {user_id} in chat {chat_id}")
+                        except Exception as e:
+                            logger.error(f"Error syncing refund to database for user {user_id_str}: {e}")
         
         # Clear the game
         chat_data["current_game"] = None

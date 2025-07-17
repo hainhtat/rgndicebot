@@ -233,6 +233,8 @@ async def handle_refill_action(update: Update, context: ContextTypes.DEFAULT_TYP
                         # Refill to full amount
                         admin_data[user_id_str]["chat_points"][group_id_str]["points"] = ADMIN_WALLET_AMOUNT
                         admin_data[user_id_str]["chat_points"][group_id_str]["last_refill"] = datetime.now()
+                        if USE_DATABASE:
+                            db_adapter.update_admin_points(int(user_id_str), group_id, ADMIN_WALLET_AMOUNT)
                         refilled_count += 1
                         
                 except Exception as e:
@@ -277,6 +279,8 @@ async def handle_refill_action(update: Update, context: ContextTypes.DEFAULT_TYP
             # Refill to full amount
             admin_data[target_admin_id_str]["chat_points"][group_id_str]["points"] = ADMIN_WALLET_AMOUNT
             admin_data[target_admin_id_str]["chat_points"][group_id_str]["last_refill"] = datetime.now()
+            if USE_DATABASE:
+                db_adapter.update_admin_points(target_admin_id, group_id, ADMIN_WALLET_AMOUNT)
             
             # Save data
             save_data_unified(global_data)
@@ -408,6 +412,8 @@ async def handle_refill_amount_command(update: Update, context: ContextTypes.DEF
                         # Refill with custom amount
                         admin_data[user_id_str]["chat_points"][group_id_str]["points"] = amount
                         admin_data[user_id_str]["chat_points"][group_id_str]["last_refill"] = datetime.now()
+                        if USE_DATABASE:
+                            db_adapter.update_admin_points(int(user_id_str), group_id, amount)
                         refilled_count += 1
                         
                 except Exception as e:
@@ -443,6 +449,8 @@ async def handle_refill_amount_command(update: Update, context: ContextTypes.DEF
             # Refill with custom amount
             admin_data[admin_id_str]["chat_points"][group_id_str]["points"] = amount
             admin_data[admin_id_str]["chat_points"][group_id_str]["last_refill"] = datetime.now()
+            if USE_DATABASE:
+                db_adapter.update_admin_points(admin_id, group_id, amount)
             
             # Save data
             save_data_unified(global_data)

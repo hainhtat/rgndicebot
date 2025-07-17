@@ -22,6 +22,12 @@ class MessageTemplates:
     GAME_STARTED = "🎲<b>ပွဲစဉ်#{match_id} - လောင်းကြေးဖွင့်ပါပြီ</b>🎲"
     BETTING_CLOSED = "🎲  လောင်းကြေးပိတ်ပါပြီ  🎲"
     GAME_OVER = "🏁 <b>Game over</b>\nResult: {result}"
+    # Additional templates from handlers
+    INVALID_TARGET_BOT = "❌ <b>Invalid target!</b>\n\nYou cannot adjust the score of a bot."
+    INVALID_TARGET_ADMIN = "❌ <b>Invalid target!</b>\n\nYou cannot adjust the score of another admin."
+    INSUFFICIENT_ADMIN_BALANCE = "❌ <b>Insufficient admin wallet balance!</b>\n\n💰 Your current balance: <b>{balance:,}</b> ကျပ်\n💸 Required amount: <b>{amount:,}</b> ကျပ်\n\n⏰ Admin wallets are refilled daily at 6 AM Myanmar time."
+    INSUFFICIENT_USER_BALANCE = "❌ <b>Insufficient user balance!</b>\n\n👤 User: {display_name}\n💰 Current balance: <b>{balance:,}</b> ကျပ်\n💸 Required amount: <b>{amount:,}</b> ကျပ်\n\nCannot deduct more ကျပ် than the user has."
+    CANNOT_DEDUCT_NEGATIVE = "❌ <b>Cannot deduct {amount:,} ကျပ်!</b>\n\n👤 User: {display_name}\n💰 Current balance: <b>{old_score:,}</b> ကျပ်\n💸 Requested deduction: <b>{deduct_amount:,}</b> ကျပ်\n\nUser would have a negative balance of <b>{new_score:,}</b> ကျပ်."
     TIME_REMAINING = "⏱️ <b>စတင်မည့်အချိန်:</b> {seconds}s"
     CLOSING_SOON = "⏱️ <b>Closing soon...</b>"
     
@@ -35,12 +41,19 @@ class MessageTemplates:
         "- <b>BIG/SMALL:</b> <b>1.95x</b>\n"
         "- <b>LUCKY:</b> <b>4.5x</b>"
     )
+
+    BETTING_PAYOUT = (
+        "💰 <b>လျော်မည့်ဆ:</b>\n"
+        "- <b>BIG/SMALL:</b> <b>1.95x</b>\n"
+        "- <b>LUCKY:</b> <b>4.5x</b>"
+    )
     
     # Bet confirmation
     BET_CONFIRMATION = "✅ {display_name} <b>{bet_type}</b> ပေါ် <b>{amount}</b> လောင်းကြေးထပ်လိုက်ပါပြီ\n\n📊 <b>Total Bets:</b>\n{total_bets_display}\n\n💰 <b>Wallet</b> - <b>{score}</b> ကျပ်\n🎁 <b>Referral</b> - <b>{referral_points}</b> ကျပ်\n🎉 <b>Bonus</b> - <b>{bonus_points}</b> ကျပ်"
-    INSUFFICIENT_FUNDS = "💸 <b>ငွေမလုံလောက်ပါ</b>\n\n💰 <b>လက်ကျန်:</b> {total} ကျပ်\n🎯 <b>လိုအပ်သည်:</b> {amount} ကျပ်"
+    INSUFFICIENT_FUNDS = "<b>ငွေမလုံလောက်ပါ</b>\n\n💰 <b>လက်ကျန်:</b> {total} ကျပ်\n🎯 <b>လိုအပ်သည်:</b> {shortfall} ကျပ်"
     INVALID_BET_AMOUNT = "❌ <b>ငွေပမာဏ အနည်းဆုံး 100 ဖြစ်ရပါမည်</b>။"
     NO_ACTIVE_GAME = "❌ <b>No active game</b> is accepting bets right now."
+    ADMIN_CANNOT_PARTICIPATE = "❌ Admins cannot participate in games."
     
     # Error messages
     GENERAL_ERROR = "❌ <b>Error:</b> {message}"
@@ -68,7 +81,7 @@ class MessageTemplates:
     BETTING_CLOSED_WITH_PARTICIPANTS = "⏱ <b>လောင်းကြေးပိတ်ပါပြီ!</b>\n\n{participants_msg}\n\n<b>Rolling dice</b> in <b>{roll_delay} seconds</b>..."
     PARTICIPANTS_HEADER = "<b>Participants({count})</b>"
     NO_PARTICIPANTS = "<b>Participants(0)</b>\n<b>No participants</b>"
-    DICE_ANIMATION_FAILED = "⚠️ *Dice animation failed*, using *manual roll*\n\n{result}"
+    DICE_ANIMATION_FAILED = "⚠️ <b>Dice animation failed</b>, using <b>manual roll</b>\n\n{result}"
     
     # Admin messages
     GAME_STOPPED_BY_ADMIN = "🛑 <b>Game stopped</b> by admin."
@@ -193,7 +206,7 @@ class MessageTemplates:
     PRIVATE_CHAT_ONLY = "❌ This command can only be used in private chat with the bot."
     NO_GROUPS_CONFIGURED = "❌ No groups are configured."
     NO_PERMISSION_FEATURE = "❌ You don't have permission to use this feature."
-    NO_ADMINS_FOUND = "❌ *No Admins Found*\n\n"
+    NO_ADMINS_FOUND = "❌ <b>No Admins Found</b>\n\n"
     ERROR_LOADING_ADMIN_LIST = "❌ Error loading admin list. Please try again."
     
     # Admin refill messages
@@ -223,7 +236,7 @@ def format_game_status(game_status: Dict[str, Any], time_remaining: Optional[int
             message += MessageTemplates.GAME_OVER.format(result=result) + "\n\n"
         
         # Add betting instructions
-        message += MessageTemplates.BETTING_INSTRUCTIONS
+        message += MessageTemplates.BETTING_PAYOUT
         
         return message
     except Exception as e:
@@ -311,12 +324,13 @@ def format_insufficient_funds(score: int, referral_points: int, bonus_points: in
     Formats an insufficient funds message.
     """
     total = score + referral_points + bonus_points - committed_funds
+    shortfall = amount - total
     message = MessageTemplates.INSUFFICIENT_FUNDS.format(
         total=total,
-        amount=amount
+        shortfall=shortfall
     )
     if committed_funds > 0:
-        message += f"\n🎯 *Already committed:* {committed_funds} ကျပ်"
+        message += f"\n🎯 <b>Already committed:</b> {committed_funds} ကျပ်"
     return message
 
 
@@ -402,7 +416,7 @@ def format_dice_result(dice1: int, dice2: int, dice_sum: int) -> str:
     # Determine the result type based on the dice sum
     result_type = "BIG" if dice_sum >= 8 and dice_sum <= 12 else "SMALL" if dice_sum >= 2 and dice_sum <= 6 else "LUCKY"
     
-    return f"🎲 *Rolled Dices* 🎲\n\n🎯 *first dice rolled: {dice1_str} + second dice rolled: {dice2_str} = {dice_sum}*\n🏆 *Result: {result_type}*"
+    return f"🎲 <b>Rolled Dices</b> 🎲\n\n🎯 <b>first dice rolled: {dice1_str} + second dice rolled: {dice2_str} = {dice_sum}</b>\n🏆 <b>Result: {result_type}</b>"
 
 
 async def format_game_summary(result: Dict[str, Any], global_data: Dict[str, Any] = None, context=None) -> str:
@@ -628,7 +642,7 @@ def format_game_history(history):
     Shows latest 5 matches with detailed statistics and visual appeal.
     """
     if not history:
-        return "🎮 *Game History Dashboard* 🎮\n\n🎲 *No epic battles have been fought yet!*\n\n🚀 *Ready to make history? Start your first game now!*"
+        return "🎮 <b>Game History Dashboard</b> 🎮\n\n🎲 <b>No epic battles have been fought yet!</b>\n\n🚀 <b>Ready to make history? Start your first game now!</b>"
     
     from datetime import datetime
     import pytz
@@ -649,14 +663,14 @@ def format_game_history(history):
     net_result = total_winnings - total_losses
     
     # Header with statistics
-    message = "🎮 *Game History Dashboard* 🎮\n"
+    message = "🎮 <b>Game History Dashboard</b> 🎮\n"
     message += "╔═══════════════════════════╗\n"
-    message += f"║  📊 Total Games: *{total_games}*\n"
-    message += f"║  💎 Net Result: *{'+' if net_result >= 0 else ''}{net_result:,}*\n"
-    message += f"║  🕐 Last Updated: *{current_time}*\n"
+    message += f"║  📊 Total Games: <b>{total_games}</b>\n"
+    message += f"║  💎 Net Result: <b>{'+' if net_result >= 0 else ''}{net_result:,}</b>\n"
+    message += f"║  🕐 Last Updated: <b>{current_time}</b>\n"
     message += "╚═══════════════════════════╝\n\n"
     
-    message += "🏆 *Recent Battle Results* 🏆\n"
+    message += "🏆 <b>Recent Battle Results</b> 🏆\n"
     message += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
     
     for i, game in enumerate(reversed(latest_games), 1):
@@ -708,14 +722,14 @@ def format_game_history(history):
         
         # Use the actual match_id from the game data
         match_id = game.get('match_id', total_games - len(latest_games) + len(latest_games) - i + 1)
-        message += f"{status_emoji} *Round #{match_id}*\n"
-        message += f"┣ {dice_display} → {type_emoji} *{winning_type}*\n"
-        message += f"┣ {result_emoji} *{result_str}* ကျပ်\n"
+        message += f"{status_emoji} <b>Round #{match_id}</b>\n"
+        message += f"┣ {dice_display} → {type_emoji} <b>{winning_type}</b>\n"
+        message += f"┣ {result_emoji} <b>{result_str}</b> ကျပ်\n"
         message += f"┗ 🕐 {time_str} • {today}\n\n"
     
     if total_games > 5:
-        message += f"📈 *Showing latest 5 of {total_games} total games*\n"
-        message += "💡 *Tip: Keep playing to climb the leaderboard!*"
+        message += f"📈 <b>Showing latest 5 of {total_games} total games</b>\n"
+        message += "💡 <b>Tip: Keep playing to climb the leaderboard!</b>"
     
     return message
 

@@ -64,7 +64,7 @@ async def place_bet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     
     # Check if user is an admin - admins cannot participate in games
     if await is_admin(chat_id, user_id, context):
-        error_message = "❌ Admins cannot participate in games."
+        error_message = MessageTemplates.ADMIN_CANNOT_PARTICIPATE
         if is_callback:
             await update.callback_query.answer(error_message)
         else:
@@ -84,7 +84,7 @@ async def place_bet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         cooldown_elapsed = (now - manual_stop_time).total_seconds()
         
         if cooldown_elapsed < cooldown_period:
-            error_message = f"❌ Betting is temporarily disabled. Please wait {int(cooldown_period - cooldown_elapsed)} more seconds."
+            error_message = MessageTemplates.BETTING_DISABLED_COOLDOWN.format(seconds=int(cooldown_period - cooldown_elapsed))
             if is_callback:
                 await update.callback_query.answer(error_message)
             else:
@@ -99,34 +99,26 @@ async def place_bet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     game_state = chat_data.get("game_state", "active")
     
     if game_state == "inactive":
-        error_message = "🛑 <b>Game is currently inactive</b>\n\nNo games are running. Contact an admin to start a new game."
+        error_message = MessageTemplates.GAME_INACTIVE
         if is_callback:
             await update.callback_query.answer(error_message)
         else:
             await update.message.reply_text(error_message, parse_mode="HTML")
         return
     
-    # Get the current game or create a new one if needed
+    # Get the current game
     game = get_current_game(chat_id)
     if not game or game.state == GAME_STATE_OVER:
-        # Check for consecutive idle matches before creating new game
-        consecutive_idle = chat_data.get("consecutive_idle_matches", 0)
-        config = get_config()
-        idle_game_limit = config.get('game', 'idle_game_limit', 3)
-        
-        if consecutive_idle >= idle_game_limit:
-            error_message = "🛑 <b>Game stopped due to inactivity</b>\n\nNo bets were placed for 3 consecutive matches.\nUse /roll to start a new game."
-            if is_callback:
-                await update.callback_query.answer(error_message)
-            else:
-                await update.message.reply_text(error_message, parse_mode="HTML")
-            return
+        error_message = "❌ No active game. Please contact an admin to start one."
+        if is_callback:
+            await update.callback_query.answer(error_message)
         else:
-            game = create_new_game(chat_id)
+            await update.message.reply_text(error_message)
+        return
     
     # Validate game state - only allow betting when game is waiting for bets
     if game.state != GAME_STATE_WAITING:
-        error_message = "❌ Betting is currently closed. Please wait for the next game."
+        error_message = MessageTemplates.BETTING_CLOSED
         if is_callback:
             await update.callback_query.answer(error_message)
         else:

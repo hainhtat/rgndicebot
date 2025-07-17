@@ -153,7 +153,7 @@ async def create_game_status_message(game: DiceGame, context: ContextTypes.DEFAU
             else:
                 message += "⏱️ <b>Closing soon...</b>\n\n"
         elif status['state'] == GAME_STATE_CLOSED:
-            message += "🔒 *လောင်းကြေးပိတ်ပါပြီ*\n\n"
+            message += "🔒 <b>လောင်းကြေးပိတ်ပါပြီ</b>\n\n"
         elif status['state'] == GAME_STATE_OVER:
             message += f"🏁 <b>Game over</b>\nResult: {status['result']}\n\n"
         

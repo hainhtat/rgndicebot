@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 from typing import Optional, Dict
 from config.settings import USE_DATABASE
 from database.adapter import db_adapter
@@ -107,10 +107,25 @@ async def send_refill_notification_to_super_admins(refill_details, total_refills
         context = MockContext(bot)
         
         # Create notification message
-        message = f"🔄 *Daily Admin Wallet Refill Report*\n\n"
-        message += f"*Total Refills:* {total_refills} wallets\n"
-        message += f"*Refill Amount:* {ADMIN_WALLET_AMOUNT:,} points each\n\n"
-        message += f"*Refilled Admins:*\n"
+        tz = pytz.timezone(TIMEZONE)
+        # Calculate yesterday's dates
+        now = datetime.now(tz)
+        yesterday_end = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        yesterday_start = yesterday_end - timedelta(days=1)
+        
+        # Get house stats
+        from database.queries import get_daily_house_stats
+        house_stats = get_daily_house_stats(yesterday_start, yesterday_end)
+        
+        message = f"🔄 <b>Daily Report</b>\n\n"
+        message += f"<b>Admin Wallet Refills:</b>\n"
+        message += f"  Total Refills: {total_refills} wallets\n"
+        message += f"  Refill Amount: {ADMIN_WALLET_AMOUNT:,} points each\n\n"
+        message += f"<b>House Win/Loss (Yesterday):</b>\n"
+        message += f"  Total Bets: {house_stats['total_bets']:,}\n"
+        message += f"  Total Payouts: {house_stats['total_payouts']:,}\n"
+        message += f"  House Profit: {house_stats['house_profit']:,}\n\n"
+        message += f"<b>Refilled Admins:</b>\n"
         
         for detail in refill_details:
             admin_id = int(detail["admin_id"])
@@ -126,7 +141,7 @@ async def send_refill_notification_to_super_admins(refill_details, total_refills
                 username = escape_markdown_username(detail["username"])
                 display_name = f"{username}"
             
-            message += f"\n👤 *{display_name}* (ID: {admin_id})\n"
+            message += f"\n👤 <b>{display_name}</b> (ID: {admin_id})\n"
             
             for refill in detail["refills"]:
                 chat_id = refill["chat_id"]
