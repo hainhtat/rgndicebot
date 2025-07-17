@@ -21,9 +21,11 @@ def get_database_url():
     # Try DATABASE_URL first (for production/Render)
     database_url = os.getenv('DATABASE_URL')
     if database_url:
-        # Handle postgres:// vs postgresql:// URL schemes
+        # Handle postgres:// vs postgresql:// and force psycopg dialect
         if database_url.startswith('postgres://'):
-            database_url = database_url.replace('postgres://', 'postgresql://', 1)
+            database_url = database_url.replace('postgres://', 'postgresql+psycopg://', 1)
+        elif database_url.startswith('postgresql://'):
+            database_url = database_url.replace('postgresql://', 'postgresql+psycopg://', 1)
         return database_url
     
     # Fallback to individual components (for local development)
@@ -33,7 +35,7 @@ def get_database_url():
     user = os.getenv('DB_USER', 'dicebot_user')
     password = os.getenv('DB_PASSWORD', '')
     
-    return f"postgresql://{user}:{password}@{host}:{port}/{name}"
+    return f"postgresql+psycopg://{user}:{password}@{host}:{port}/{name}"
 
 def init_database():
     """Initialize database connection and create tables."""

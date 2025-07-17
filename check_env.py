@@ -66,7 +66,7 @@ def check_environment():
     if database_url:
         print("\n🗄️  Database Connectivity Check:")
         try:
-            import psycopg2
+            import psycopg
             from urllib.parse import urlparse
             
             # Parse database URL
@@ -78,7 +78,7 @@ def check_environment():
             print(f"  📍 Username: {parsed.username}")
             
             # Test connection
-            conn = psycopg2.connect(database_url)
+            conn = psycopg.connect(conninfo=database_url)
             cursor = conn.cursor()
             cursor.execute("SELECT version();")
             version = cursor.fetchone()[0]
