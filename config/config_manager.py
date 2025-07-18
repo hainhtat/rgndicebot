@@ -47,7 +47,8 @@ DEFAULT_CONFIG = {
         "file": "logs/bot.log",
         "max_file_size_mb": 10,
         "backup_count": 5,
-        "json_format": False
+        "json_format": False,
+        "database_log_retention_days": 30
     }
 }
 

@@ -130,7 +130,35 @@ class MessageTemplates:
     NEW_MEMBER_WELCOME = "👋 Welcome to the group, {name}!\n\nUse /help to learn how to play the dice game."
     
     # Help message
-    HELP_MESSAGE = "🎲 <b>RGN Dice Bot Help</b> 🎲\n\n<b>Game rules :</b>\n• အံစာတုံး ၂ တုံးလှိမ့်ပါမယ်\n• ၂ခု ပေါင်းခြင်း 2-6: <b>SMALL</b> \n• ၂ခု ပေါင်းခြင်း 8-12: <b>BIG</b> \n• ၂ခု ပေါင်းခြင်း 7: <b>LUCKY</b>\n\n<b>ကစားနည်း :</b>\n• Big ပေါ်လောင်းရန် B 500, Big 5000 စသဖြင့်လောင်းလို့ရပါတယ်\n• Small ပေါ်လောင်းရန် S 500, Small 2000 စသဖြင့်လောင်းလို့ရပါတယ်\n• LUCKY ပေါ်လောင်းရန် L 5000, LUCKY 50000 စသဖြင့်လောင်းလို့ရပါတယ်\n\n<b>Rules :</b>\n• အနည်းဆုံး ၁၀၀ ကျပ်မှစတင်လောင်းလို့ရပါတယ်\n• လောင်းပြီးသားဟာကို cancel လို့မရပါဘူး\n• admin တွေကပဲ game ကိုစတင်လို့ရပါတယ်\n\n<b>Payouts:</b>\n• Big/Small ဆိုရင် 1.95 ဆရပါမယ်\n• LUCKY ဆိုရင် 4.5 ဆရပါမယ်\n• Share ခလုတ်လေးနှိပ်ပြီး သူငယ််ချင်းတွေကို ပို့ပေးလို့ရပါတယ် \n• Share ထားတယ့် link ကနေတစ်ဆင့်ဝင်လာရင် ၅၀၀ ကျပ်ရရှိမှာဖြစ်ပါတယ် \n • referral points တွေသုံးမယ်ဆိုရင် main wallet က အနည်းဆုံး 500 ရှိရပါမယ် main wallet က referral ထက်နည်းနေရင် main wallet ထဲကပဲသုံးသွားမှာပါ main wallet ထဲကနေတစ်ဝက် referral ခဲကနေ တစ်ဝက်ဖျက်ပါမယ် (eg. b1000 လောင်းမယ်ဆိုရင် wallet ထဲက 500, referral ထဲက 500 နှုတ်မှာပါ)"
+    HELP_MESSAGE = (
+        "🎲 <b>RGN Dice Bot Help</b> 🎲\n\n"
+        
+        "🎯 <b>GAME RULES</b>\n"
+        "🎲 အံစာ ၂ ခုလှိမ့်ပါမယ် ၂ ခုပေါင်းခြင်းကိုခန့်မှန်းရမှာပါ\n"
+        "🔸 ပေါင်းခြင်း 2-6: <b>SMALL</b> (1.95x payout)\n"
+        "🔸 ပေါင်းခြင်း 8-12: <b>BIG</b> (1.95x payout)\n"
+        "🔸 ပေါင်းခြင်း 7: <b>LUCKY</b> (4.5x payout)\n\n"
+        
+        "💰 <b>ကစားနည်း</b>\n"
+        "🔹 <b>BIG:</b> <code>B 500</code> ဒါမှမဟုတ် <code>BIG 1000</code> လို့ရိုက်ပါ\n"
+        "🔹 <b>SMALL:</b> <code>S 500</code> ဒါမှမဟုတ် <code>SMALL 1000</code> လို့ရိုက်ပါ\n"
+        "🔹 <b>LUCKY:</b> <code>L 500</code> ဒါမှမဟုတ် <code>LUCKY 1000</code> လို့ရိုက်ပါ\n"
+        "🔹 Minimum bet: <b>100 ကျပ်</b>\n\n"
+        
+        "📋 <b>IMPORTANT RULES</b>\n"
+        "• 🙅‍♀️ လောင်းပြီးသားကို cancel လို့မရပါဘူး\n"
+        "• 👑 Admin တွေကပဲ game ကိုစလို့ရပါတယ်\n"
+        
+        
+        "🎁 <b>REFERRAL SYSTEM</b>\n"
+        "• 📤 Link ကို share ပြီး user join ရင် 500 ရပါမယ်\n"
+        "• 🎉 Users အသစ်တွေက ဝင်တာနဲ့ တစ်ယောက်ကို 500 စီရမှာပါ\n"
+        "• 💡 Referral သုံးဖို့ main wallet အနည်းဆုံး 500 ရှိဖို့လိုပါတယ်\n"
+        "• 💵 Wallet တစ်ဝက် referrral တစ်ဝက်ဖျက်မှာပါ\n"
+        "• 💵 Wallet က referral ထက်နည်းနေရင် referral ထဲကပဲနှုတ်မှာပါ\n\n"
+        
+        "🚀 <b>Ready to play? Wait for the next game!</b>"
+    )
     
     # Admin score adjustment messages
     SCORE_ADDED = "✅ <b>{display_name}</b> ကို <b>{amount}</b> ကျပ် ဖြည့်ပြီးပါပြီ .\nOld score: <b>{old_score}</b>\nNew score: <b>{new_score}</b>{reason_text}"

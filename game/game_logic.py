@@ -496,7 +496,7 @@ def payout(
 
         if USE_DATABASE:
             # Update player stats in database
-            is_winner = display_net > 0
+            is_winner = net_result > 0
             try:
                 # Update database first
                 db_adapter.update_player_stats(
@@ -532,7 +532,7 @@ def payout(
                     player = chat_data["player_stats"][user_id_str]
                     player["score"] += update_amount
 
-                    if display_net > 0:
+                    if net_result > 0:
                         player["total_wins"] += 1
                     else:
                         player["total_losses"] += 1
@@ -541,8 +541,8 @@ def payout(
                     player = {
                         "username": "Unknown",
                         "score": update_amount,
-                        "total_wins": 1 if display_net > 0 else 0,
-                        "total_losses": 0 if display_net > 0 else 1,
+                        "total_wins": 1 if net_result > 0 else 0,
+                        "total_losses": 0 if net_result > 0 else 1,
                         "total_bets": 1,
                         "last_active": datetime.now().isoformat()
                     }
@@ -555,25 +555,25 @@ def payout(
 
         # Add to appropriate list based on net result
         individual_bets = result["individual_bets"]
-        if display_net > 0:
+        if net_result > 0:
             winners_list.append({
                 "user_id": user_id_str,
                 "username": player["username"],
                 "bet_amount": total_bet_amount,
                 "winnings": total_winnings,
-                "net_result": display_net,
+                "net_result": net_result,
                 "wallet_balance": player["score"],
                 "individual_bets": individual_bets
             })
             total_winners += 1
             total_payout += total_winnings
-        elif display_net < 0:
+        elif net_result < 0:
             losers_list.append({
                 "user_id": user_id_str,
                 "username": player["username"],
                 "display_name": full_name or player["username"],
                 "bet_amount": total_bet_amount,
-                "net_result": display_net,
+                "net_result": net_result,
                 "wallet_balance": player["score"],
                 "individual_bets": individual_bets
             })

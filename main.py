@@ -42,12 +42,14 @@ from utils.daily_bonus import process_daily_cashback
 # Initialize configuration
 config = get_config()
 
-# Configure logging
+# Configure logging with rotation
 log_config = config.get_section("logging")
 setup_logging(
     log_level=log_config.get("level", "INFO"),
     log_file=log_config.get("file"),
-    json_format=log_config.get("json_format", False)
+    json_format=log_config.get("json_format", False),
+    max_file_size_mb=log_config.get("max_file_size_mb", 10),
+    backup_count=log_config.get("backup_count", 5)
 )
 
 # Get logger for this module
@@ -186,6 +188,27 @@ async def add_scheduled_jobs(application: Application) -> None:
         name="daily_cashback"
     )
     logger.info(f"Scheduled daily cashback processing job (every day at {daily_time.strftime('%H:%M')} {TIMEZONE}).")
+    
+    # Schedule log cleanup (once per day at 02:00 AM)
+    async def cleanup_logs_async(context):
+        """Async wrapper for log cleanup."""
+        try:
+            retention_days = log_config.get("database_log_retention_days", 30)
+            success = db_adapter.cleanup_old_logs(days_to_keep=retention_days)
+            if success:
+                logger.info(f"Log cleanup completed successfully (keeping {retention_days} days)")
+            else:
+                logger.warning("Log cleanup failed")
+        except Exception as e:
+            logger.error(f"Error during log cleanup: {e}")
+    
+    cleanup_time = time(hour=2, minute=0, tzinfo=pytz.timezone(TIMEZONE))
+    application.job_queue.run_daily(
+        cleanup_logs_async,
+        time=cleanup_time,
+        name="log_cleanup"
+    )
+    logger.info(f"Scheduled daily log cleanup job (every day at {cleanup_time.strftime('%H:%M')} {TIMEZONE}).")
 
 
 

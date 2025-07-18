@@ -3,7 +3,7 @@
 import logging
 import json
 from typing import Dict, List, Optional, Any, Union
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from sqlalchemy.exc import SQLAlchemyError
 from config.settings import USE_DATABASE
 from utils.logging_utils import get_logger
@@ -434,7 +434,7 @@ class DatabaseAdapter:
         """Get daily losses for a user."""
         if self.use_database:
             try:
-                from .connection import get_session
+                from .connection import get_db_session as get_session
                 from .queries import get_daily_losses
                 
                 with get_session() as session:
@@ -462,7 +462,7 @@ class DatabaseAdapter:
         """Add a log entry to the database."""
         if self.use_database:
             try:
-                from .connection import get_session
+                from .connection import get_db_session as get_session
                 from .models import LogEntry
                 
                 with get_session() as session:
@@ -492,7 +492,7 @@ class DatabaseAdapter:
         """Get log entries from the database."""
         if self.use_database:
             try:
-                from .connection import get_session
+                from .connection import get_db_session as get_session
                 from .models import LogEntry
                 from sqlalchemy import desc
                 
@@ -526,6 +526,50 @@ class DatabaseAdapter:
         else:
             # JSON fallback - return empty list
             return []
+    
+    def cleanup_old_logs(self, days_to_keep: int = 30) -> bool:
+        """Clean up old log entries from the database to prevent it from growing too large.
+        
+        Args:
+            days_to_keep: Number of days of logs to keep (default: 30)
+            
+        Returns:
+            True if cleanup was successful, False otherwise
+        """
+        if self.use_database:
+            try:
+                from .connection import get_db_session as get_session
+                from .models import LogEntry
+                from sqlalchemy import func
+                
+                cutoff_date = datetime.now() - timedelta(days=days_to_keep)
+                
+                with get_session() as session:
+                    # Count logs to be deleted
+                    count_query = session.query(func.count(LogEntry.id)).filter(
+                        LogEntry.timestamp < cutoff_date
+                    )
+                    logs_to_delete = count_query.scalar()
+                    
+                    if logs_to_delete > 0:
+                        # Delete old logs
+                        delete_query = session.query(LogEntry).filter(
+                            LogEntry.timestamp < cutoff_date
+                        )
+                        delete_query.delete()
+                        session.commit()
+                        
+                        logger.info(f"Cleaned up {logs_to_delete} old log entries (older than {days_to_keep} days)")
+                    else:
+                        logger.debug(f"No old log entries to clean up (keeping {days_to_keep} days)")
+                    
+                    return True
+            except Exception as e:
+                logger.error(f"Error cleaning up old logs: {e}")
+                return False
+        else:
+            # JSON fallback - no cleanup needed
+            return True
 
 # Global adapter instance
 db_adapter = DatabaseAdapter()

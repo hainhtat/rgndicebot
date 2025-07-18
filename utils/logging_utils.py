@@ -1,4 +1,5 @@
 import logging
+import logging.handlers
 import json
 import os
 import sys
@@ -74,13 +75,17 @@ class StandardFormatter(logging.Formatter):
 
 def setup_logging(log_level: str = "INFO", 
                  log_file: Optional[str] = None,
-                 json_format: bool = False) -> None:
-    """Set up logging configuration
+                 json_format: bool = False,
+                 max_file_size_mb: int = 10,
+                 backup_count: int = 5) -> None:
+    """Set up logging configuration with log rotation
     
     Args:
         log_level: The minimum log level to capture (DEBUG, INFO, WARNING, ERROR, CRITICAL)
         log_file: Optional path to a log file. If None, logs will only go to console
         json_format: Whether to use JSON formatting for logs
+        max_file_size_mb: Maximum size of log file in MB before rotation
+        backup_count: Number of backup log files to keep
     """
     # Get the numeric log level
     numeric_level = LOG_LEVELS.get(log_level.upper(), logging.INFO)
@@ -105,15 +110,20 @@ def setup_logging(log_level: str = "INFO",
     console_handler.setFormatter(console_formatter)
     root_logger.addHandler(console_handler)
     
-    # Add file handler if log_file is specified
+    # Add rotating file handler if log_file is specified
     if log_file:
         # Ensure the directory exists
         log_dir = os.path.dirname(log_file)
         if log_dir and not os.path.exists(log_dir):
             os.makedirs(log_dir)
             
-        # Create file handler
-        file_handler = logging.FileHandler(log_file)
+        # Create rotating file handler to prevent large log files
+        max_bytes = max_file_size_mb * 1024 * 1024  # Convert MB to bytes
+        file_handler = logging.handlers.RotatingFileHandler(
+            log_file, 
+            maxBytes=max_bytes, 
+            backupCount=backup_count
+        )
         file_handler.setLevel(numeric_level)
         
         # Always use JSON format for file logging for better parsing
@@ -122,7 +132,10 @@ def setup_logging(log_level: str = "INFO",
         root_logger.addHandler(file_handler)
     
     # Log the configuration
-    logging.info(f"Logging configured with level={log_level}, file={log_file}, json_format={json_format}")
+    if log_file:
+        logging.info(f"Logging configured with level={log_level}, file={log_file}, json_format={json_format}, max_size={max_file_size_mb}MB, backups={backup_count}")
+    else:
+        logging.info(f"Logging configured with level={log_level}, console_only=True, json_format={json_format}")
 
 
 def get_logger(name: str) -> logging.Logger:
