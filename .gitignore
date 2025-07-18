@@ -1,0 +1,92 @@
+# Environment variables and secrets
+.env
+.env.local
+.env.production
+.env.staging
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+PYTHONPATH
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+logs/
+*.log
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Data files with potentially sensitive information
+data.json
+data_backup_*.json
+groups.txt
+manual.txt
+
+# Configuration files that might contain secrets
+config/database_logging.py
+config/default_config.json
+
+# Backup files
+migration_backups/
+*.backup
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+
+# Alembic
+alembic.ini
+
+# Test files
+test_*.py
+check_env.py
+fix_indentation.py
+deploy.py
+render_migration.py
+migrate_to_db.py
+place_bet.py
