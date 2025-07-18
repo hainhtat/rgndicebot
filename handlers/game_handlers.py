@@ -109,7 +109,7 @@ async def roll_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     chat_id = update.effective_chat.id
     
     if not await is_admin(chat_id, user_id, context):
-        await update.message.reply_text(MessageTemplates.ONLY_ADMINS_CAN_USE)
+        await update.message.reply_text(MessageTemplates.ONLY_ADMINS_CAN_USE, parse_mode="HTML")
         return
     
     # Get chat data

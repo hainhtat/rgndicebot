@@ -121,7 +121,7 @@ class MessageTemplates:
     SUPER_ADMIN_ONLY = "⚠️ This command is only available to <b>super admins</b>."
     ADMIN_ID_MUST_BE_NUMBER = "❌ <b>Admin ID must be a number.</b>"
     ADMIN_ONLY_COMMAND = "⚠️ This command is only available to <b>admins</b>."
-    ONLY_ADMINS_CAN_USE = "❌ Only <b>admins</b> can use this command."
+    ONLY_ADMINS_CAN_USE = "⚠️ This command is only available to <b>admins</b>."
     NO_ACTIVE_GAME = "❌ <b>No active game found.</b>"
     STARTING_NEW_GAME = "🎲 <b>Starting a new dice game...</b>"
     
@@ -130,7 +130,7 @@ class MessageTemplates:
     NEW_MEMBER_WELCOME = "👋 Welcome to the group, {name}!\n\nUse /help to learn how to play the dice game."
     
     # Help message
-    HELP_MESSAGE = "🎲 <b>RGN Dice Bot Help</b> 🎲\n\n<b>Game rules :</b>\n• အံစာတုံး ၂ တုံးလှိမ့်ပါမယ်\n• ၂ခု ပေါင်းခြင်း 2-6: <b>SMALL</b> \n• ၂ခု ပေါင်းခြင်း 8-12: <b>BIG</b> \n• ၂ခု ပေါင်းခြင်း 7: <b>LUCKY</b>\n\n<b>ကစားနည်း :</b>\n• Big ပေါ်လောင်းရန် B 500, Big 5000 စသဖြင့်လောင်းလို့ရပါတယ်\n• Small ပေါ်လောင်းရန် S 500, Small 2000 စသဖြင့်လောင်းလို့ရပါတယ်\n• LUCKY ပေါ်လောင်းရန် L 5000, LUCKY 50000 စသဖြင့်လောင်းလို့ရပါတယ်\n\n<b>Rules :</b>\n• အနည်းဆုံး ၁၀၀ ကျပ်မှစတင်လောင်းလို့ရပါတယ်\n• လောင်းပြီးသားဟာကို cancel လို့မရပါဘူး\n• admin တွေကပဲ game ကိုစတင်လို့ရပါတယ်\n\n<b>ကျပ်:</b>\n• Big/Small ဆိုရင် 1.95 ဆရပါမယ်\n• LUCKY ဆိုရင် 4.5 ဆရပါမယ်\n• Share ခလုတ်လေးနှိပ်ပြီး သူငယ််ချင်းတွေကို ပို့ပေးလို့ရပါတယ် \n• Share ထားတယ့် link ကနေတစ်ဆင့်ဝင်လာရင် ၅၀၀ ကျပ်ရရှိမှာဖြစ်ပါတယ်"
+    HELP_MESSAGE = "🎲 <b>RGN Dice Bot Help</b> 🎲\n\n<b>Game rules :</b>\n• အံစာတုံး ၂ တုံးလှိမ့်ပါမယ်\n• ၂ခု ပေါင်းခြင်း 2-6: <b>SMALL</b> \n• ၂ခု ပေါင်းခြင်း 8-12: <b>BIG</b> \n• ၂ခု ပေါင်းခြင်း 7: <b>LUCKY</b>\n\n<b>ကစားနည်း :</b>\n• Big ပေါ်လောင်းရန် B 500, Big 5000 စသဖြင့်လောင်းလို့ရပါတယ်\n• Small ပေါ်လောင်းရန် S 500, Small 2000 စသဖြင့်လောင်းလို့ရပါတယ်\n• LUCKY ပေါ်လောင်းရန် L 5000, LUCKY 50000 စသဖြင့်လောင်းလို့ရပါတယ်\n\n<b>Rules :</b>\n• အနည်းဆုံး ၁၀၀ ကျပ်မှစတင်လောင်းလို့ရပါတယ်\n• လောင်းပြီးသားဟာကို cancel လို့မရပါဘူး\n• admin တွေကပဲ game ကိုစတင်လို့ရပါတယ်\n\n<b>Payouts:</b>\n• Big/Small ဆိုရင် 1.95 ဆရပါမယ်\n• LUCKY ဆိုရင် 4.5 ဆရပါမယ်\n• Share ခလုတ်လေးနှိပ်ပြီး သူငယ််ချင်းတွေကို ပို့ပေးလို့ရပါတယ် \n• Share ထားတယ့် link ကနေတစ်ဆင့်ဝင်လာရင် ၅၀၀ ကျပ်ရရှိမှာဖြစ်ပါတယ် \n • referral points တွေသုံးမယ်ဆိုရင် main wallet က အနည်းဆုံး 500 ရှိရပါမယ် main wallet က referral ထက်နည်းနေရင် main wallet ထဲကပဲသုံးသွားမှာပါ main wallet ထဲကနေတစ်ဝက် referral ခဲကနေ တစ်ဝက်ဖျက်ပါမယ် (eg. b1000 လောင်းမယ်ဆိုရင် wallet ထဲက 500, referral ထဲက 500 နှုတ်မှာပါ)"
     
     # Admin score adjustment messages
     SCORE_ADDED = "✅ <b>{display_name}</b> ကို <b>{amount}</b> ကျပ် ဖြည့်ပြီးပါပြီ .\nOld score: <b>{old_score}</b>\nNew score: <b>{new_score}</b>{reason_text}"
@@ -163,9 +163,9 @@ class MessageTemplates:
     SCORE_ADJUSTMENT_FALLBACK = "Score adjusted: {old_score} → {new_score}"
     
     # Error messages for admin/super admin access
-    SUPER_ADMIN_ONLY_COMMAND = "❌ This command is only available to super admins."
-    ADMIN_ONLY_FEATURE = "❌ This feature is only available to admins."
-    SUPER_ADMIN_ONLY_FEATURE = "❌ This feature is only available to super admins."
+    SUPER_ADMIN_ONLY_COMMAND = "⚠️ This command is only available to <b>super admins</b>."
+    ADMIN_ONLY_FEATURE = "⚠️ This feature is only available to <b>admins</b>."
+    SUPER_ADMIN_ONLY_FEATURE = "⚠️ This feature is only available to <b>super admins</b>."
     
     # Refill system messages
     NO_ACTIVE_GROUPS = "❌ No active groups found."

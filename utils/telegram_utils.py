@@ -117,7 +117,7 @@ def create_custom_keyboard():
     """
     # Standard user keyboard for everyone
     keyboard = [
-        [KeyboardButton("💰 My Wallet"), KeyboardButton("🏆 Leaderboard")],
+        [KeyboardButton("💰 My Wallet"), KeyboardButton("🙋‍♂️ ကစားနည်း")],
         [KeyboardButton("💵 ငွေထည့်မည်"), KeyboardButton("💸 ငွေထုတ်မည်")],
         [KeyboardButton("🔗 Share")]
     ]

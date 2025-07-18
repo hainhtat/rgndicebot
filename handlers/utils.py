@@ -67,7 +67,10 @@ async def check_admin_permission(update: Update, context: ContextTypes.DEFAULT_T
     admin_status = await is_admin(chat_id, user_id, context)
     
     if not admin_status:
-        await update.message.reply_text(MessageTemplates.ADMIN_ONLY_COMMAND)
+        await update.message.reply_text(
+            "⚠️ This command is only available to <b>admins</b>.",
+            parse_mode="HTML"
+        )
         return False
     
     return True

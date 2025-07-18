@@ -74,30 +74,29 @@ async def initialize_keyboards(application):
 
 async def send_startup_greeting(application):
     """
-    Send a greeting message to all allowed groups when the bot restarts.
-    Made non-blocking to prevent startup delays.
+    Send a greeting message with reply keyboard to all allowed groups when the bot restarts.
     """
-    logger.info("Startup greeting disabled to prevent connection timeouts")
+    logger.info("Sending startup greeting with reply keyboard")
     
-    # Temporarily disabled to prevent timeout issues that block bot startup
-    # The greeting functionality can be re-enabled once network connectivity is stable
+    greeting_message = "🎲 <b>Bot Restarted Successfully!</b>\n\n" \
+                      "I'm back online and ready to serve! 🎉\n" \
+                      "All systems are operational. Let's play and win big! 💰"
     
-    # greeting_message = "🎲 *Bot Restarted Successfully!*\n\n" \
-    #                   "I'm back online and ready to serve! 🎉\n" \
-    #                   "All systems are operational. Let's play and win big! 💰"
-    # 
-    # for chat_id in ALLOWED_GROUP_IDS:
-    #     try:
-    #         await application.bot.send_message(
-    #             chat_id=chat_id,
-    #             text=greeting_message,
-    #             parse_mode="Markdown"
-    #         )
-    #         logger.info(f"Sent startup greeting to chat {chat_id}")
-    #     except Exception as e:
-    #         logger.error(f"Failed to send startup greeting to chat {chat_id}: {e}")
+    reply_markup = create_custom_keyboard()
     
-    logger.info("Startup greeting process completed (disabled)")
+    for chat_id in ALLOWED_GROUP_IDS:
+        try:
+            await application.bot.send_message(
+                chat_id=chat_id,
+                text=greeting_message,
+                parse_mode="HTML",
+                reply_markup=reply_markup
+            )
+            logger.info(f"Sent startup greeting with keyboard to chat {chat_id}")
+        except Exception as e:
+            logger.error(f"Failed to send startup greeting to chat {chat_id}: {e}")
+    
+    logger.info("Startup greeting process completed")
 
 # Handler for unhandled text messages
 async def unhandled_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -401,7 +400,7 @@ def main() -> None:
     # Message Handlers for the Custom Reply Keyboard Buttons
     # All users get the same keyboard buttons
     application.add_handler(MessageHandler(filters.TEXT & filters.Regex("^💰 My Wallet$"), check_wallet))
-    application.add_handler(MessageHandler(filters.TEXT & filters.Regex("^🏆 Leaderboard$"), show_leaderboard))
+    application.add_handler(MessageHandler(filters.TEXT & filters.Regex("^🙋‍♂️ ကစားနည်း$"), show_help))
     application.add_handler(MessageHandler(filters.TEXT & filters.Regex("^💵 ငွေထည့်မည်$"), deposit_handler))
     application.add_handler(MessageHandler(filters.TEXT & filters.Regex("^💸 ငွေထုတ်မည်$"), withdrawal_handler))
     application.add_handler(MessageHandler(filters.TEXT & filters.Regex("^🔗 Share$"), get_referral_link))
