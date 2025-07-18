@@ -1,6 +1,7 @@
 alembic==1.13.3
 anyio==4.9.0
 APScheduler==3.11.0
+autopep8==2.3.2
 CacheControl==0.14.3
 cachetools==5.5.2
 certifi==2025.4.26
@@ -37,9 +38,12 @@ packaging==25.0
 pluggy==1.6.0
 proto-plus==1.26.1
 protobuf==6.31.1
-psycopg[binary]==3.2.3
+psycopg==3.2.3
+psycopg-binary==3.2.3
+psycopg2-binary==2.9.9
 pyasn1==0.6.1
 pyasn1_modules==0.4.2
+pycodestyle==2.14.0
 pycparser==2.22
 Pygments==2.19.2
 PyJWT==2.10.1
