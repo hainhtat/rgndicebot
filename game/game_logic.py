@@ -209,12 +209,15 @@ def place_bet(
         main_score = db_adapter.get_player_score(user_id, chat_id)
         referral_points = db_adapter.get_user_referral_points(user_id)
         bonus_points = db_adapter.get_user_bonus_points(user_id)
+        # In database mode, committed funds are already deducted from the database balance
+        # so we don't need to subtract committed_funds again
+        total_available = main_score + referral_points + bonus_points
     else:
         main_score = current_player["score"]
         referral_points = global_user_data.get("referral_points", 0)
         bonus_points = global_user_data.get("bonus_points", 0)
-    
-    total_available = main_score + referral_points + bonus_points - committed_funds
+        # In non-database mode, we need to account for committed funds
+        total_available = main_score + referral_points + bonus_points - committed_funds
     
     if total_available < amount:
         logger.warning(
@@ -233,10 +236,8 @@ def place_bet(
     # Use bonus points first (no restrictions)
     if bonus_points > 0:
         bonus_points_used = min(bonus_points, amount)
-        if USE_DATABASE:
-            db_adapter.update_user_bonus_points(
-                user_id, bonus_points - bonus_points_used)
-        else:
+        # Don't update database immediately - will be done in batch later
+        if not USE_DATABASE:
             global_user_data["bonus_points"] -= bonus_points_used
         amount -= bonus_points_used
     
@@ -247,10 +248,8 @@ def place_bet(
     if amount > 0 and referral_points > 0:
         if main_score < MIN_MAIN_SCORE_REQUIRED:
             if main_score < amount:
-                if USE_DATABASE:
-                    db_adapter.update_user_bonus_points(
-                        user_id, bonus_points + bonus_points_used)
-                else:
+                # Restore bonus points if insufficient funds
+                if not USE_DATABASE:
                     global_user_data["bonus_points"] += bonus_points_used
                 raise InvalidBetError(
                     format_insufficient_funds(
@@ -264,10 +263,8 @@ def place_bet(
         else:
             referral_points_used = min(
                 referral_points, max_referral_for_bet, amount)
-            if USE_DATABASE:
-                db_adapter.update_user_referral_points(
-                    user_id, referral_points - referral_points_used)
-            else:
+            # Don't update database immediately - will be done in batch later
+            if not USE_DATABASE:
                 global_user_data["referral_points"] -= referral_points_used
             amount -= referral_points_used
     
@@ -275,12 +272,7 @@ def place_bet(
     if amount > 0:
         if main_score < amount:
             # Restore used points if main score is insufficient
-            if USE_DATABASE:
-                db_adapter.update_user_bonus_points(
-                    user_id, bonus_points + bonus_points_used)
-                db_adapter.update_user_referral_points(
-                    user_id, referral_points + referral_points_used)
-            else:
+            if not USE_DATABASE:
                 global_user_data["bonus_points"] += bonus_points_used
                 global_user_data["referral_points"] += referral_points_used
             raise InvalidBetError(
@@ -332,6 +324,14 @@ def place_bet(
                 # Update player score in database (deduct bet amount)
                 db_adapter.update_player_stats(
                     user_id, chat_id, -main_score_used, False, 0)
+                
+                # Update bonus and referral points in database
+                if bonus_points_used > 0:
+                    db_adapter.update_user_bonus_points(
+                        user_id, bonus_points - bonus_points_used)
+                if referral_points_used > 0:
+                    db_adapter.update_user_referral_points(
+                        user_id, referral_points - referral_points_used)
     
                 # Get fresh player data from database to sync local data
                 updated_stats = db_adapter.get_or_create_player_stats(
@@ -477,7 +477,6 @@ def payout(
         # For losers, net_result is 0 (they already lost their bet during
         # placement)
         display_net = total_winnings - total_bet_amount
-        update_amount = total_winnings
 
         participant_results[user_id_str] = {
             "user_id": user_id,
@@ -497,10 +496,12 @@ def payout(
         if USE_DATABASE:
             # Update player stats in database
             is_winner = net_result > 0
+            # Calculate correct update amount: only add winnings (bet already deducted)
+            payout_update_amount = total_winnings
             try:
                 # Update database first
                 db_adapter.update_player_stats(
-                    user_id, chat_id, update_amount, is_winner, 1)
+                    user_id, chat_id, payout_update_amount, is_winner, 1)
 
                 # Get fresh player data from database
                 updated_stats = db_adapter.get_or_create_player_stats(
@@ -530,7 +531,7 @@ def payout(
                 # Fallback to local data update
                 if user_id_str in chat_data.get("player_stats", {}):
                     player = chat_data["player_stats"][user_id_str]
-                    player["score"] += update_amount
+                    player["score"] += payout_update_amount
 
                     if net_result > 0:
                         player["total_wins"] += 1
@@ -540,7 +541,7 @@ def payout(
                     # Create minimal player data if not exists
                     player = {
                         "username": "Unknown",
-                        "score": update_amount,
+                        "score": payout_update_amount,
                         "total_wins": 1 if net_result > 0 else 0,
                         "total_losses": 0 if net_result > 0 else 1,
                         "total_bets": 1,
@@ -549,13 +550,39 @@ def payout(
                     if "player_stats" not in chat_data:
                         chat_data["player_stats"] = {}
                     chat_data["player_stats"][user_id_str] = player
+        else:
+            # Handle local mode (USE_DATABASE = False)
+            payout_update_amount = total_winnings
+            if user_id_str in chat_data.get("players", {}):
+                player = chat_data["players"][user_id_str]
+                player["score"] += payout_update_amount
+                
+                if net_result > 0:
+                    player["total_wins"] += 1
+                else:
+                    player["total_losses"] += 1
+            else:
+                # Create minimal player data if not exists
+                player = {
+                    "username": "Unknown",
+                    "score": payout_update_amount,
+                    "total_wins": 1 if net_result > 0 else 0,
+                    "total_losses": 0 if net_result > 0 else 1,
+                    "total_bets": 1,
+                    "last_active": datetime.now().isoformat()
+                }
+                if "players" not in chat_data:
+                    chat_data["players"] = {}
+                chat_data["players"][user_id_str] = player
+                
         # Get user's full name from global data if available
         user_global_data = global_data.get("users", {}).get(user_id_str, {})
         full_name = user_global_data.get("full_name", "")
 
-        # Add to appropriate list based on net result
+        # Add to appropriate list based on whether they have any winnings
+        # Players with any winnings go to winners list, others go to losers list
         individual_bets = result["individual_bets"]
-        if net_result > 0:
+        if total_winnings > 0:
             winners_list.append({
                 "user_id": user_id_str,
                 "username": player["username"],
@@ -567,7 +594,7 @@ def payout(
             })
             total_winners += 1
             total_payout += total_winnings
-        elif net_result < 0:
+        else:
             losers_list.append({
                 "user_id": user_id_str,
                 "username": player["username"],
@@ -578,8 +605,6 @@ def payout(
                 "individual_bets": individual_bets
             })
             total_losers += 1
-        # If net_result == 0, user breaks even and doesn't appear in winners or
-        # losers
 
     # Update game state to indicate game is completely finished
     game.state = GAME_STATE_OVER
@@ -611,6 +636,13 @@ def payout(
     # Keep only the last 50 matches
     if len(chat_data["match_history"]) > 50:
         chat_data["match_history"] = chat_data["match_history"][-50:]
+
+    # Add match to database history for house statistics
+    try:
+        db_adapter.add_match_to_history(chat_id, match_record)
+        logger.info(f"Match {game.match_id} added to database history")
+    except Exception as e:
+        logger.error(f"Failed to add match {game.match_id} to database history: {e}")
 
     # Update consecutive idle matches counter
     if total_bets == 0:

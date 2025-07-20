@@ -22,10 +22,8 @@ class DatabaseAdapter:
             from . import queries
             self.db_queries = queries
         else:
-            # JSON file manager was removed during migration
-            # This fallback should not be used in production
-            self.load_data = lambda: {}
-            self.save_data = lambda data: None
+            logger.error("Database mode is disabled but no alternative storage configured")
+            raise RuntimeError("Database mode is required")
     
     # User operations
     def get_user_referral_points(self, user_id: int) -> int:
@@ -417,12 +415,12 @@ class DatabaseAdapter:
         if self.use_database:
             games = self.db_queries.get_recent_games(chat_id, limit)
             return [{
-                'match_id': game.match_id,
-                'timestamp': game.completed_at.isoformat() if game.completed_at else game.created_at.isoformat(),
-                'result': game.result,
-                'dice_result': game.dice_result,
-                'winning_type': game.winning_type,
-                'total_bets': game.total_bets
+                'match_id': game['match_id'],
+                'timestamp': game['completed_at'].isoformat() if game['completed_at'] else game['created_at'].isoformat(),
+                'result': game['result'],
+                'dice_result': game['dice_result'],
+                'winning_type': game['winning_type'],
+                'total_bets': game.get('total_bets', 0)
             } for game in games]
         else:
             data = self.load_data()

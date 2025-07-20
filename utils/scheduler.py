@@ -88,6 +88,7 @@ async def daily_admin_wallet_refill():
 async def send_refill_notification_to_super_admins(refill_details, total_refills):
     """
     Send notification to super admins about the daily refill.
+    Fixed issues: proper backslash formatting, show group names instead of IDs, improved house stats.
     """
     try:
         from config.constants import SUPER_ADMINS
@@ -108,46 +109,101 @@ async def send_refill_notification_to_super_admins(refill_details, total_refills
         
         # Create notification message
         tz = pytz.timezone(TIMEZONE)
-        # Calculate yesterday's dates
+        # Calculate yesterday's dates in Myanmar timezone
         now = datetime.now(tz)
         yesterday_end = now.replace(hour=0, minute=0, second=0, microsecond=0)
         yesterday_start = yesterday_end - timedelta(days=1)
         
-        # Get house stats
-        from database.queries import get_daily_house_stats
-        house_stats = get_daily_house_stats(yesterday_start, yesterday_end)
+        # Get house stats with improved error handling
+        try:
+            from database.queries import get_daily_house_stats
+            house_stats = get_daily_house_stats(yesterday_start, yesterday_end)
+            
+            # Ensure all required keys exist with default values
+            house_stats = {
+                'total_bets': house_stats.get('total_bets', 0),
+                'total_payouts': house_stats.get('total_payouts', 0),
+                'house_profit': house_stats.get('house_profit', 0),
+                'total_matches': house_stats.get('total_matches', 0),
+                'unique_players': house_stats.get('unique_players', 0)
+            }
+        except Exception as e:
+            logger.error(f"Error getting house stats: {e}")
+            house_stats = {
+                'total_bets': 0,
+                'total_payouts': 0,
+                'house_profit': 0,
+                'total_matches': 0,
+                'unique_players': 0
+            }
         
-        message = f"🔄 <b>Daily Report</b>\n\n"
-        message += f"<b>Admin Wallet Refills:</b>\n"
-        message += f"  Total Refills: {total_refills} wallets\n"
-        message += f"  Refill Amount: {ADMIN_WALLET_AMOUNT:,} points each\n\n"
-        message += f"<b>House Win/Loss (Yesterday):</b>\n"
-        message += f"  Total Bets: {house_stats['total_bets']:,}\n"
-        message += f"  Total Payouts: {house_stats['total_payouts']:,}\n"
-        message += f"  House Profit: {house_stats['house_profit']:,}\n\n"
-        message += f"<b>Refilled Admins:</b>\n"
+        # Format date for display
+        yesterday_formatted = yesterday_start.strftime("%Y-%m-%d")
         
+        # Build message with proper HTML escaping (no backslashes)
+        message = "🔄 <b>Daily Report</b>\n\n"
+        message += "<b>📊 House Win/Loss Statistics ({}):</b>\n".format(yesterday_formatted)
+        message += "  💰 Total Bets: {:,} ကျပ်\n".format(house_stats['total_bets'])
+        message += "  💸 Total Payouts: {:,} ကျပ်\n".format(house_stats['total_payouts'])
+        message += "  📈 House Profit: {:,} ကျပ်\n".format(house_stats['house_profit'])
+        message += "  🎲 Total Matches: {:,}\n".format(house_stats['total_matches'])
+        message += "  👥 Unique Players: {:,}\n\n".format(house_stats['unique_players'])
+        
+        message += "<b>🔄 Admin Wallet Refills:</b>\n"
+        message += "  📦 Total Refills: {:,} wallets\n".format(total_refills)
+        message += "  💎 Refill Amount: {:,} points each\n\n".format(ADMIN_WALLET_AMOUNT)
+        
+        message += "<b>👥 Refilled Admins:</b>\n"
+        
+        # Group refills by chat to show group names
+        chat_refills = {}
         for detail in refill_details:
-            admin_id = int(detail["admin_id"])
-            
-            # Get display name with both name and username
-            try:
-                display_name = await get_user_display_name(context, admin_id)
-                # Escape markdown for the display name
-                display_name = escape_markdown(display_name)
-            except Exception as e:
-                logger.error(f"Failed to get display name for admin {admin_id}: {e}")
-                # Fallback to username only
-                username = escape_markdown_username(detail["username"])
-                display_name = f"{username}"
-            
-            message += f"\n👤 <b>{display_name}</b> (ID: {admin_id})\n"
-            
             for refill in detail["refills"]:
                 chat_id = refill["chat_id"]
+                if chat_id not in chat_refills:
+                    chat_refills[chat_id] = []
+                chat_refills[chat_id].append({
+                    "admin_id": detail["admin_id"],
+                    "username": detail["username"],
+                    "old_amount": refill["old_amount"],
+                    "new_amount": refill["new_amount"]
+                })
+        
+        # Display refills grouped by chat with group names
+        for chat_id, refills in chat_refills.items():
+            try:
+                # Get group name instead of just showing ID
+                chat = await bot.get_chat(int(chat_id))
+                group_name = chat.title or f"Group {chat_id}"
+                # Escape HTML special characters in group name
+                group_name = group_name.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+            except Exception as e:
+                logger.error(f"Error getting group name for chat {chat_id}: {e}")
+                group_name = f"Group {chat_id}"
+            
+            message += "\n🏠 <b>{}</b> (ID: {})\n".format(group_name, chat_id)
+            
+            for refill in refills:
+                admin_id = int(refill["admin_id"])
+                
+                # Get display name with both name and username
+                try:
+                    display_name = await get_user_display_name(context, admin_id)
+                    # Escape HTML special characters in display name
+                    display_name = display_name.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                except Exception as e:
+                    logger.error(f"Failed to get display name for admin {admin_id}: {e}")
+                    # Fallback to username only with proper escaping
+                    username = refill["username"].replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                    display_name = username
+                
                 old_amount = refill["old_amount"]
                 new_amount = refill["new_amount"]
-                message += f"  📊 Chat {chat_id}: {old_amount:,} → {new_amount:,} points\n"
+                message += "  👤 {}: {:,} → {:,} points\n".format(display_name, old_amount, new_amount)
+        
+        # Add footer with timestamp
+        current_time = now.strftime("%Y-%m-%d %H:%M:%S %Z")
+        message += "\n⏰ <i>Report generated at: {}</i>".format(current_time)
         
         # Send to all super admins
         for super_admin_id in SUPER_ADMINS:

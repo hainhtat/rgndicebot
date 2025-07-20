@@ -281,20 +281,36 @@ def get_player_score(user_id: int, chat_id: int) -> int:
         ).first()
         return stats.score if stats else 0
 
-def get_daily_house_stats(start_date: datetime, end_date: datetime) -> Dict[str, int]:
+def get_daily_house_stats(start_date: datetime, end_date: datetime, chat_id: int = None) -> Dict[str, int]:
     """Calculate daily house statistics: total bets, total payouts, house profit."""
     with get_db_session() as session:
+        # Base query for games completed in the period
+        base_query = session.query(Game).filter(
+            Game.completed_at >= start_date,
+            Game.completed_at < end_date
+        )
+        
+        # Add chat_id filter if specified
+        if chat_id is not None:
+            base_query = base_query.filter(Game.chat_id == chat_id)
+        
         # Total bets: sum of all bet amounts for games completed in the period
         total_bets = session.query(func.sum(Bet.amount)).join(Game).filter(
             Game.completed_at >= start_date,
             Game.completed_at < end_date
-        ).scalar() or 0
+        )
+        if chat_id is not None:
+            total_bets = total_bets.filter(Game.chat_id == chat_id)
+        total_bets = total_bets.scalar() or 0
         
         # Total payouts: sum of all bet payouts for games completed in the period
         total_payouts = session.query(func.sum(Bet.payout)).join(Game).filter(
             Game.completed_at >= start_date,
             Game.completed_at < end_date
-        ).scalar() or 0
+        )
+        if chat_id is not None:
+            total_payouts = total_payouts.filter(Game.chat_id == chat_id)
+        total_payouts = total_payouts.scalar() or 0
         
         house_profit = total_bets - total_payouts
         

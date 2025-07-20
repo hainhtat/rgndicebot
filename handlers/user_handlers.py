@@ -189,15 +189,18 @@ async def check_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         # Format the admin wallet message
         wallet_message = "💰 <b>Admin Wallet</b>\n\n"
         
-        # Handle username carefully to avoid markdown parsing issues
-        safe_username = username
-        if username and any(char in username for char in '*_[]()~>#+-=|{}.!'):
-            # If username contains special markdown characters, escape them
-            safe_username = escape_markdown_username(username)
+        # Get admin's display name using the utility function
+        from utils.user_utils import get_user_display_name
+        try:
+            display_name = await get_user_display_name(context, user_id, chat_id)
+        except Exception:
+            display_name = username or f"Admin {user_id}"
+        
+        # Use HTML escaping since we're using HTML parse mode
+        safe_username = escape_html(display_name)
         
         wallet_message += MessageTemplates.ADMIN_WALLET_SELF.format(
             username=safe_username,
-            admin_id=user_id,
             points=chat_points,
             last_refill=last_refill_str
         )
@@ -306,7 +309,7 @@ async def withdrawal_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 f"❌ <b>ထုတ်ရန် လက်ကျန်ငွေမလုံလောက်ပါ!</b>\n\n"
                 f"👤 User: {user_display_name}\n"
                 f"💰 <b>Main Wallet:</b> <b>{user_score:,}</b> ကျပ်\n\n"
-                f"💸 <b>ငွေထုတ်ရန် :</b> <b>5,000</b> ကျပ်မှစတင်ထုတ်လို့ရပါတယ်နော်\n\n"
+                f"� <b>ငွေထုတ်ရန် :</b> <b>5,000</b> ကျပ်မှစတင်ထုတ်လို့ရပါတယ်နော်\n\n"
                 f"<i>Note: Main wallet ထဲကငွေကိုပဲထုတ်လို့ရပါတယ်။</i>",
                 parse_mode="HTML"
             )
@@ -368,9 +371,9 @@ async def handle_share_referral_callback(update: Update, context: ContextTypes.D
     
     # Create private message with referral info
     private_message = (
-        f"🎮 <b>Join Rangoon Dice Official group!</b> 🎮\n\n"
-        f"🚀 <b>Your Rewards:</b> User တစ်ယောက် join ရင်500ကျပ်ရပါမယ်!\n"
-        f"🎁 <b>Their Welcome Gift:</b> Join တာနဲ့ 500ကျပ်ရပါမယ်!\n\n"
+        f"{MessageTemplates.REFERRAL_HEADER}\n\n"
+        f"{MessageTemplates.REFERRAL_REWARDS}\n"
+        f"{MessageTemplates.REFERRAL_WELCOME_GIFT}\n\n"
         f"<code>{referral_link}</code>\n\n"
         f"🏆 <b>Your Referral Empire:</b> {referral_points:,} points earned so far"
     )
@@ -402,9 +405,20 @@ async def handle_share_referral_callback(update: Update, context: ContextTypes.D
         
     except Exception as e:
         logger.error(f"Error sending private share message: {e}")
+        
+        # Get bot username for the start chat button
+        bot_info = await context.bot.get_me()
+        bot_username = bot_info.username
+        
+        keyboard = [
+            [InlineKeyboardButton("🤖 Start Bot Chat", url=f"https://t.me/{bot_username}?start=chat")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
         await query.edit_message_text(
-            text="❌ <b>Error sending private message.</b>\n\nPlease make sure you have started a private chat with the bot first by clicking /start in a private message.",
-            parse_mode="HTML"
+            text="❌ <b>Error sending private message.</b>\n\nPlease start a private chat with the bot first by clicking the button below, then try again.",
+            parse_mode="HTML",
+            reply_markup=reply_markup
         )
 
 
@@ -482,9 +496,9 @@ async def get_referral_link(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     
     # Create private message with referral info
     private_message = (
-        f"🎮 <b>Join Rangoon Dice Official group!</b> 🎮\n\n"
-        f"🚀 <b>Your Rewards:</b> User တစ်ယောက် join ရင်500ကျပ်ရပါမယ်!\n"
-        f"🎁 <b>Their Welcome Gift:</b> Join တာနဲ့ 500ကျပ်ရပါမယ်!\n\n"
+        f"{MessageTemplates.REFERRAL_HEADER}\n\n"
+        f"{MessageTemplates.REFERRAL_REWARDS}\n"
+        f"{MessageTemplates.REFERRAL_WELCOME_GIFT}\n\n"
         f"<code>{referral_link}</code>\n\n"
         f"🏆 <b>Your Referral Empire:</b> {referral_points:,} points earned so far"
     )
@@ -519,20 +533,21 @@ async def get_referral_link(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         logger.error(f"Error sending private referral message: {e}")
         # Fallback to group message if private message fails
         referral_message = (
-            f"🎮 <b>Join Rangoon Dice Official group!</b> 🎮\n\n"
-            f"🚀 <b>Your Rewards:</b> User တစ်ယောက် join ရင်500ကျပ်ရပါမယ်!\n"
-            f"🎁 <b>Their Welcome Gift:</b> Join တာနဲ့ 500ကျပ်ရပါမယ်!\n\n"
+            f"{MessageTemplates.REFERRAL_HEADER}\n\n"
+            f"{MessageTemplates.REFERRAL_REWARDS}\n"
+            f"{MessageTemplates.REFERRAL_WELCOME_GIFT}\n\n"
             f"{referral_link}\n\n"
             f"🏆 <b>Your Referral Empire:</b> {referral_points:,} ကျပ် earned so far"
         )
         
         keyboard = [
-            [InlineKeyboardButton("📤 Share with Friends", callback_data=f"share_referral_{user_id}")]
+            [InlineKeyboardButton("🤖 Start Bot Chat", url=f"https://t.me/{bot_username}?start=chat")],
+            # [InlineKeyboardButton("📤 Share with Friends", callback_data=f"share_referral_{user_id}")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
         await update.message.reply_text(
-            f"❌ <b>Could not send private message.</b>\n\nPlease start a private chat with the bot first by clicking /start in a private message.\n\n{referral_message}",
+            f"❌ <b>Could not send private message.</b>\n\nPlease start a private chat with the bot first by clicking the button below, then try again.\n\n{referral_message}",
             parse_mode="HTML",
             reply_markup=reply_markup
         )
@@ -640,7 +655,7 @@ async def handle_new_chat_member(update: Update, context: ContextTypes.DEFAULT_T
             await send_keyboard_to_all_group_members(
                 context,
                 chat_id,
-                f"🎮 Welcome {escape_markdown_username(member.first_name)}! Game controls refreshed for everyone."
+                MessageTemplates.NEW_MEMBER_WELCOME_GAME.format(name=escape_markdown_username(member.first_name))
             )
         except Exception as e:
             logger.error(f"Failed to send keyboard to all group members for new member {user_id}: {e}")

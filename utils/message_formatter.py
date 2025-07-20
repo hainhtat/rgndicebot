@@ -127,7 +127,12 @@ class MessageTemplates:
     
     # Referral messages
     REFERRAL_LINK_MESSAGE = "🎮 <b>Join Rangoon Dice Official group!</b> 🎮\n\n🚀  <b>Your Rewards:</b> User တစ်ယောက် join ရင်{bonus}ကျပ်ရပါမယ်!\n🎁 <b>Their Welcome Gift:</b> Join တာနဲ့ 500ကျပ်ရပါမယ်!\n\n{referral_link}\n\n🏆 <b>Your Referral Empire:</b> {points} ကျပ် earned so far"
+    REFERRAL_HEADER = "🎮 <b>Join Rangoon Dice Official group!</b> 🎮\n\n"
+    REFERRAL_REWARDS = "🚀 <b>Your Rewards:</b> User တစ်ယောက် join ရင်500ကျပ်ရပါမယ်!\n"
+    REFERRAL_WELCOME_GIFT = "🎁 <b>Their Welcome Gift:</b> Join တာနဲ့ 500ကျပ်ရပါမယ်!\n\n"
+    REFERRAL_EMPIRE = "🏆 <b>Your Referral Empire:</b> {points} ကျပ် earned so far"
     NEW_MEMBER_WELCOME = "👋 Welcome to the group, {name}!\n\nUse /help to learn how to play the dice game."
+    NEW_MEMBER_WELCOME_GAME = "🎮 Welcome {name}! Ready to play and win big! 🎲💰"
     
     # Help message
     HELP_MESSAGE = (
@@ -176,8 +181,8 @@ class MessageTemplates:
     
     # Admin wallet messages
     ADMIN_WALLETS_HEADER = "💰 <b>Admin Wallets</b>\n\n"
-    ADMIN_WALLET_ENTRY = "👤 <b>{username}</b> ({admin_id})\n<b>Balance:</b> {points:,} ကျပ်\n<b>Last Refill:</b> {last_refill}\n\n"
-    ADMIN_WALLET_SELF = "👤 <b>{username}</b> ({admin_id})\n<b>Balance:</b> {points:,} ကျပ်\n<b>Last Refill:</b> {last_refill}\n"
+    ADMIN_WALLET_ENTRY = "👤 <b>{username}</b>\n<b>Balance:</b> {points:,} ကျပ်\n<b>Last Refill:</b> {last_refill}\n\n"
+    ADMIN_WALLET_SELF = "👤 <b>{username}</b>\n<b>Balance:</b> {points:,} ကျပ်\n<b>Last Refill:</b> {last_refill}\n"
     NO_ADMIN_WALLET = "You don't have an admin wallet yet.\n"
     NO_ADMIN_WALLETS_FOUND = "No admin wallets found for current admins in this chat.\n"
     
@@ -294,9 +299,18 @@ async def format_bet_confirmation(bet_type: str, amount: int, result_message: st
         game: The current game object to get user's total bets
         global_data: Global data to get user information
     """
-    # Extract score from result_message if needed
+    # Get current wallet balance from global_data instead of parsing result_message
     score = 0
-    if "Your balance:" in result_message:
+    if global_data and user_id:
+        user_data = global_data.get("global_user_data", {}).get(str(user_id), {})
+        # Get the current score from player_stats in chat_data
+        chat_data = global_data.get("chat_data", {})
+        player_stats = chat_data.get("player_stats", {})
+        user_stats = player_stats.get(str(user_id), {})
+        score = user_stats.get("score", 0)
+    
+    # Fallback: Extract score from result_message if global_data approach fails
+    if score == 0 and "Your balance:" in result_message:
         try:
             # Extract the main score from "Your balance: {score} main, {referral} referral, {bonus} bonus ကျပ်"
             balance_part = result_message.split("Your balance:")[1].strip()
@@ -573,7 +587,10 @@ async def format_game_result(result: Dict[str, Any], global_data: Dict[str, Any]
                 for bet in individual_bets:
                     bet_type = bet['bet_type']
                     amount = bet['amount']
-                    bet_details.append(f"-{amount} ကျပ် ({bet_type.lower()})")
+                    if bet['result'] == 'win':
+                        bet_details.append(f"+{bet['payout']} ကျပ် ({bet_type.lower()})")
+                    else:
+                        bet_details.append(f"-{amount} ကျပ် ({bet_type.lower()})")
                 
                 bet_summary = ", ".join(bet_details)
                 message += f"😞 <b>{display_name}:</b> {bet_summary} (<b>💰 Wallet:</b> {wallet_balance} ကျပ်)\n"

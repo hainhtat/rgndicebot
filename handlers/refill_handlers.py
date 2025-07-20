@@ -150,6 +150,11 @@ async def handle_refill_group_selection(update: Update, context: ContextTypes.DE
                 )
             ])
         
+        # Add housestats button
+        keyboard.append([
+            InlineKeyboardButton("📊 House Statistics", callback_data=f"housestats_{group_id}")
+        ])
+        
         # Add back button
         keyboard.append([
             InlineKeyboardButton("⬅️ Back to Groups", callback_data="refill_back_to_groups")
@@ -532,3 +537,60 @@ async def handle_refill_back_to_groups(update: Update, context: ContextTypes.DEF
     
     # Restart the refill command flow
     await refill_command(update, context)
+
+
+async def handle_housestats_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """
+    Handle housestats button callback.
+    """
+    query = update.callback_query
+    await query.answer()
+    
+    user_id = update.effective_user.id
+    
+    # Check if user is a super admin
+    if user_id not in SUPER_ADMINS:
+        await query.edit_message_text(MessageTemplates.SUPER_ADMIN_ONLY_COMMAND)
+        return
+    
+    # Extract group ID from callback data
+    try:
+        group_id = int(query.data.split("_")[-1])
+    except (ValueError, IndexError):
+        await query.edit_message_text("❌ Invalid group selection.")
+        return
+    
+    # Import housestats function
+    from handlers.admin_handlers import housestats_command
+    
+    # Create a mock update object for the housestats command
+    class MockMessage:
+        def __init__(self, chat_id, user_id):
+            self.chat = type('obj', (object,), {'id': chat_id})
+            self.from_user = type('obj', (object,), {'id': user_id})
+            
+        async def reply_text(self, text, parse_mode=None):
+            await query.edit_message_text(text, parse_mode=parse_mode)
+    
+    class MockUpdate:
+        def __init__(self, chat_id, user_id):
+            self.message = MockMessage(chat_id, user_id)
+            self.effective_chat = type('obj', (object,), {'id': chat_id})
+            self.effective_user = type('obj', (object,), {'id': user_id})
+    
+    # Create mock context with group_id as argument
+    mock_context = type('obj', (object,), {'args': [str(group_id)]})
+    mock_context.bot = context.bot
+    
+    # Create mock update
+    mock_update = MockUpdate(group_id, user_id)
+    
+    try:
+        # Call housestats command with mock objects
+        await housestats_command(mock_update, mock_context)
+    except Exception as e:
+        logger.error(f"Error calling housestats: {e}")
+        await query.edit_message_text(
+            "❌ <b>Error retrieving house statistics.</b>\n\nPlease try again later.",
+            parse_mode="HTML"
+        )

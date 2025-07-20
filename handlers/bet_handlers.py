@@ -48,6 +48,167 @@ logger = get_logger(__name__)
 config = get_config()
 
 @error_handler
+async def place_multiple_bets(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle multiple bets in one message (e.g., 'b100 l200 s300' or '100b 200l 300s')."""
+    # Only handle text messages
+    if update.callback_query:
+        return
+    
+    # Get chat and user information
+    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id
+    username = update.effective_user.username or update.effective_user.first_name or "Unknown"
+    
+    # Check if this chat is allowed to use the bot
+    if not await check_allowed_chat(update, context):
+        return
+    
+    # Check if user is an admin - admins cannot participate in games
+    if await is_admin(chat_id, user_id, context):
+        await update.message.reply_text(MessageTemplates.ADMIN_CANNOT_PARTICIPATE)
+        return
+    
+    # Get chat data
+    chat_data = get_chat_data_for_id(chat_id)
+    
+    # Check if there's a manual stop cooldown in effect
+    manual_stop_time = chat_data.get("manual_stop_cooldown")
+    if manual_stop_time:
+        config = get_config()
+        cooldown_period = config.get("game", "manual_stop_cooldown_seconds", 10)
+        now = datetime.now()
+        cooldown_elapsed = (now - manual_stop_time).total_seconds()
+        
+        if cooldown_elapsed < cooldown_period:
+            error_message = MessageTemplates.BETTING_DISABLED_COOLDOWN.format(seconds=int(cooldown_period - cooldown_elapsed))
+            await update.message.reply_text(error_message)
+            return
+        else:
+            chat_data.pop("manual_stop_cooldown", None)
+    
+    # Check if games are in inactive state
+    game_state = chat_data.get("game_state", "active")
+    if game_state == "inactive":
+        await update.message.reply_text(MessageTemplates.GAME_INACTIVE, parse_mode="HTML")
+        return
+    
+    # Get the current game
+    game = get_current_game(chat_id)
+    if not game or game.state == GAME_STATE_OVER:
+        await update.message.reply_text("❌ No active game. Please contact an admin to start one.")
+        return
+    
+    # Validate game state
+    if game.state != GAME_STATE_WAITING:
+        await update.message.reply_text(MessageTemplates.BETTING_CLOSED)
+        return
+    
+    # Get message text
+    message_text = None
+    if update.message and update.message.text:
+        message_text = update.message.text.strip().lower()
+    elif update.edited_message and update.edited_message.text:
+        message_text = update.edited_message.text.strip().lower()
+    
+    if not message_text:
+        return
+    
+    # Parse multiple bets from the message
+    # Patterns: "b100 l200 s300", "100b 200l 300s", "b 100 l 200 s 300", "100 b 200 l 300 s"
+    # Use a single comprehensive pattern to avoid overlapping matches
+    pattern = r'(?:(b|big|s|small|l|lucky)\s*(\d+)|(\d+)\s*(b|big|s|small|l|lucky))'
+    
+    parsed_bets = []
+    matches = re.findall(pattern, message_text)
+    for match in matches:
+        if match[0]:  # Pattern: "b100" or "big 100"
+            bet_code = match[0].lower()
+            amount = int(match[1])
+        elif match[2]:  # Pattern: "100b" or "100 big"
+            amount = int(match[2])
+            bet_code = match[3].lower()
+        else:
+            continue
+        
+        # Convert bet code to bet type
+        if bet_code in ["b", "big"]:
+            bet_type = BET_TYPE_BIG
+        elif bet_code in ["s", "small"]:
+            bet_type = BET_TYPE_SMALL
+        elif bet_code in ["l", "lucky"]:
+            bet_type = BET_TYPE_LUCKY
+        else:
+            continue
+        
+        parsed_bets.append((bet_type, amount))
+    
+    # If no valid bets found, return without processing
+    if not parsed_bets:
+        return
+    
+    # If only one bet found, let the regular handler process it
+    if len(parsed_bets) == 1:
+        return
+    
+    # Process multiple bets and send a single combined confirmation message
+    successful_bets = []
+    failed_bets = []
+    
+    for bet_type, amount in parsed_bets:
+        try:
+            result_message = process_bet(game, user_id, username, bet_type, amount, chat_data, global_data, chat_id)
+            successful_bets.append((bet_type, amount, result_message))
+        except (GameStateError, InvalidBetError) as e:
+            failed_bets.append((bet_type, amount, str(e)))
+    
+    # Send responses
+    if successful_bets:
+        # Get updated user data after all bets
+        updated_global_user_data = global_data.get("global_user_data", {}).get(str(user_id), {})
+        remaining_referral_points = updated_global_user_data.get("referral_points", 0)
+        remaining_bonus_points = updated_global_user_data.get("bonus_points", 0)
+        
+        # Use the first successful bet for the main confirmation message
+        first_bet_type, first_amount, first_result = successful_bets[0]
+        
+        # Send single combined confirmation using the old format
+        # Create updated global_data with current chat_data for accurate wallet display
+        updated_global_data = global_data.copy()
+        updated_global_data["chat_data"] = chat_data
+        
+        confirmation_message = await format_bet_confirmation(
+            bet_type=first_bet_type,
+            amount=first_amount,
+            result_message=first_result,
+            username=username,
+            referral_points=remaining_referral_points,
+            bonus_points=remaining_bonus_points,
+            user_id=str(user_id),
+            game=game,
+            global_data=updated_global_data,
+            context=context
+        )
+        
+        await update.message.reply_text(
+            text=confirmation_message,
+            parse_mode="HTML"
+        )
+        
+        total_amount = sum(amount for _, amount, _ in successful_bets)
+        logger.info(f"Multiple bets placed: user={user_id}, bets={len(successful_bets)}, total={total_amount}, chat={chat_id}")
+    
+    # Send individual error messages for failed bets
+    for bet_type, amount, error in failed_bets:
+        error_message = format_bet_error(error)
+        await update.message.reply_text(
+            text=error_message,
+            parse_mode="HTML"
+        )
+    
+    if failed_bets:
+        logger.warning(f"Some multiple bets failed: user={user_id}, failed={len(failed_bets)}, chat={chat_id}")
+
+@error_handler
 async def place_bet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle both callback queries for betting and text-based betting."""
     # Check if this is a callback query or a text message

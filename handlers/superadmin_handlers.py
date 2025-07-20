@@ -7,9 +7,9 @@ from database.adapter import db_adapter
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
-from config.constants import global_data, SUPER_ADMIN_IDS, ALLOWED_GROUP_IDS, SUPER_ADMINS, get_chat_data_for_id
+from config.constants import global_data, SUPER_ADMIN_IDS, ALLOWED_GROUP_IDS, SUPER_ADMINS, get_chat_data_for_id, ADMIN_WALLET_AMOUNT
 from handlers.utils import load_data_unified, save_data_unified
-from utils.telegram_utils import create_inline_keyboard, is_admin
+from utils.telegram_utils import create_inline_keyboard, is_admin, get_admins_from_chat
 from utils.error_handler import error_handler
 
 from utils.message_formatter import MessageTemplates
@@ -192,6 +192,12 @@ async def handle_mygroups_callback(update: Update, context: ContextTypes.DEFAULT
                 InlineKeyboardButton(
                     "💼 Admin Wallets",
                     callback_data=f"admin_wallets_{group_id}"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "📊 House Statistics",
+                    callback_data=f"housestats_{group_id}"
                 )
             ],
             [
@@ -455,7 +461,6 @@ async def show_group_admin_wallets(update: Update, context: ContextTypes.DEFAULT
         # Get admin data if exists, otherwise use defaults
         if admin_id_str in admin_data:
             data = admin_data[admin_id_str]
-            username = data.get("username") or f"Admin {admin_id}"
             # Fix: Properly access nested chat_points structure
             chat_points_data = data.get("chat_points", {}).get(chat_id_str, {})
             if isinstance(chat_points_data, dict):
@@ -465,18 +470,26 @@ async def show_group_admin_wallets(update: Update, context: ContextTypes.DEFAULT
                 chat_points = 0
                 last_refill = None
         else:
-            # Admin not in data yet, show defaults
-            try:
-                admin_user = await context.bot.get_chat_member(group_id, admin_id)
-                username = admin_user.user.username or admin_user.user.first_name or f"Admin {admin_id}"
-            except Exception:
-                username = f"Admin {admin_id}"
             chat_points = 0
             last_refill = None
         
-        # Clean username and escape for HTML
-        clean_username = username.replace('@', '') if username.startswith('@') else username
-        escaped_username = escape_html(clean_username)
+        # Get admin's display name using the utility function that fetches from Telegram API
+        try:
+            from utils.user_utils import get_user_display_name
+            display_name = await get_user_display_name(context, admin_id, group_id)
+        except Exception:
+            # Fallback to getting username from admin_data or Telegram
+            if admin_id_str in admin_data:
+                display_name = admin_data[admin_id_str].get("username") or f"Admin {admin_id}"
+            else:
+                try:
+                    admin_user = await context.bot.get_chat_member(group_id, admin_id)
+                    display_name = admin_user.user.username or admin_user.user.first_name or f"Admin {admin_id}"
+                except Exception:
+                    display_name = f"Admin {admin_id}"
+        
+        # Escape for HTML
+        escaped_username = escape_html(display_name)
         
         if last_refill:
             # Format the last refill time

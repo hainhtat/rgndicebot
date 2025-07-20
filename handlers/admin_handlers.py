@@ -20,6 +20,7 @@ from utils.message_formatter import MessageTemplates, get_parse_mode_for_message
 from utils.telegram_utils import is_admin, update_group_admins, get_admins_from_chat
 from utils.user_utils import get_user_display_name, adjust_user_score
 from utils.error_handler import error_handler, BotError
+from database.queries import get_daily_house_stats
 
 logger = logging.getLogger(__name__)
 
@@ -563,14 +564,35 @@ async def admin_wallets(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     if is_super_admin:
         # Super admins can see all admin wallets for current admins in the chat
         admin_count = 0
+        max_entries = 15  # Limit to prevent message too long error
+        truncated = False
+        
         for admin_id in current_admins:
+            if admin_count >= max_entries:
+                truncated = True
+                break
+                
             admin_id_str = str(admin_id)
             if admin_id_str in admin_data:
                 admin_count += 1
                 data = admin_data[admin_id_str]
-                username = data.get("username") or f"Admin {admin_id}"
-                chat_points = data.get("chat_points", {}).get(chat_id_str, {}).get("points", 0)
-                last_refill = data.get("chat_points", {}).get(chat_id_str, {}).get("last_refill")
+                
+                # Get admin's display name using the utility function that fetches from Telegram API
+                try:
+                    from utils.user_utils import get_user_display_name
+                    display_name = await get_user_display_name(context, admin_id, chat_id)
+                except Exception:
+                    # Fallback to admin_data username or generic name
+                    display_name = data.get("username") or f"Admin {admin_id}"
+                
+                # Fix: Properly access nested chat_points structure
+                chat_points_data = data.get("chat_points", {}).get(chat_id_str, {})
+                if isinstance(chat_points_data, dict):
+                    chat_points = chat_points_data.get("points", 0)
+                    last_refill = chat_points_data.get("last_refill")
+                else:
+                    chat_points = 0
+                    last_refill = None
                 
                 if last_refill:
                     # Format the last refill time
@@ -585,11 +607,14 @@ async def admin_wallets(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                     last_refill_str = "Never"
                 
                 message += MessageTemplates.ADMIN_WALLET_ENTRY.format(
-                    username=escape_markdown_username(username),
-                    admin_id=admin_id,
+                    username=escape_html(display_name),
                     points=chat_points,
                     last_refill=last_refill_str
                 )
+        
+        if truncated:
+            remaining_count = len([aid for aid in current_admins if str(aid) in admin_data]) - max_entries
+            message += f"\n<i>... and {remaining_count} more admin(s)</i>"
         
         if admin_count == 0:
             message += MessageTemplates.NO_ADMIN_WALLETS_FOUND
@@ -598,9 +623,23 @@ async def admin_wallets(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         admin_id_str = str(user_id)
         if admin_id_str in admin_data:
             data = admin_data[admin_id_str]
-            username = data.get("username") or f"Admin {user_id}"
-            chat_points = data.get("chat_points", {}).get(chat_id_str, {}).get("points", 0)
-            last_refill = data.get("chat_points", {}).get(chat_id_str, {}).get("last_refill")
+            
+            # Get admin's display name using the utility function that fetches from Telegram API
+            try:
+                from utils.user_utils import get_user_display_name
+                display_name = await get_user_display_name(context, user_id, chat_id)
+            except Exception:
+                # Fallback to admin_data username or generic name
+                display_name = data.get("username") or f"Admin {user_id}"
+            
+            # Fix: Properly access nested chat_points structure
+            chat_points_data = data.get("chat_points", {}).get(chat_id_str, {})
+            if isinstance(chat_points_data, dict):
+                chat_points = chat_points_data.get("points", 0)
+                last_refill = chat_points_data.get("last_refill")
+            else:
+                chat_points = 0
+                last_refill = None
             
             if last_refill:
                 # Format the last refill time
@@ -615,23 +654,33 @@ async def admin_wallets(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                 last_refill_str = "Never"
             
             message += MessageTemplates.ADMIN_WALLET_SELF.format(
-                username=escape_markdown_username(username),
-                admin_id=user_id,
+                username=escape_html(display_name),
                 points=chat_points,
                 last_refill=last_refill_str
             )
         else:
             message += MessageTemplates.NO_ADMIN_WALLET
     
+    # Check message length and truncate if necessary
+    max_message_length = 4096  # Telegram's message length limit
+    if len(message) > max_message_length:
+        # Truncate message and add indication
+        truncate_at = max_message_length - 100  # Leave space for truncation message
+        message = message[:truncate_at] + "\n\n<i>... message truncated due to length limit</i>"
+    
     # Send the message
     try:
         await update.message.reply_text(message, parse_mode="HTML")
     except telegram.error.BadRequest as e:
-        # Fallback to plain text if Markdown parsing fails
-        if "can't parse entities" in str(e):
-            # Remove Markdown formatting
-            plain_message = message.replace('**', '')
+        # Handle various BadRequest errors
+        if "can't parse entities" in str(e).lower():
+            # Remove HTML formatting and try again
+            plain_message = re.sub(r'<[^>]+>', '', message)
             await update.message.reply_text(plain_message)
+        elif "message is too long" in str(e).lower():
+            # Further truncate the message
+            truncated_message = message[:3000] + "\n\n... message truncated due to length limit"
+            await update.message.reply_text(truncated_message)
         else:
             # Re-raise if it's a different error
             raise
@@ -891,3 +940,106 @@ async def handle_admin_score_adjustment(update: Update, context: ContextTypes.DE
             old_score=old_score,
             new_score=player_stats['score']
         ))
+
+
+@error_handler
+async def housestats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """
+    Admin command to view house statistics for a specific group.
+    Usage: /housestats [group_id] [days]
+    """
+    # Check if user is an admin
+    if not await check_admin_permission(update, context):
+        return
+    
+    # Parse arguments
+    args = context.args
+    group_id = None
+    days = 1  # Default to today
+    
+    if len(args) >= 1:
+        try:
+            group_id = int(args[0])
+        except ValueError:
+            await update.message.reply_text(
+                "❌ Invalid group ID. Please provide a valid number.",
+                parse_mode="HTML"
+            )
+            return
+    
+    if len(args) >= 2:
+        try:
+            days = int(args[1])
+            if days <= 0:
+                days = 1
+        except ValueError:
+            days = 1
+    
+    # If no group_id provided, use current chat
+    if group_id is None:
+        group_id = update.effective_chat.id
+    
+    # Calculate date range
+    tz = pytz.timezone(TIMEZONE)
+    end_date = datetime.now(tz).replace(hour=23, minute=59, second=59, microsecond=999999)
+    start_date = end_date - timedelta(days=days-1)
+    start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    try:
+        # Get house statistics
+        if USE_DATABASE:
+            stats = get_daily_house_stats(start_date.astimezone(pytz.UTC), end_date.astimezone(pytz.UTC), group_id)
+        else:
+            # Fallback for non-database mode
+            stats = {
+                'total_bets': 0,
+                'total_payouts': 0,
+                'house_profit': 0
+            }
+            await update.message.reply_text(
+                "⚠️ House statistics are only available when database mode is enabled.",
+                parse_mode="HTML"
+            )
+            return
+        
+        # Get group info
+        try:
+            chat = await context.bot.get_chat(group_id)
+            group_name = chat.title or f"Group {group_id}"
+        except Exception:
+            group_name = f"Group {group_id}"
+        
+        # Format the statistics message
+        period_text = "Today" if days == 1 else f"Last {days} days"
+        
+        message = (
+            f"📊 <b>House Statistics</b>\n\n"
+            f"🏢 <b>Group:</b> {escape_html(group_name)}\n"
+            f"📅 <b>Period:</b> {period_text}\n"
+            f"📈 <b>Date Range:</b> {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}\n\n"
+            f"💰 <b>Total Bets:</b> {stats['total_bets']:,} ကျပ်\n"
+            f"💸 <b>Total Payouts:</b> {stats['total_payouts']:,} ကျပ်\n"
+            f"📈 <b>House Profit:</b> {stats['house_profit']:,} ကျပ်\n\n"
+        )
+        
+        # Add profit margin calculation
+        if stats['total_bets'] > 0:
+            profit_margin = (stats['house_profit'] / stats['total_bets']) * 100
+            message += f"📊 <b>Profit Margin:</b> {profit_margin:.2f}%\n"
+        
+        # Add status indicator
+        if stats['house_profit'] > 0:
+            message += "\n✅ <b>Status:</b> Profitable"
+        elif stats['house_profit'] < 0:
+            message += "\n⚠️ <b>Status:</b> Loss"
+        else:
+            message += "\n➖ <b>Status:</b> Break Even"
+        
+        await update.message.reply_text(message, parse_mode="HTML")
+        
+    except Exception as e:
+        logger.error(f"Error getting house statistics: {e}")
+        await update.message.reply_text(
+            "❌ <b>Error retrieving house statistics.</b>\n\nPlease try again later.",
+            parse_mode="HTML"
+        )

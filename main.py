@@ -29,8 +29,8 @@ from utils.scheduler import start_scheduler, stop_scheduler
 import handlers
 
 # Import new handlers
-from handlers.admin_handlers import adjust_score, check_user_score, refresh_admins, stop_game, admin_wallets, manual_refill, handle_admin_score_adjustment
-from handlers.refill_handlers import refill_command, handle_refill_group_selection, handle_refill_action, handle_refill_back_to_groups, handle_refill_amount_command, handle_back_to_groups
+from handlers.admin_handlers import adjust_score, check_user_score, refresh_admins, stop_game, admin_wallets, manual_refill, handle_admin_score_adjustment, housestats_command
+from handlers.refill_handlers import refill_command, handle_refill_group_selection, handle_refill_action, handle_refill_back_to_groups, handle_refill_amount_command, handle_back_to_groups, handle_housestats_callback
 # Removed admin panel handlers - using unified keyboard system
 from handlers.bet_handlers import place_bet, roll_dice
 from handlers import auto_roll_dice_wrapper
@@ -219,10 +219,7 @@ def save_data_unified(global_data: Dict = None) -> None:
         # Database handles saving automatically - no action needed
         logger.debug("Data saving skipped - using database mode")
     else:
-        # File manager was removed during migration
-        # This fallback should not be used in production
-        logger.warning("File manager fallback called but file_manager was removed")
-        logger.warning("Data saving skipped - no file manager available")
+        logger.error("Database mode is disabled but no alternative storage configured")
 
 def load_data_unified() -> Dict:
     """Unified data loading function that uses database when enabled."""
@@ -295,7 +292,7 @@ def load_data_unified() -> Dict:
                     "referral_points": user_data.get('referral_points', 0),
                     "bonus_points": user_data.get('bonus_points', 0),
                     "referred_by": user_data.get('referred_by'),
-                    "welcome_bonus_received": user_data.get('welcome_bonus_received', False),
+                    "welcome_bonus_received": user_data.get('welcome_bonus_received', {}),
                     "last_cashback_date": user_data.get('last_cashback_date')
                 }
             
@@ -338,15 +335,8 @@ def main() -> None:
         if init_database():
             logger.info("Database initialized successfully.")
             
-            # Run migration check to ensure required columns exist
-            try:
-                from render_migration import run_migration
-                logger.info("Checking for required database columns...")
-                run_migration()
-                logger.info("Database migration check completed.")
-            except Exception as e:
-                logger.error(f"Migration check failed: {e}")
-                # Continue anyway - the bot might still work with existing functionality
+            # Database initialization completed successfully
+            logger.info("Database is ready for use.")
         else:
             logger.error("Failed to initialize database. Exiting.")
             return
@@ -389,11 +379,13 @@ def main() -> None:
     application.add_handler(CommandHandler("refill", refill_command))
     application.add_handler(CommandHandler("refill_amount", handle_refill_amount_command))
     application.add_handler(CommandHandler("manualrefill", manual_refill))  # Keep old refill as manual refill
+    application.add_handler(CommandHandler("housestats", housestats_command))
     
     # Refill callback handlers
     application.add_handler(CallbackQueryHandler(handle_refill_group_selection, pattern='^refill_group_'))
     application.add_handler(CallbackQueryHandler(handle_refill_action, pattern='^refill_(all|admin|custom)_'))
     application.add_handler(CallbackQueryHandler(handle_back_to_groups, pattern='^refill_back_to_groups$'))
+    application.add_handler(CallbackQueryHandler(handle_housestats_callback, pattern='^housestats_'))
     
     # Removed admin panel callback handlers - using unified keyboard system
     
@@ -413,10 +405,26 @@ def main() -> None:
     # Share referral callback handler
     application.add_handler(CallbackQueryHandler(handle_share_referral_callback, pattern='^share_referral_'))
 
-    # Message Handlers for text-based betting (e.g., 'b 500', 'big 100')
-    # Improved bet pattern to handle more formats like "b1000", "small 5000", "L200"
-    bet_pattern = re.compile(r"^(big|b|small|s|lucky|l)\s*(\d+)$|^(b|s|l)(\d+)$", re.IGNORECASE)
-    application.add_handler(MessageHandler(filters.TEXT & filters.Regex(bet_pattern), place_bet))
+    # Import the multiple betting handler
+    from handlers.bet_handlers import place_multiple_bets
+    
+    # Message Handlers for multiple betting patterns
+    # Handle multiple bets in one message: "b100 l200 s300", "100b 200l 300s", etc.
+    multiple_bet_pattern = re.compile(r".*(?:(?:b|big|s|small|l|lucky)\s*\d+|\d+\s*(?:b|big|s|small|l|lucky)).*(?:(?:b|big|s|small|l|lucky)\s*\d+|\d+\s*(?:b|big|s|small|l|lucky)).*", re.IGNORECASE)
+    application.add_handler(MessageHandler(filters.TEXT & filters.Regex(multiple_bet_pattern), place_multiple_bets))
+    
+    # Message Handlers for single text-based betting (e.g., 'b 500', 'big 100', '500b', '100big')
+    # Enhanced patterns to handle more formats
+    single_bet_patterns = [
+        re.compile(r"^(big|b|small|s|lucky|l)\s*(\d+)$", re.IGNORECASE),  # b100, big 100
+        re.compile(r"^(b|s|l)(\d+)$", re.IGNORECASE),  # b100, s200, l300
+        re.compile(r"^(\d+)\s*(big|b|small|s|lucky|l)$", re.IGNORECASE),  # 100b, 200 big
+        re.compile(r"^(\d+)(b|s|l)$", re.IGNORECASE),  # 100b, 200s, 300l
+    ]
+    
+    # Add handlers for each single bet pattern
+    for pattern in single_bet_patterns:
+        application.add_handler(MessageHandler(filters.TEXT & filters.Regex(pattern), place_bet))
 
     # Removed keyboard wrapper functions - using unified keyboard system without repeated keyboard sending
 
