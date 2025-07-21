@@ -9,8 +9,9 @@ import pytz
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-from config.constants import get_admin_data, ADMIN_WALLET_AMOUNT, ADMIN_WALLET_REFILL_HOUR, ADMIN_WALLET_REFILL_MINUTE
+from config.constants import get_admin_data, ADMIN_WALLET_AMOUNT, ADMIN_WALLET_REFILL_HOUR, ADMIN_WALLET_REFILL_MINUTE, DAILY_CASHBACK_HOUR, DAILY_CASHBACK_MINUTE
 from config.settings import TIMEZONE
+from utils.daily_bonus import process_daily_cashback
 
 from config.constants import global_data
 
@@ -266,6 +267,19 @@ def start_scheduler():
             replace_existing=True
         )
         
+        # Add daily cashback processing job
+        scheduler.add_job(
+            process_daily_cashback,
+            CronTrigger(
+                hour=DAILY_CASHBACK_HOUR,
+                minute=DAILY_CASHBACK_MINUTE,
+                timezone=tz
+            ),
+            id='daily_cashback_processing',
+            name='Daily Cashback Processing',
+            replace_existing=True
+        )
+        
         # Add auto-roll dice job
         # Note: The auto_roll_dice job is now handled by the main application's job_queue
         # in main.py to ensure proper context is available for sending messages.
@@ -276,6 +290,7 @@ def start_scheduler():
         scheduler.start()
         
         logger.info(f"Scheduler started. Daily admin wallet refill scheduled for {ADMIN_WALLET_REFILL_HOUR:02d}:{ADMIN_WALLET_REFILL_MINUTE:02d} {TIMEZONE}")
+        logger.info(f"Daily cashback processing scheduled for {DAILY_CASHBACK_HOUR:02d}:{DAILY_CASHBACK_MINUTE:02d} {TIMEZONE}")
         
     except Exception as e:
         logger.error(f"Error starting scheduler: {e}")
@@ -335,3 +350,11 @@ async def manual_admin_wallet_refill():
     """
     logger.info("Manual admin wallet refill triggered")
     await daily_admin_wallet_refill()
+
+
+async def manual_daily_cashback(context=None):
+    """
+    Manual trigger for daily cashback processing (for testing purposes).
+    """
+    logger.info("Manual daily cashback processing triggered")
+    await process_daily_cashback(context)

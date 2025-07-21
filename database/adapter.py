@@ -389,7 +389,7 @@ class DatabaseAdapter:
                 game = self.db_queries.create_game(match_data['match_id'], chat_id)
                 if 'result' in match_data:
                     self.db_queries.complete_game(
-                        game.id, 
+                        game['id'], 
                         match_data['result'], 
                         match_data.get('winning_type', '')
                     )

@@ -57,6 +57,10 @@ DEFAULT_BET_TIME_SECONDS = 60
 ADMIN_WALLET_AMOUNT = 10000000  # 10 million points for admin wallets
 ADMIN_WALLET_REFILL_HOUR = 6  # 6 AM Myanmar time for daily refill
 ADMIN_WALLET_REFILL_MINUTE = 0  # Exact minute for refill
+
+# Daily cashback scheduling constants
+DAILY_CASHBACK_HOUR = 1  # 1 AM Myanmar time for daily cashback processing
+DAILY_CASHBACK_MINUTE = 0  # Exact minute for cashback processing
 DEFAULT_AUTO_ROLL_INTERVAL_SECONDS = 5
 DEFAULT_MANUAL_STOP_COOLDOWN_SECONDS = 10  # Cooldown after manual game stop
 
